@@ -20,7 +20,7 @@ service.interceptors.request.use(
 service.interceptors.response.use(
     config => {
         const data = config.data
-        if (data.code && data.code !== 400) {
+        if (data.code && data.code !== "200") {
             //TODO 根据报错代码对错误进行提示
             return Promise.reject('err')
         }
