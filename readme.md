@@ -2,6 +2,7 @@
 
 1. `hahacar-page`为项目前端页面，使用如下方式运行
 ``` cmd
+cd hahacar-page
 npm i
 npm run serve
 ```
