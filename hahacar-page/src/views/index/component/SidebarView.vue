@@ -53,7 +53,7 @@
       }
     },
     created() {
-      this.routes = this.$store.getters.routes
+      this.routes = this.$store.getters.permittedRoutes
     },
     components:{
       MenuItem:{
@@ -79,3 +79,7 @@
     }
   }
 </script>
+
+<style>
+  
+</style>

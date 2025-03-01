@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-upload action="#" list-type="picture-card" :http-request="uploadFile" accept=".mp4,.mov,.avi" ref="upload" :before-upload="beforeUpload"
+        <el-upload action="#" list-type="picture-card" :http-request="uploadFile" accept=".mp4,.mov,.avi,.jpg,.png" ref="upload" :before-upload="beforeUpload"
             :file-list="fileList" :show-file-list="true" :limit="1">
             <i slot="default" class="el-icon-plus"></i>
             <div slot="file" slot-scope="{file}">
@@ -17,7 +17,7 @@
                     </span>
                 </span>
             </div>
-            <div class="el-upload__tip" slot="tip">只能上传mp4/mov/avi视频格式文件</div>
+            <div class="el-upload__tip" slot="tip">支持mp4/mov/avi视频和jpg/png图片</div>
         </el-upload>
         <el-dialog :visible.sync="dialogVisible">
             <img width="100%" :src="dialogImageUrl" alt="">
@@ -26,7 +26,7 @@
 </template>
 
 <script>
-    import { upload } from '@/api/storage/storage.js'
+    import { uploadVideo,uploadPicture } from '@/api/storage/storage.js'
     export default {
         props: {
             urls: {
@@ -57,7 +57,10 @@
             uploadFile(item) {
                 let FormDatas = new FormData()
                 FormDatas.append('file', item.file);
-                upload(FormDatas).
+                const filetype=item.file.type;
+                const isImage=filetype.startsWith('image/');
+                const uploadFunction=isImage?uploadPicture:uploadVideo;
+                uploadFunction(FormDatas).
                     then(res => {
                         const url = res.data.data.url
                         this.fileList.push({
