@@ -59,7 +59,8 @@
 				}
 
 			},
-			SendLogin() {
+			SendLogin(event) {
+				event.preventDefault();
 				this.$store.dispatch('LoginByUserName', {username:this.username,password:this.password}).then(() => {
 					this.$router.push('/').catch(err => {
 						console.log(err)
@@ -77,7 +78,6 @@
 	}
 </script>
 <style scoped>
-	body {}
 
 	.container {
 		display: flex;

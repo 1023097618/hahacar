@@ -32,6 +32,7 @@ const rootRoutes=[
 
 function createRoute() {
   return new Router({
+    mode:'hash',
     routes: constantRoutes
   })
 }
