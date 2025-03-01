@@ -1,8 +1,17 @@
 import request from '@/utils/request'
 
-export function upload(data){
+export function uploadVideo(data){
     return request({
-        url:'/storage/videoupload',
+        url:'/storage/videoUpload',
+        headers:{ "Content-Type": "multipart/form-data" },
+        data:data,
+        method:'post'
+    })
+}
+
+export function uploadPicture(data){
+    return request({
+        url:'/storage/pictureUpload',
         headers:{ "Content-Type": "multipart/form-data" },
         data:data,
         method:'post'

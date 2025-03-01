@@ -22,7 +22,7 @@ service.interceptors.response.use(
         const data = config.data
         if (data.code && data.code !== "200") {
             //TODO 根据报错代码对错误进行提示
-            return Promise.reject('err')
+            return Promise.reject(data)
         }
         if (!data.code) {
             Message.error('后台服务器返回了意料外的结果')

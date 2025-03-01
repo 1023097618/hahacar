@@ -1,7 +1,6 @@
 <template>
   <div class="navbar" style="display: flex; justify-content: space-between;">
-    <el-page-header content="hahacar" style="line-height: 60px;">
-    </el-page-header>
+    <el-header>右半边还需要美化，我知道和左半边的颜色有点不搭</el-header>
   </div>
 </template>
 
