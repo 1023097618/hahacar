@@ -56,7 +56,7 @@ def upload_file():
     #     os.makedirs(upload_folder)
     # 保存文件到指定目录
     file.save(f"{app.config['UPLOAD_FOLDER']}{file.filename}")
-
+    base_name, _ = os.path.splitext(file.filename)  # 获取不带扩展名的 basename
     #构建要喂给yolo的视频路径
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
 
@@ -74,7 +74,8 @@ def upload_file():
     return jsonify({
         "code": "200",
         "data": {
-            "videourl": f"http://localhost:8081/static/processed/videos/{file.filename}"  #可以直接访问
+            # "videourl": f"http://localhost:8081/static/processed/videos/{file.filename}"  #可以直接访问
+            "videourl": f"http://localhost:8081/static/processed/videos/{base_name}_reconstructed.avi"
         },
         "msg": "Video upload and processed successfully！"
     }), 200
