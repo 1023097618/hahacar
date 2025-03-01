@@ -7,7 +7,9 @@ Vue.use(Router)
 
 
 const constantRoutes = [
-  { path: '/login', name: 'loginView', component: () => import('@/views/login/LoginView.vue'), hidden: true }
+  { path: '/login', name: 'loginView', component: () => import('@/views/login/LoginView.vue'), hidden: true },
+  { path: '/resetPasswordByOldPassword', name: 'resetPasswordByOldPasswordView', component: () => import('@/views/login/resetPasswordByOldPasswordView.vue'), hidden: true },
+
 ]
 
 const userRoutes = [
@@ -16,8 +18,9 @@ const userRoutes = [
       { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心'} },
       { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
       { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'} }
-    ]
-  }
+    ],
+  },
+  { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true }
 ]
 
 const rootRoutes=[
@@ -25,9 +28,11 @@ const rootRoutes=[
     path: '', name: 'indexView', component: () => import('@/views/index/indexView.vue'), hidden: false,meta:{title: '主页'}, children: [
       { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心'} },
       { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
-      { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'} }
-    ]
-  }
+      { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'} },
+      { path: '/users', name: 'usrsView', component: () => import('@/views/users/usersView.vue'), hidden: false,meta:{title: '用户管理'} }
+    ],
+  },
+  { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true }
 ]
 
 function createRoute() {

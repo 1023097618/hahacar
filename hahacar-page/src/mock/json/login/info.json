@@ -1,12 +1,12 @@
 {
   "code": "200",
   "data": {
-    "username": "string",
-    "privilege": 1,
-    "userPhone": "string",
-    "userAddress": "string",
-    "userId": 0,
-    "userRealName": "string"
+    "style": 1,
+    "firstLogin": 1,
+    "realName": "张三",
+    "privilege": 2,
+    "username":"1023",
+    "userId":1
   },
   "msg": "string"
 }

@@ -3,24 +3,32 @@
 <template>
 	<div class="container" :style="{ height:containerConfig.height+'px' }">
 		<div class="screen">
+			<div class="close-button" @click="goToLogin">
+				<i class="fas fa-times"></i>
+			</div>
 			<div class="screen__content">
 				<form class="login">
 					<div class="login__field">
 						<i class="login__icon fas fa-user"></i>
 						<input type="text" class="login__input" placeholder="用户名" v-model="username">
 					</div>
+                    <div class="login__field">
+						<i class="login__icon fas fa-lock"></i>
+						<input type="password" class="login__input" placeholder="老密码" v-model="oldPassword">
+					</div>
 					<div class="login__field">
 						<i class="login__icon fas fa-lock"></i>
-						<input type="password" class="login__input" placeholder="密码" v-model="password">
+						<input type="password" class="login__input" placeholder="新密码" v-model="newPassword">
 					</div>
-					<button class="button login__submit" @click="SendLogin">
-						<span class="button__text">登录</span>
+                    <div class="login__field">
+						<i class="login__icon fas fa-lock"></i>
+						<input type="password" class="login__input" placeholder="确认密码" v-model="confirmNewPassword">
+					</div>
+					<button class="button login__submit" @click="SendReset">
+						<span class="button__text">找回密码</span>
 						<i class="button__icon fas fa-chevron-right"></i>
 					</button>
 				</form>
-				<div class="password-reset">
-					<h3 @click="findPassword" class="password-reset-text">找回密码</h3>
-				</div>
 			</div>
 			<div class="screen__background">
 				<span class="screen__background__shape screen__background__shape3"></span>
@@ -41,7 +49,9 @@
 					height: 600
 				},
 				username: "",
-				password: ""
+                oldPassword:"",
+				newPassword: "",
+                confirmNewPassword:""
 			}
 		},
 		methods: {
@@ -54,10 +64,14 @@
 				}
 
 			},
-			SendLogin(event) {
+			SendReset(event) {
 				event.preventDefault();
-				this.$store.dispatch('LoginByUserName', {username:this.username,password:this.password}).then(() => {
-					this.$router.push('/').catch(err => {
+				if(this.newPassword!==this.confirmNewPassword){
+					this.$message.error('密码不一致');
+					return;
+				}
+				this.$store.dispatch('ChangePasswordByOldpassword', {username:this.username,oldPassword:this.oldPassword,newPassword:this.newPassword}).then(() => {
+					this.$router.push('/login').catch(err => {
 						console.log(err)
 					})
 					console.log('success')
@@ -65,15 +79,14 @@
 					console.log(err)
 				})
 			},
-			findPassword(event){
-				event.preventDefault();
-				this.$router.push("/resetPasswordByOldPassword");
+			goToLogin(){
+				this.$router.push("/login")
 			}
 		},
 		created() {
 			this.getHeight()
 			window.addEventListener('resize', this.getHeight)
-		},
+		}
 	}
 </script>
 <style scoped>
@@ -146,7 +159,7 @@
 	.login {
 		width: 320px;
 		padding: 30px;
-		padding-top: 156px;
+		padding-top: 37px;
 	}
 
 	.login__field {
@@ -209,17 +222,34 @@
 		color: #7875B5;
 	}
 
-	.password-reset {
-		position: absolute;
-		height: 140px;
-		width: 160px;
+	.button__text{
 		text-align: center;
-		bottom: 0px;
-		right: 0px;
-		color: #fff;
 	}
 
-	.password-reset-text {
+	.close-button {
 		cursor: pointer;
+		position: absolute;
+		top: 15px;
+		right: 15px;
+		width: 30px;
+		height: 30px;
+		background: rgba(255, 255, 255, 0.8);
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+		transition: background 0.3s ease;
+		z-index: 2;
+	}
+
+	.close-button i {
+		color: #4C489D;
+		font-size: 18px;
+	}
+
+	.close-button:hover {
+		background: rgba(255, 255, 255, 1);
 	}
 </style>

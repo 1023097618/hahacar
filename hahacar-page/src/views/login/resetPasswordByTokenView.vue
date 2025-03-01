@@ -6,21 +6,18 @@
 			<div class="screen__content">
 				<form class="login">
 					<div class="login__field">
-						<i class="login__icon fas fa-user"></i>
-						<input type="text" class="login__input" placeholder="用户名" v-model="username">
-					</div>
-					<div class="login__field">
 						<i class="login__icon fas fa-lock"></i>
-						<input type="password" class="login__input" placeholder="密码" v-model="password">
+						<input type="password" class="login__input" placeholder="新密码" v-model="newPassword">
+					</div>
+                    <div class="login__field">
+						<i class="login__icon fas fa-lock"></i>
+						<input type="password" class="login__input" placeholder="确认密码" v-model="confirmNewPassword">
 					</div>
 					<button class="button login__submit" @click="SendLogin">
-						<span class="button__text">登录</span>
+						<span class="button__text">更改默认密码</span>
 						<i class="button__icon fas fa-chevron-right"></i>
 					</button>
 				</form>
-				<div class="password-reset">
-					<h3 @click="findPassword" class="password-reset-text">找回密码</h3>
-				</div>
 			</div>
 			<div class="screen__background">
 				<span class="screen__background__shape screen__background__shape3"></span>
@@ -34,14 +31,14 @@
 <script>
 
 	export default {
-		name: "LoginView",
+		name: "resetPasswordByTokenView",
 		data() {
 			return {
 				containerConfig: {
 					height: 600
 				},
-				username: "",
-				password: ""
+				newPassword: "",
+                confirmNewPassword:""
 			}
 		},
 		methods: {
@@ -56,18 +53,18 @@
 			},
 			SendLogin(event) {
 				event.preventDefault();
-				this.$store.dispatch('LoginByUserName', {username:this.username,password:this.password}).then(() => {
-					this.$router.push('/').catch(err => {
+				if(this.newPassword!==this.confirmNewPassword){
+					this.$message.error('密码不一致');
+					return;
+				}
+				this.$store.dispatch('ChangePasswordByToken', {newPassword:this.newPassword}).then(() => {
+					this.$router.push('/login').catch(err => {
 						console.log(err)
 					})
 					console.log('success')
 				}).catch(err => {
 					console.log(err)
 				})
-			},
-			findPassword(event){
-				event.preventDefault();
-				this.$router.push("/resetPasswordByOldPassword");
 			}
 		},
 		created() {
@@ -207,19 +204,5 @@
 		font-size: 24px;
 		margin-left: auto;
 		color: #7875B5;
-	}
-
-	.password-reset {
-		position: absolute;
-		height: 140px;
-		width: 160px;
-		text-align: center;
-		bottom: 0px;
-		right: 0px;
-		color: #fff;
-	}
-
-	.password-reset-text {
-		cursor: pointer;
 	}
 </style>

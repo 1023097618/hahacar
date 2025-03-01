@@ -20,30 +20,34 @@
 
 <style>
   .el-header {
-    background-color: #B3C0D1;
+    background-color: #4687ff!important;
     color: #333;
-    line-height: 60px;
+    line-height: 56px!important;
+    height: 56px!important;
   }
 
   .el-aside {
-    background-color: #191924;
+    background-color: var(--sideBarColor);
+    transition: border-color .3s,background-color .3s,color .3s;
   }
 
   .el-main {
     padding: 0px;
-    background-color: #E9EEF3;
+    background-color: var(--mainContent);
   }
 
   .el-menu-item{
-    color: #fff;
-    background-color: #191924;
+    color: var(--sideBarTextColor);
+    background-color: var(--sideBarColor);
   }
 
   .el-menu-item.is-active{
-    color: #fff;
-    background-color: #4687ff;
+    color: var(--sideBarSelectedTextColor);
+    background-color: var(--sideBarSelectedColor) !important;
   }
-  
+  .el-menu-item:hover{
+    background-color: var(--sideBarHoverColor);
+  }
 
 
 </style>
@@ -66,13 +70,14 @@
     methods: {
       //自适应表格高度  0(body边距)+60(navheader边距)
       getHeight() {
-        this.height = window.innerHeight - 60
+        this.height = window.innerHeight - 56
       }
     },
     created() {
       this.getHeight()
       window.addEventListener('resize', this.getHeight)
-    },
+    }
+    ,
     destroyed() {
       window.removeEventListener('resize', this.getHeight)
     },

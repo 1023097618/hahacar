@@ -1,4 +1,4 @@
-import { Login,GetUserInfo } from "@/api/auth/login";
+import { Login,GetUserInfo,changePasswordByOldpassword,changePasswordByToken } from "@/api/auth/login";
 import {SetCookie,RemoveCookie} from "@/utils/auth";
 import {addRootRoute,addUserRoute} from "@/router";
 import router,{resetRouter} from "@/router";
@@ -10,10 +10,10 @@ export default {
         permittedroutes:[],
         user:{
             username:'',
-            userPhone:'',
-            userAddress:'',
-            userId:'',
-            userRealName:'',
+            realName:'',
+            style:0,
+            userId:0,
+            firstLogin:1
         }
     },
     mutations:{
@@ -24,7 +24,7 @@ export default {
             if(state.permitted===0){
             state.permitted=privilege
             if(state.permitted===1){
-            state.permittedroutes=addUserRoute()
+                state.permittedroutes=addUserRoute()
             }else if(state.permitted===2){
                 state.permittedroutes=addRootRoute()
             }
@@ -32,11 +32,10 @@ export default {
         }
         },
         SET_USER(state,user){
+            state.user.firstLogin=user.firstLogin
             state.user.username=user.username
-            state.user.userRealName=user.userRealName
-            state.user.userAddress=user.userAddress
+            state.user.realName=user.realName
             state.user.userId=user.userId
-            state.user.userPhone=user.userPhone
         },
         REMOVE_TOKEN(state){
             state.token=''
@@ -79,6 +78,26 @@ export default {
             RemoveCookie()
             commit('REMOVE_PERMS')
             commit('REMOVE_TOKEN')
+        },
+        ChangePasswordByOldpassword({commit},data){
+            return new Promise((resolve,reject)=>{
+                changePasswordByOldpassword(data).then(()=>{
+                    commit("REMOVE_TOKEN")
+                    resolve()
+                }).catch(err=>{
+                    reject(err)
+                })
+            })
+        },
+        ChangePasswordByToken({commit},data){
+            return new Promise((resolve,reject)=>{
+                changePasswordByToken(data).then(()=>{
+                    commit("REMOVE_TOKEN")
+                    resolve()
+                }).catch(err=>{
+                    reject(err)
+                })
+            })
         }
     }
 }

@@ -5,6 +5,8 @@ import store from './store'
 import './permission'
 import ElementUI from 'element-ui'
 import('element-ui/lib/theme-chalk/index.css');
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 //伪造后端请求(调试用)
 // import './mock'
 Vue.use(ElementUI)

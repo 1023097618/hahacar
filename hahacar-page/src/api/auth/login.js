@@ -18,9 +18,17 @@ export function GetUserInfo(token){
     })
 }
 
-export function changePassword(data){
+export function changePasswordByOldpassword(data){
     return request({
-        url:'/auth/changePassword',
+        url:'/auth/changePasswordByOldpassword',
+        data,
+        method:'post'
+    })
+}
+
+export function changePasswordByToken(data){
+    return request({
+        url:'/auth/changePasswordByToken',
         data,
         method:'post'
     })
