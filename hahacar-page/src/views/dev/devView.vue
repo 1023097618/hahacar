@@ -21,9 +21,8 @@
   </script> -->
 
   
-  <template>
+  <!-- <template>
     <div id="app">
-      <!-- 使用后端推流地址，注意跨域问题，如需可配置 CORS -->
       <img :src="videoSrc" alt="视频流" />
     </div>
   </template>
@@ -33,7 +32,6 @@
     name: "App",
     data() {
       return {
-        // 根据实际情况修改地址，默认后端运行在 localhost:5000
         videoSrc: "http://localhost:5000/video_feed"
       };
     }
@@ -46,5 +44,43 @@
     text-align: center;
     margin-top: 20px;
   }
-  </style>
+  </style> -->
+  
+
+  <template>
+    <div>
+      <button @click="sendCustomEvent">Send Custom Event</button>
+    </div>
+  </template>
+  
+  <script>
+  import { io } from "socket.io-client";
+  
+  export default {
+    data() {
+      return {
+        socket: null,
+      };
+    },
+    mounted() {
+      this.socket = io("http://localhost:5000");
+  
+      // 监听后端的 response_event 事件
+      this.socket.on("response_event", (data) => {
+        console.log("Received from server:", data);
+      });
+    },
+    methods: {
+      sendCustomEvent() {
+        this.socket.emit("custom_event", { username: "Alice", message: "Hello Server!" });
+      },
+    },
+    beforeUnmount() {
+      if (this.socket) {
+        this.socket.disconnect();
+      }
+    },
+  };
+  </script>
+  
   
