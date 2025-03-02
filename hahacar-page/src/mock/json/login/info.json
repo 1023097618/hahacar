@@ -2,7 +2,7 @@
   "code": "200",
   "data": {
     "style": 1,
-    "firstLogin": 1,
+    "firstLogin": 0,
     "realName": "张三",
     "privilege": 2,
     "username":"1023",
