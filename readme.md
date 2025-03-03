@@ -9,14 +9,24 @@ npm run serve
 
 2. `hahacar-serve`为项目后端，使用如下方式运行
 
-python版本为`3.11.7`，使用如下命令创建一个虚拟环境(暂时别这么安装requirement.txt的包有冲突，没配置好)
+python版本为`3.11.7`，使用如下命令创建一个虚拟环境
 ``` cmd
 conda create --name hahacar python=3.11.7
 conda activate hahacar
-cd hahacar-serve
-pip install -r requirement.txt
+cd hahacar_server
+pip install -r require.txt
+```
+后端启动：
+yourpath改为你本地的项目路径
+``` cmd
+set PYTHONPATH={yourpath}\hahacar-serve
 ```
 
+``` cmd
+uvicorn main:app --host 0.0.0.0 --port 8081 --reload
+```
+
+[此处后面会调整，暂时不调用模型]
 由于需要调用模型，需要先将yolo模型本地部署，否则无法运行
 
 - 本地部署[yolo模型](https://github.com/dyh/unbox_yolov5_deepsort_counting?tab=readme-ov-file)
