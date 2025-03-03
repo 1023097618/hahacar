@@ -49,38 +49,38 @@
 
   <template>
     <div>
-      <button @click="sendCustomEvent">Send Custom Event</button>
+      <!-- <button @click="sendCustomEvent">Send Custom Event</button> -->
     </div>
   </template>
   
   <script>
-  import { io } from "socket.io-client";
+  // import { io } from "socket.io-client";
   
-  export default {
-    data() {
-      return {
-        socket: null,
-      };
-    },
-    mounted() {
-      this.socket = io("http://localhost:5000");
+  // export default {
+  //   data() {
+  //     return {
+  //       socket: null,
+  //     };
+  //   },
+  //   mounted() {
+  //     this.socket = io("http://localhost:5000");
   
-      // 监听后端的 response_event 事件
-      this.socket.on("response_event", (data) => {
-        console.log("Received from server:", data);
-      });
-    },
-    methods: {
-      sendCustomEvent() {
-        this.socket.emit("custom_event", { username: "Alice", message: "Hello Server!" });
-      },
-    },
-    beforeUnmount() {
-      if (this.socket) {
-        this.socket.disconnect();
-      }
-    },
-  };
+  //     // 监听后端的 response_event 事件
+  //     this.socket.on("response_event", (data) => {
+  //       console.log("Received from server:", data);
+  //     });
+  //   },
+  //   methods: {
+  //     sendCustomEvent() {
+  //       this.socket.emit("custom_event", { username: "Alice", message: "Hello Server!" });
+  //     },
+  //   },
+  //   beforeUnmount() {
+  //     if (this.socket) {
+  //       this.socket.disconnect();
+  //     }
+  //   },
+  // };
   </script>
   
   
