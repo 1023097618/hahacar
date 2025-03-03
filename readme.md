@@ -7,7 +7,7 @@ npm i
 npm run serve
 ```
 
-2. `hahacar-serve`为项目后端，使用如下方式运行
+2. `hahacar-serve`为项目后端，使用如下方式运行[已测试]
 
 python版本为`3.11.7`，使用如下命令创建一个虚拟环境
 ``` cmd
