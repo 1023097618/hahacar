@@ -25,6 +25,7 @@ set PYTHONPATH={yourpath}\hahacar-serve
 ``` cmd
 uvicorn main:app --host 0.0.0.0 --port 8081 --reload
 ```
+浏览器访问http://127.0.0.1:8000/docs可查看API文档
 
 [此处后面会调整，暂时不调用模型]
 由于需要调用模型，需要先将yolo模型本地部署，否则无法运行
