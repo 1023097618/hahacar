@@ -18,7 +18,7 @@ class UserCreate(BaseModel):
     None
     """
     username: str
-    realname: str
+    realName: str
 
 class UserCreateResponse(BaseModel):
     """
@@ -115,4 +115,4 @@ class TokenPasswordRequest(BaseModel):
     new_password: str
 
 class UpdateStyleRequest(BaseModel):
-    style: int
+    style: str

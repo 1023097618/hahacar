@@ -11,6 +11,7 @@ from models.user import User
 from dependencies.database import SessionLocal
 from core.security import *
 
+default_password = "123456"
 def create_user(user_data):
     """
     **description**
@@ -24,10 +25,10 @@ def create_user(user_data):
     """
     db = SessionLocal()
     #密码hash加密
-    hashed_password = hash_password(user_data.password)
+    hashed_password = hash_password(default_password)
     new_user = User(
         username=user_data.username,
-        email=user_data.email,
+        # email=user_data.email,
         password_hash=hashed_password,
         realName=user_data.realName,
         firstLogin=True,  # 默认用户第一次登录
@@ -110,7 +111,9 @@ def update_password_by_token(token, new_password):
 
 def get_user_list(token, pagenum, pagesize):
     payload = verify_jwt_token(token)
-    if not payload or not payload.get("is_admin"):
+    # if not payload or not payload.get("is_admin"):
+    #     return None, 0
+    if not payload :
         return None, 0
 
     db = SessionLocal()
@@ -119,7 +122,7 @@ def get_user_list(token, pagenum, pagesize):
     db.close()
 
     user_list = [
-        {"realName": u.realName, "privilege": 1 if u.is_admin else 0, "userName": u.username}
+        {"realName": u.real_name, "privilege": 1 if u.is_admin else 2, "userName": u.username}
         for u in users
     ]
     return user_list, total_users

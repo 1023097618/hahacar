@@ -1,5 +1,6 @@
 #sqlalchemy是一个Python SQL工具包和ORM框架，用于数据库访问
 import datetime
+import enum
 import os
 import sys
 from sqlalchemy import Column, Integer, String, Boolean, Enum, DateTime
@@ -34,7 +35,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=True)
     password_hash = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
@@ -42,3 +43,10 @@ class User(Base):
     real_name = Column(String, default="")
     style = Column(Enum("1", "2", "3", name="style_enum"), default="1")  # 限定枚举值
     created_at = Column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+
+    # class StyleEnum(str, Enum):
+    #     STYLE_1 = "1"
+    #     STYLE_2 = "2"
+    #     STYLE_3 = "3"
+    #
+    # style = Column(Enum(StyleEnum, name="style_enum"), default=StyleEnum.STYLE_1)

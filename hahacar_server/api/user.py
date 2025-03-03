@@ -103,7 +103,7 @@ def change_password(password_data: UpdatePasswordRequest):
     **returns**
     修改成功或失败信息。
     """
-    success = update_password(password_data.username, password_data.oldPassword, password_data.newPassword)
+    success = update_password(password_data.username, password_data.old_password, password_data.new_password)
     if not success:
         raise HTTPException(status_code=400, detail="旧密码错误或用户不存在")
     return {"code": "200", "msg": "密码修改成功", "data": {}}
@@ -126,7 +126,7 @@ def change_password_by_token(
     **returns**
     修改成功或失败信息。
     """
-    success = update_password_by_token(token, password_data.newPassword)
+    success = update_password_by_token(token, password_data.new_password)
     if not success:
         raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
     return {"code": "200", "msg": "密码修改成功", "data": {}}
@@ -180,7 +180,7 @@ def update_user_style_api(
     **returns**
     成功或失败信息。
     """
-    if style_data.style not in [1, 2, 3]:
+    if style_data.style not in ["1","2", "3"]:
         raise HTTPException(status_code=400, detail="样式值必须为 1, 2, 3")
 
     success = update_user_style(token, style_data.style)

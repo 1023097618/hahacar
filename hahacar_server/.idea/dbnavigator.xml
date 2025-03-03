@@ -30,16 +30,24 @@
       <console name="Connection" type="STANDARD" schema="main" session="Main"><![CDATA[INSERT INTO users (username, email, password_hash, is_active, is_admin, first_login, real_name, style, created_at)
 VALUES ('yuxin', 'yuxin@example.com', '$2b$12$n.Aaf3K5TzMA6Bpns7qw6ecZu5PoRK6iOB.a68EP4VLoKGkJM3Mpm', 1, 0, 1, 'yuxin', '1', datetime('now'));
 
-select * from users;]]></console>
+UPDATE users
+SET is_admin = 1
+WHERE username = 'yuxin';
+
+select * from users;
+
+INSERT INTO users (username, email, password_hash, is_active, is_admin, first_login, real_name, style, created_at)
+VALUES ('王恩宇', 'enyu@example.com', '$2b$12$n.Aaf3K5TzMA6Bpns7qw6ecZu5PoRK6iOB.a68EP4VLoKGkJM3Mpm', 1, 1, 1, '王恩宇', '1', datetime('now'));
+
+INSERT INTO users (username, email, password_hash, is_active, is_admin, first_login, real_name, style, created_at)
+VALUES ('蜡笔小新', 'xiaoxin@example.com', '$2b$12$n.Aaf3K5TzMA6Bpns7qw6ecZu5PoRK6iOB.a68EP4VLoKGkJM3Mpm', 1, 0, 1, '蜡笔小新', '2', datetime('now'));]]></console>
     </connection>
   </component>
   <component name="DBNavigator.Project.DatabaseEditorStateManager">
     <last-used-providers />
   </component>
   <component name="DBNavigator.Project.DatabaseFileManager">
-    <open-files>
-      <object connection-id="c755402c-812e-45b2-aedb-fb6b7005e3c6" object-ref="consoles/Connection" />
-    </open-files>
+    <open-files />
   </component>
   <component name="DBNavigator.Project.DatabaseSessionManager">
     <connection id="c755402c-812e-45b2-aedb-fb6b7005e3c6" />
