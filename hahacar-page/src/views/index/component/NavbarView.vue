@@ -1,7 +1,7 @@
 <template>
   <div class="navbar" style="display: flex; justify-content: flex-end">
     <el-header>
-      <el-select v-model="styleValue" placeholder="请选择" @change="selectStyle" select="mini">
+      <el-select :value="styleValue" placeholder="请选择" @change="selectStyle" select="mini">
         <el-option v-for="item in styles" :key="item.value" :label="item.label" :value="item.value">
           <i :class="item.icon"></i>
           <span>{{ item.label }}</span>
@@ -19,32 +19,32 @@
       return {
         styles: [
           {
-            "label": "白天模式",
+            "label": "浅色",
             "value": 1,
             "icon":"fas fa-sun"
           }, {
-            "label": "黑夜模式",
+            "label": "深色",
             "value": 2,
             "icon":"fas fa-moon"
           },
           {
-            "label": "跟随系统",
+            "label": "系统",
             "value": 3,
             "icon":"fas fa-gear"
           }
         ],
-        styleValue: 1,
         mediaQuery: window.matchMedia('(prefers-color-scheme: dark)')
       }
     },
     computed: {
-      key() {
-        return this.$route.fullPath
+      styleValue(){
+        return this.$store.getters.user.style
       }
     },
     methods: {
       selectStyle(newValue) {
         styleChange({ "style": newValue }).then(() => {
+          this.$store.dispatch("UpdateUserTheme",newValue)
           this.updateTheme()
         }).catch(err => {
           console.log(err)
@@ -77,10 +77,11 @@
     },
     created() {
       this.mediaQuery.addEventListener('change', this.selectStyle);
+      this.updateTheme()
     },
     beforeDestroy() {
       this.mediaQuery.removeEventListener('change', this.selectStyle);
-    },
+    }
 
   }
 </script>
@@ -108,6 +109,6 @@
   }
   
   .el-select{
-    width: 118px;
+    width: 90px;
   }
 </style>
