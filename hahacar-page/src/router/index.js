@@ -18,7 +18,7 @@ const userRoutes = [
       { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心'} },
       { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
       { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'}},
-      { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
+      // { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
     ],
   },
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true }
@@ -31,7 +31,7 @@ const rootRoutes=[
       { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
       { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'} },
       { path: '/users', name: 'usrsView', component: () => import('@/views/users/usersView.vue'), hidden: false,meta:{title: '用户管理'} },
-      { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
+      // { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
     ],
   },
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true }
