@@ -124,3 +124,4 @@ class Exception(BaseModel):
     msg: str
     data: Optional[Any]  # `data` 可以是任何数据类型，例如 UserResponse
 
+

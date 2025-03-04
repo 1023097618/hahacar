@@ -199,4 +199,5 @@ def update_user_style_api(
         # raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
         # raise CustomHTTPException(code="401", msg="Token 无效或用户不存在", data="")
         return {"code": "401", "msg": "Token 无效或用户不存在", "data": ""}
+
     return {"code": "200", "msg": "样式更新成功", "data": {}}
