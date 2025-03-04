@@ -84,7 +84,7 @@ module.exports = {
   devServer:{
     port: process.env.VUE_APP_startPort,
     proxy:{
-      '/':{
+      '/api':{
         target: process.env.VUE_APP_baseurl,//后端接口地址
         changeOrigin: true,//是否允许跨越
         pathRewrite: {
