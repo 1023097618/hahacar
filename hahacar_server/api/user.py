@@ -26,7 +26,8 @@ def register_user(user_data: UserCreate):
     """
     user = create_user(user_data)
     if not user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        # raise HTTPException(status_code=400, detail="Username already registered")
+        return {"code":"400", "msg":"Username already registered", "data":""}
     return {
         "code": "200",
         "msg": "Register Successfully"
@@ -47,8 +48,9 @@ def login(user_data: UserLogin):
     """
     user = authenticate_user(user_data.username, user_data.password)
     if not user:
-        raise HTTPException(status_code=400, detail="password not right")
-    token = create_jwt_token({"sub": user.id})
+        # raise CustomHTTPException(code="400", msg="password not right",data="")
+        return {"code": "400", "msg": "password not right", "data": ""}
+    token = create_jwt_token({"sub": str(user.id)})
     return {
         "code": "200",
         "msg": "Login Successfully",
@@ -72,7 +74,9 @@ def get_user_info(token: str):
     """
     user = get_user_by_token(token)
     if not user:
-        raise HTTPException(status_code=401, detail="Token useless")
+        # raise HTTPException(status_code=401, detail="Token useless")
+        # raise CustomHTTPException(code="401", msg="Token useless", data="")
+        return {"code": "401", "msg": "Token useless", "data": ""}
 
     # 构造用户信息
     user_response = UserInfoResponse(
@@ -105,7 +109,9 @@ def change_password(password_data: UpdatePasswordRequest):
     """
     success = update_password(password_data.username, password_data.old_password, password_data.new_password)
     if not success:
-        raise HTTPException(status_code=400, detail="旧密码错误或用户不存在")
+        # raise HTTPException(status_code=400, detail="旧密码错误或用户不存在")
+        # raise CustomHTTPException(code="400", msg="旧密码错误或用户不存在", data="")
+        return {"code": "400", "msg": "旧密码错误或用户不存在", "data": ""}
     return {"code": "200", "msg": "密码修改成功", "data": {}}
 
 
@@ -128,7 +134,9 @@ def change_password_by_token(
     """
     success = update_password_by_token(token, password_data.new_password)
     if not success:
-        raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
+        # raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
+        # raise CustomHTTPException(code="401", msg="Token 无效或用户不存在", data="")
+        return {"code": "400", "msg": "Token 无效或用户不存在", "data": ""}
     return {"code": "200", "msg": "密码修改成功", "data": {}}
 
 #获取用户列表（基于管理员Token）
@@ -152,8 +160,9 @@ def get_users(
     """
     users, total_users = get_user_list(token, pagenum, pagesize)
     if users is None:
-        raise HTTPException(status_code=401, detail="未认证的管理员")
-
+        # raise HTTPException(status_code=401, detail="未认证的管理员")
+        # raise CustomHTTPException(code="401", msg="未认证的管理员", data="")
+        return {"code": "401", "msg": "未认证的管理员", "data": ""}
     return {
         "code": "200",
         "msg": "获取成功",
@@ -181,10 +190,13 @@ def update_user_style_api(
     成功或失败信息。
     """
     if style_data.style not in ["1","2", "3"]:
-        raise HTTPException(status_code=400, detail="样式值必须为 1, 2, 3")
+        # raise CustomHTTPException(code="400", msg="样式值必须为 1, 2, 3", data="")
+        return {"code": "400", "msg": "样式值必须为 1, 2, 3", "data": ""}
+        # raise HTTPException(status_code=400, detail="样式值必须为 1, 2, 3")
 
     success = update_user_style(token, style_data.style)
     if not success:
-        raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
-
+        # raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
+        # raise CustomHTTPException(code="401", msg="Token 无效或用户不存在", data="")
+        return {"code": "401", "msg": "Token 无效或用户不存在", "data": ""}
     return {"code": "200", "msg": "样式更新成功", "data": {}}

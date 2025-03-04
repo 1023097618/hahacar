@@ -2,6 +2,7 @@
 #定义Pydantic模型，用于请求和响应的数据格式的数据传输
 from typing import Optional, Any
 
+from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr
 
 class UserCreate(BaseModel):
@@ -116,3 +117,10 @@ class TokenPasswordRequest(BaseModel):
 
 class UpdateStyleRequest(BaseModel):
     style: str
+
+
+class Exception(BaseModel):
+    code: str
+    msg: str
+    data: Optional[Any]  # `data` 可以是任何数据类型，例如 UserResponse
+
