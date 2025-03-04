@@ -3,6 +3,7 @@ import axios from "axios";
 import { Message } from "element-ui";
 const baseurl = process.env.VUE_APP_baseurl
 const tokenName = process.env.VUE_APP_tokenName
+const socketName = process.env.VUE_APP_socketName
 const service = axios.create(
     {
         baseURL: baseurl
@@ -12,6 +13,7 @@ service.interceptors.request.use(
     config => {
         if (store.getters.token) {
             config.headers[tokenName] = store.getters.token
+            config.headers[socketName]=store.getters.sid
         }
         return config
     }
