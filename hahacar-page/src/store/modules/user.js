@@ -36,6 +36,7 @@ export default {
             state.user.username=user.username
             state.user.realName=user.realName
             state.user.userId=user.userId
+            state.user.style=user.style
         },
         REMOVE_TOKEN(state){
             state.token=''
@@ -43,6 +44,9 @@ export default {
         REMOVE_PERMS(state){
             state.permitted=0
             resetRouter()
+        },
+        UPDATE_USER_THEME(state,style){
+            state.user.style=style
         }
     },
     actions:{
@@ -98,6 +102,9 @@ export default {
                     reject(err)
                 })
             })
+        },
+        UpdateUserTheme({commit},style){
+            commit("UPDATE_USER_THEME",style)
         }
     }
 }
