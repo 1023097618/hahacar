@@ -190,14 +190,10 @@ def update_user_style_api(
     成功或失败信息。
     """
     if style_data.style not in ["1","2", "3"]:
-        # raise CustomHTTPException(code="400", msg="样式值必须为 1, 2, 3", data="")
         return {"code": "400", "msg": "样式值必须为 1, 2, 3", "data": ""}
-        # raise HTTPException(status_code=400, detail="样式值必须为 1, 2, 3")
 
     success = update_user_style(token, style_data.style)
     if not success:
-        # raise HTTPException(status_code=401, detail="Token 无效或用户不存在")
-        # raise CustomHTTPException(code="401", msg="Token 无效或用户不存在", data="")
         return {"code": "401", "msg": "Token 无效或用户不存在", "data": ""}
 
     return {"code": "200", "msg": "样式更新成功", "data": {}}

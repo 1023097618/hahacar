@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.user import router as user_router
-from api.model import router as model_router
-
+from api.photo_process import router as photo_router
+from api.video_process import router as video_router
+from api.camera_process import router as camera_router
 app = FastAPI()
 
 # 配置 CORS
@@ -16,7 +17,9 @@ app.add_middleware(
 
 #注册路由
 app.include_router(user_router)
-app.include_router(model_router)
+app.include_router(photo_router)
+app.include_router(video_router)
+app.include_router(camera_router)
 
 @app.get("/")
 def read_root():
