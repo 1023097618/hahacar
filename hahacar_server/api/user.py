@@ -140,7 +140,7 @@ def change_password_by_token(
     return {"code": "200", "msg": "密码修改成功", "data": {}}
 
 #获取用户列表（基于管理员Token）
-@router.get("/auth/getUsers")
+@router.get("/user/getUsers")
 def get_users(
         pagenum: int = Query(..., description="当前页码"),
         pagesize: int = Query(..., description="每页数据量"),
