@@ -3,7 +3,7 @@ import os
 import time
 import uuid
 import socketio
-
+from natsort import natsorted
 import cv2
 from fastapi import APIRouter, UploadFile, WebSocketDisconnect, BackgroundTasks, File, HTTPException, WebSocket, Header
 from fastapi.responses import JSONResponse, FileResponse
@@ -16,10 +16,10 @@ from util.detector import Detector
 router = APIRouter(prefix="/api")
 
 # **确保使用绝对路径**
-UPLOAD_FOLDER = os.path.abspath("../static/uploads/videos/")        #存储原始上传视频
-SAVE_FOLDER = os.path.abspath("../static/processed/videos/frames")  #用于存储视频每帧的处理后图片
-PROCESSED_FOLDER = os.path.abspath("../static/processed/videos/")   #存储处理后视频
-FRAMES_INFO_FOLDER =  os.path.abspath("../static/processed/videos/frames/info")  #用于存储视频每帧的处理后图片的信息
+UPLOAD_FOLDER = os.path.abspath("./static/uploads/videos/")        #存储原始上传视频
+SAVE_FOLDER = os.path.abspath("./static/processed/videos/frames")  #用于存储视频每帧的处理后图片
+PROCESSED_FOLDER = os.path.abspath("./static/processed/videos/")   #存储处理后视频
+FRAMES_INFO_FOLDER =  os.path.abspath("./static/processed/videos/frames/info")  #用于存储视频每帧的处理后图片的信息
 
 # 确保目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -54,24 +54,24 @@ async def video_detect(
         background_tasks: BackgroundTasks,
         video: UploadFile = File(...),
         token: str = Header(None, alias="X-HAHACAR-TOKEN"),
-        sid: str = Header(None, alias="X-HAHACAR-SOCKET")):   #测试时使用
+        sid: str = Header(None, alias="X-HAHACAR-SOCKET")):
     """
     **description**
     接收视频文件，后台进行目标检测，并通过 WebSocket 实时推送处理进度。
 
     **params**
     - video (UploadFile): 上传的视频文件。
-    - sid (str): WebSocket 客户端 ID。
+    - sid (str): Socketio 客户端 ID。
 
     **returns**
     - JSON: 任务状态
     """
 
     # **Token 验证**
-    if token is None or not is_admin(token):
+    if token is None or is_admin(token):
         return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
 
-    if not sid or sid not in active_connections:
+    if sid not in active_connections:
         return JSONResponse(content={"code": "400","data":{}, "msg": "Invalid or missing Socket ID"}, status_code=400)
 
     # **生成唯一 task_id**
@@ -99,7 +99,7 @@ async def process_video(file_path: str, task_id: str, sid: str):
     **params**
     - file_path (str): 原始视频路径
     - task_id (str): 任务 ID
-    - sid (str): WebSocket 客户端 ID
+    - sid (str): Socketio 客户端 ID
 
     **returns**
     - None
@@ -116,8 +116,10 @@ async def process_video(file_path: str, task_id: str, sid: str):
 
     # **视频参数**
     fps = int(cap.get(cv2.CAP_PROP_FPS))
+    print(f"fps是:{fps}")
     if fps == 0 or fps is None:
-        fps = 30.0  # 设置默认帧率，避免错误
+        fps = 30  # 设置默认帧率，避免错误
+    print(f"fps是:{fps}")
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -130,10 +132,10 @@ async def process_video(file_path: str, task_id: str, sid: str):
     # **初始化视频写入器**
     processed_filename = f"processed_{task_id}.mp4"
     processed_filepath = os.path.join(PROCESSED_FOLDER, processed_filename)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # H.264 / MP4
+    fourcc = cv2.VideoWriter_fourcc(*'H264')  # H.264 / MP4
     out = cv2.VideoWriter(processed_filepath, fourcc, fps, (frame_width, frame_height))
 
-    target_classes = {"car", "bus", "van", "truck"}
+    # target_classes = {"car", "bus", "van", "truck"}
 
     # **逐帧运行yolo检测处理**
     frame_index = 0
@@ -144,39 +146,41 @@ async def process_video(file_path: str, task_id: str, sid: str):
 
         processedImg, detailedResult = detector.detect(frame, addingBoxes=False, addingLabel=False, addingConf=False)
         # **筛选 labels，只保留 car, bus, van,truck**
-        filtered_labels = []
-        filtered_confidence = []
-        filtered_counts = {}
+        # filtered_labels = []
+        # filtered_confidence = []
+        # filtered_counts = {}
 
         #后面需要在模型那里改不然效率太低了
-        for i, label in enumerate(detailedResult.get("labels", [])):
-            if label in target_classes:
-                filtered_labels.append(label)
-                filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
-                filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
+        # for i, label in enumerate(detailedResult.get("labels", [])):
+        #     if label in target_classes:
+        #         filtered_labels.append(label)
+        #         filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
+        #         filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
 
-                # 保存处理后的图片
-                timestamp = time.time_ns()
-                file_name = f"processed_{timestamp}.jpg"
-                file_path = os.path.join(SAVE_FOLDER, file_name)
-                cv2.imwrite(file_path, cv2.cvtColor(processedImg, cv2.COLOR_RGB2BGR))
+        # 保存处理后的图片
+        timestamp = time.time_ns()
+        file_name = f"processed_{timestamp}.jpg"
+        # file_path = os.path.join(SAVE_FOLDER, file_name)
+        # cv2.imwrite(file_path, cv2.cvtColor(processedImg, cv2.COLOR_RGB2BGR))
 
-                # **构造 JSON 数据**
-                result_data = {
-                    "filename": file_name,
-                    "labels": filtered_labels,
-                    "confidence": filtered_confidence,
-                    "count": filtered_counts
-                }
-
-                # **存储 JSON 结果**
-                json_file_path = os.path.join(FRAMES_INFO_FOLDER, f"processed_{timestamp}.json")
-                with open(json_file_path, "w") as json_file:
-                    json.dump(result_data, json_file, indent=4)
-
-                print(f"Saved: {file_name} and {json_file_path}")
-        # **写入处理后的视频帧**
+        #写入处理后的视频帧
         out.write(cv2.cvtColor(processedImg, cv2.COLOR_RGB2BGR))
+
+        # **构造 JSON 数据**
+        result_data = {
+            "filename": file_name,
+            "labels": detailedResult["labels"],
+            "confidence": detailedResult["confidence"],
+            "count": detailedResult["count"]
+        }
+
+        # **存储 JSON 结果**
+        os.makedirs(FRAMES_INFO_FOLDER, exist_ok=True)
+        json_file_path = os.path.join(FRAMES_INFO_FOLDER, f"processed_{timestamp}.json")
+        with open(json_file_path, "w") as json_file:
+            json.dump(result_data, json_file, indent=4)
+
+        print(f"Saved: {file_name} and {json_file_path}")
 
         # 模拟处理进度：从 0 到 100，每 10% 更新一次，视频处理结束之前发送progressValue和taskId
         progress = int((frame_index / total_frames) * 100) if total_frames > 0 else 0
@@ -191,6 +195,7 @@ async def process_video(file_path: str, task_id: str, sid: str):
 
     cap.release()  # 释放视频资源
     out.release()   #关闭视频写入器
+
 
     # 构造返回的 URL
     watchURL = f"{URL}/api/watch/video/{processed_filename}"

@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from services.user_service import is_admin
 from util.detector import Detector
 from fastapi.responses import JSONResponse, FileResponse
+from api.socket_manager import sio
 
 router = APIRouter(prefix="/api")
 
@@ -88,7 +89,7 @@ def process_frame(frame):
     return processedImg,detailedResult
 
 # **视频流生成器**
-def generate_frames(websocket=None):
+def generate_frames():
     cap = cv2.VideoCapture(RTSP_URL)
 
     while True:
@@ -103,14 +104,13 @@ def generate_frames(websocket=None):
         #保存原始帧、处理后的帧和信息
         save_processed_frame(frame, processed, detailedResult)
 
+        # **Socket.IO 发送 JSON 结果**
+        sio.emit("detection", detailedResult)
+
         ret, buffer = cv2.imencode('.jpg', processed)
         if not ret:
             continue
         frame_bytes = buffer.tobytes()
-
-        # **WebSocket 发送 JSON 检测结果**
-        if websocket and websocket.client_state == 1:  # WebSocket 连接正常
-            asyncio.create_task(websocket.send_json({"detection": detailedResult}))
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
@@ -134,36 +134,30 @@ async def proxy_video_feed(token: str = Query(..., description="访问权限 Tok
     if token is None or not is_admin(token):
         return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
 
-    frames = generate_frames()
-    if frames is None:
-        return JSONResponse(content={"code": "500", "data": {}, "msg": "无法连接到 RTSP 流"}, status_code=500)
-
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
-# **WebSocket 端点：发送 YOLOv8 检测结果**
-@router.websocket("/ws/video_feed")
-async def video_feed_websocket(websocket: WebSocket):
+
+# **Socket.IO 端点：发送 YOLOv8 检测结果**
+@sio.event
+async def video_feed(sid):
     """
     **description**
-    WebSocket 连接，实时推送 YOLOv8 目标检测结果（不包含视频流）。
+    Socket.IO 连接，实时推送 YOLOv8 目标检测结果（不包含视频流）。
 
     **params**
-    - WebSocket: 前端 WebSocket 连接
+    - sid: Socket.IO 连接 ID
 
     **returns**
     - 实时 JSON 数据
     """
-    await websocket.accept()
-    print("WebSocket Client connected")
+    print(f"Socket.IO Client connected: {sid}")
 
     try:
         # **调用 generate_frames() 处理帧**
-        async for frame in generate_frames(websocket):
-            pass  # MJPEG 通过 /proxy_video_feed 返回，这里不处理视频
+        async for frame in generate_frames():  #`async for` 以异步方式处理数据
+            # 发送处理结果
+            await sio.emit("detection", frame, room=sid)
 
     except Exception as e:
-        print(f"WebSocket 连接断开: {e}")
+        print(f"Socket.IO 连接断开: {e}")
 
-    finally:
-        await websocket.close()
-        print("WebSocket Client disconnected")
