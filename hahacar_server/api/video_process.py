@@ -2,11 +2,15 @@ import json
 import os
 import time
 import uuid
+import socketio
 
 import cv2
 from fastapi import APIRouter, UploadFile, WebSocketDisconnect, BackgroundTasks, File, HTTPException, WebSocket, Header
 from fastapi.responses import JSONResponse, FileResponse
 from starlette.websockets import WebSocketState
+
+from api.socket_manager import sio
+from services.user_service import is_admin
 from util.detector import Detector
 
 router = APIRouter(prefix="/api")
@@ -31,23 +35,17 @@ detector = Detector("./weights/yolov8n.pt")
 
 #存储websocket客户端连接
 active_connections = {}
-active_connections["test-sid"] = None  # 这里可以模拟 WebSocket 连接，测试阶段——发布删除
+# active_connections["test-sid"] = None  # 这里可以模拟 WebSocket 连接，测试阶段——发布删除
 
+@sio.event
+async def connect(sid, environ):
+    print(f"客户端连接: {sid}")
+    active_connections[sid] = {"sid": sid}
 
-#创建websocket服务器
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    sid = str(uuid.uuid4())  # 生成唯一的 Socket ID，确保进度推送到正确的客户端
-    active_connections[sid] = websocket
-    print(f"Client connected: {sid}")
-
-    try:
-        while True:
-            data = await websocket.receive_json()       #await接收、发送消息（二进制、文本、json数据）
-            print(f"Received data: {data} from {sid}")
-    except WebSocketDisconnect:     #连接关闭时捕获异常
-        print(f"Client disconnected: {sid}")
+@sio.event
+async def disconnect(sid):
+    print(f"客户端断开: {sid}")
+    if sid in active_connections:
         del active_connections[sid]
 
 # **视频上传 & 目标检测**
@@ -55,8 +53,7 @@ async def websocket_endpoint(websocket: WebSocket):
 async def video_detect(
         background_tasks: BackgroundTasks,
         video: UploadFile = File(...),
-        #测试阶段先不对token做检验
-        # token: str = Header(None, alias="X-HAHACAR-TOKEN"),
+        token: str = Header(None, alias="X-HAHACAR-TOKEN"),
         sid: str = Header(None, alias="X-HAHACAR-SOCKET")):   #测试时使用
     """
     **description**
@@ -69,6 +66,11 @@ async def video_detect(
     **returns**
     - JSON: 任务状态
     """
+
+    # **Token 验证**
+    if token is None or not is_admin(token):
+        return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
+
     if not sid or sid not in active_connections:
         return JSONResponse(content={"code": "400","data":{}, "msg": "Invalid or missing Socket ID"}, status_code=400)
 
@@ -102,13 +104,14 @@ async def process_video(file_path: str, task_id: str, sid: str):
     **returns**
     - None
     """
-    websocket = active_connections.get(sid)
-    if websocket is None or websocket.client_state != WebSocketState.CONNECTED:
+    # 先检查 sid 是否还在线
+    if sid not in active_connections:
+        print(f"SID {sid} not in active_connections")
         return
 
     cap = cv2.VideoCapture(file_path)
     if not cap.isOpened():
-        await websocket.send_json({"code": "400", "msg": "无法打开视频文件","data":{}})
+        await sio.emit("errormsg",{"code": "400", "msg": "无法打开视频文件","data":{}}, to=sid)
         return
 
     # **视频参数**
@@ -120,7 +123,7 @@ async def process_video(file_path: str, task_id: str, sid: str):
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if total_frames <= 0:
-        await websocket.send_json({"code": "400", "msg": "视频文件无效，没有可处理的帧", "data": {}})
+        await sio.emit("errormsg",{"code": "400", "msg": "视频文件无效，没有可处理的帧", "data": {}}, to=sid)
         cap.release()
         return
 
@@ -179,7 +182,7 @@ async def process_video(file_path: str, task_id: str, sid: str):
         progress = int((frame_index / total_frames) * 100) if total_frames > 0 else 0
         if progress % 10 == 0:  # 每 10% 更新一次
             try:
-                await websocket.send_json({"progressValue": progress, "taskId": task_id})
+                await sio.emit("progress",{"progressValue": progress, "taskId": task_id},to=sid)
             except Exception as e:
                 print(f"WebSocket send error: {e}")
                 return
@@ -201,12 +204,7 @@ async def process_video(file_path: str, task_id: str, sid: str):
         "downloadURL": downloadURL,
         "fileName": processed_filename
     }
-    await websocket.send_json({"event": "doneProgress", **done_data})
-
-    # **主动关闭 WebSocket**
-    await websocket.close()
-    if sid in active_connections:
-        del active_connections[sid]
+    await sio.emit("doneProgress", done_data, to=sid)
 
 # **提供视频的在线查看功能**
 @router.get("/watch/video/{filename}")
