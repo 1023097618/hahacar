@@ -1,0 +1,16 @@
+{
+    "code": "200",
+    "data": {
+      "cameras": [
+        {
+          "cameraId": "1",
+          "cameraName": "摄像头1"
+        },
+        {
+          "cameraId": "cam2",
+          "cameraName": "后院摄像头"
+        }
+      ]
+    },
+    "msg": "获取成功"
+}

@@ -1,0 +1,56 @@
+{
+    "data": {
+      "cameras": [
+        {
+          "cameraName": "摄像头1",
+          "cameraLocation": 
+            ["116.368904","39.913423"]
+          ,
+          "cameraLiveStreamPreviewURL": "http://example.com/stream1.jpg",
+          "cameraId": "1"
+        },
+        {
+            "cameraName": "摄像头2",
+            "cameraLocation": ["116.368904","39.923423"]
+            ,
+            "cameraLiveStreamPreviewURL": "http://example.com/stream2.jpg",
+            "cameraId": "2"
+          },
+          {
+            "cameraName": "摄像头3",
+            "cameraLocation": 
+              ["116.368904","39.933423"]
+            ,
+            "cameraLiveStreamPreviewURL": "http://example.com/stream3.jpg",
+            "cameraId": "3"
+          },
+          {
+            "cameraName": "摄像头4",
+            "cameraLocation": 
+              ["116.368904","39.943423"]
+            ,
+            "cameraLiveStreamPreviewURL": "http://example.com/stream4.jpg",
+            "cameraId": "4"
+          },
+          {
+            "cameraName": "摄像头5",
+            "cameraLocation": 
+              ["116.368904","39.953423"]
+            ,
+            "cameraLiveStreamPreviewURL": "http://example.com/stream5.jpg",
+            "cameraId": "5"
+          },
+          {
+            "cameraName": "摄像头6",
+            "cameraLocation": 
+              ["116.368904","39.963423"]
+            ,
+            "cameraLiveStreamPreviewURL": "http://example.com/stream6.jpg",
+            "cameraId": "6"
+          }
+      ],
+      "cameraNum": 7
+    },
+    "code": "200",
+    "msg": "string"
+  }

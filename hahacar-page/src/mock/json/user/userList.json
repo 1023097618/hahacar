@@ -1,0 +1,29 @@
+{
+    "code": "200",
+    "msg": "获取成功",
+    "data": {
+        "users": [
+            {
+                "realName": "Test User",
+                "privilege": 2,
+                "userName": "test_user"
+            },
+            {
+                "realName": "yuxin",
+                "privilege": 1,
+                "userName": "yuxin"
+            },
+            {
+                "realName": "王恩宇",
+                "privilege": 1,
+                "userName": "王恩宇"
+            },
+            {
+                "realName": "蜡笔小新",
+                "privilege": 2,
+                "userName": "蜡笔小新"
+            }
+        ],
+        "userNum": "4"
+    }
+}
