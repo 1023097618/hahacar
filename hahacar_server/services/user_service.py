@@ -146,6 +146,7 @@ def update_user_style(token, style):
 def is_admin(token):
     payload = verify_jwt_token(token)
     if not payload:
+        print('not playload')
         return False
 
     return bool(payload.get("is_admin"))

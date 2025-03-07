@@ -24,28 +24,37 @@ detector = Detector("./weights/yolov8n.pt")
 RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.100:10554/udp/av0_0"
 
 # **确保使用绝对路径**
-UPLOAD_FOLDER = os.path.abspath("../static/camera/frames/")
-SAVE_DIR = os.path.abspath("../static/camera/frames/")
-INFO_DIR = os.path.abspath("../static/camera/info/")
+UPLOAD_FOLDER = os.path.abspath("./static/camera/frames/")
+SAVE_DIR = os.path.abspath("./static/camera/frames/")
+INFO_DIR = os.path.abspath("./static/camera/info/")
 
 # 确保目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SAVE_DIR, exist_ok=True)
 os.makedirs(INFO_DIR, exist_ok=True)
 
+#检查摄像头是否连接成功
+cap = cv2.VideoCapture(RTSP_URL)
+if not cap.isOpened():
+    print("无法打开摄像头")
+else:
+    print("摄像头连接成功")
+
+cap.release()
+
 #保存处理后的帧/信息函数
 def save_processed_frame(frame, processedImg, detailedResult):
     # **筛选 labels，只保留 car, bus, van，truck**
-    target_classes = {"car", "bus", "van", "truck"}
-    filtered_labels = []
-    filtered_confidence = []
-    filtered_counts = {}
-
-    for i, label in enumerate(detailedResult.get("labels", [])):
-        if label in target_classes:
-            filtered_labels.append(label)
-            filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
-            filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
+    # target_classes = {"car", "bus", "van", "truck"}
+    # filtered_labels = []
+    # filtered_confidence = []
+    # filtered_counts = {}
+    #
+    # for i, label in enumerate(detailedResult.get("labels", [])):
+    #     if label in target_classes:
+    #         filtered_labels.append(label)
+    #         filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
+    #         filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
 
     # 保存原始帧和处理后的图片
     timestamp = time.time_ns()
@@ -59,9 +68,9 @@ def save_processed_frame(frame, processedImg, detailedResult):
     # **构造 JSON 数据**
     result_data = {
         "filename": file_name,
-        "labels": filtered_labels,
-        "confidence": filtered_confidence,
-        "count": filtered_counts
+        "labels": detailedResult["labels"],
+        "confidence": detailedResult["confidence"],
+        "count": detailedResult["count"]
     }
 
     # **存储 JSON 结果**
@@ -89,7 +98,7 @@ def process_frame(frame):
     return processedImg,detailedResult
 
 # **视频流生成器**
-def generate_frames():
+async def generate_frames():
     cap = cv2.VideoCapture(RTSP_URL)
 
     while True:
@@ -131,7 +140,8 @@ async def proxy_video_feed(token: str = Query(..., description="访问权限 Tok
     - StreamingResponse: 返回 MJPEG 视频流
     """
     # **Token 验证**
-    if token is None or not is_admin(token):
+    if token is None or is_admin(token):
+        print(f"isadmin:{is_admin(token)}")
         return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
 
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
