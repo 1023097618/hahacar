@@ -3,5 +3,10 @@ venv/
 .idea
 __pycache__
 */__pycache__
-.util/*
+util/**/*.pt
+util/**/*.mp4
+util/**/*.avi
+util/**/*.jpeg
+util/**/*.jpg
 static/*
+weights/*
