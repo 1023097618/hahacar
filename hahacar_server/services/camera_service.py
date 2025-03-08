@@ -1,4 +1,6 @@
 import uuid
+
+from fastapi import Header
 from sqlalchemy.orm import Session
 from models.camera import Camera
 from schemas.camera_schema import CameraCreate, CameraUpdate
@@ -123,3 +125,11 @@ def update_camera(db: Session, token: str, camera_data: CameraUpdate):
     camera.cameraName = camera_data.cameraName
     db.commit()
     return True
+
+def get_camera_url(db:Session, camera_id:str):
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        print("camera not found")
+        return None
+    return camera.cameraURL
+

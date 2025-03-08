@@ -4,9 +4,14 @@ import os
 
 import cv2
 import time
-from fastapi import APIRouter, Depends, Query, HTTPException,WebSocket
+from fastapi import APIRouter, Depends, Query, HTTPException, WebSocket, Header
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 
+from api.camera import authenticate_admin
+from core.security import verify_jwt_token
+from dependencies.database import get_db
+from services.camera_service import get_camera_url
 from services.user_service import is_admin
 from util.detector import Detector
 from fastapi.responses import JSONResponse, FileResponse
@@ -21,10 +26,10 @@ URL = "http://localhost:8081"
 detector = Detector("./weights/yolov8n.pt")
 
 # RTSP 摄像头地址
-RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.101:10554/udp/av0_0"
+# RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.101:10554/udp/av0_0"
 
 # **确保使用绝对路径**
-UPLOAD_FOLDER = os.path.abspath("./static/camera/frames/")
+UPLOAD_FOLDER = os.path.abspath("./static/camera/uploads/")
 SAVE_DIR = os.path.abspath("./static/camera/frames/")
 INFO_DIR = os.path.abspath("./static/camera/info/")
 
@@ -32,15 +37,6 @@ INFO_DIR = os.path.abspath("./static/camera/info/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SAVE_DIR, exist_ok=True)
 os.makedirs(INFO_DIR, exist_ok=True)
-
-#检查摄像头是否连接成功
-cap = cv2.VideoCapture(RTSP_URL)
-if not cap.isOpened():
-    print("无法打开摄像头")
-else:
-    print("摄像头连接成功")
-
-cap.release()
 
 #保存处理后的帧/信息函数
 def save_processed_frame(frame, processedImg, detailedResult):
@@ -98,8 +94,12 @@ def process_frame(frame):
     return processedImg,detailedResult
 
 # **视频流生成器**
-async def generate_frames():
+async def generate_frames(RTSP_URL):
     cap = cv2.VideoCapture(RTSP_URL)
+    if not cap.isOpened():
+        print("无法打开摄像头")
+    else:
+        print("摄像头连接成功")
 
     while True:
         success, frame = cap.read()
@@ -127,24 +127,44 @@ async def generate_frames():
     cap.release()
 
 # **FastAPI 端点：返回 RTSP 直播流**
-@router.get("/proxy_video_feed")
-async def proxy_video_feed(token: str = Query(..., description="访问权限 Token")):
+@router.get("/storage/getCameraLiveStream")
+async def proxy_video_feed(
+        cameraId: str = Query(..., description="摄像头 ID"),
+        liveStreamType: str = Query(..., description="直播流类型"),
+        # X_HAHACAR_TOKEN: str = Header(..., description="管理员访问权限 Token"),
+        token: str = Query(..., description="管理员访问权限 Token"),
+        db: Session = Depends(get_db)
+        ):
     """
     **description**
     代理 RTSP 视频流，并返回处理后的 MJPEG 流
 
     **params**
-    - token (str): 访问权限 Token，防止未经授权的访问
+    - cameraId (str): 摄像头 ID（必须）
+    - liveStreamType (str): 直播流类型（可选，'preview' 或 'full'，默认 'preview'）
+    - token (str): 访问权限 Token
 
     **returns**
     - StreamingResponse: 返回 MJPEG 视频流
     """
-    # **Token 验证**
-    if token is None or is_admin(token):
-        print(f"isadmin:{is_admin(token)}")
-        return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
+    # **验证管理员权限**
+    token_payload = verify_jwt_token(token)
+    if not token_payload or not token_payload.get("is_admin"):
+        return {"code": "403", "msg": "Unorthrize", "data": {}}
 
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+    #获取摄像头URL
+    cameraURL = get_camera_url(db, cameraId)
+    if not cameraURL:
+        return JSONResponse(content={"code": "404", "data": {}, "msg": "Camera not found"}, status_code=404)
+
+    #根据liveStreamType选择不同的流
+    if liveStreamType == 'full':
+        rtsp_url = f"{cameraURL}?stream=full"
+    else:
+        rtsp_url = f"{cameraURL}?stream=preview"
+
+    print(f"正在拉取 RTSP 直播流: {rtsp_url}")
+    return StreamingResponse(generate_frames(rtsp_url), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 # **Socket.IO 端点：发送 YOLOv8 检测结果**

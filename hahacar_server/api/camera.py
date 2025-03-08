@@ -2,6 +2,8 @@ import os
 import sys
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
+
+# from sqlalchemy.orm import Session
 from dependencies.database import get_db
 from core.security import verify_jwt_token
 from schemas.camera_schema import CameraCreate, CameraUpdate, CameraDelete
@@ -15,13 +17,10 @@ router = APIRouter(prefix="/api/camera", tags=["Camera"])
 def authenticate_admin(X_HAHACAR_TOKEN: str = Header(...)):
     """
     **description**
-    验证管理员权限，不知道为什么总是测的相反——这个bug待会再改
+    验证管理员权限
     """
     payload = verify_jwt_token(X_HAHACAR_TOKEN)
     print(verify_jwt_token(X_HAHACAR_TOKEN))
-    if "is_admin" not in payload:
-        print("Warning: is_admin not found in JWT payload")
-        return {"code": "403", "msg": "is_admin not found in JWT payload", "data": {}}
     if not payload or not bool(payload.get("is_admin")):
         return {"code": "403", "msg": "Forbidden", "data": {}}
     return X_HAHACAR_TOKEN
@@ -47,7 +46,7 @@ def add_camera_api(
     """
     camera_id = add_camera(db, token, camera_data)
     if not camera_id:
-        raise HTTPException(status_code=403, detail="Permission denied")
+        return {"code": "403", "msg": "Forbidden", "data": {}}
 
     return {"code": "200", "msg": "Camera added successfully", "data": {"cameraId": camera_id}}
 
