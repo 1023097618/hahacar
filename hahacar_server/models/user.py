@@ -43,10 +43,3 @@ class User(Base):
     real_name = Column(String, default="")
     style = Column(Enum("1", "2", "3", name="style_enum"), default="1")  # 限定枚举值
     created_at = Column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
-
-    # class StyleEnum(str, Enum):
-    #     STYLE_1 = "1"
-    #     STYLE_2 = "2"
-    #     STYLE_3 = "3"
-    #
-    # style = Column(Enum(StyleEnum, name="style_enum"), default=StyleEnum.STYLE_1)

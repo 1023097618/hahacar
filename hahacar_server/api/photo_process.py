@@ -24,6 +24,7 @@ URL = "http://localhost:8081"
 # 加载 YOLO 模型
 detector = Detector("./weights/yolov8n.pt")
 
+#图片处理
 @router.post("/storage/pictureUpload")
 async def frames_detect(image: UploadFile = File(...)):
     """
@@ -86,7 +87,6 @@ async def frames_detect(image: UploadFile = File(...)):
             content={"code": "500", "msg": f"image process failed: {str(e)}", "data": {}},
             status_code=500
         )
-
 
 # **提供图片的在线查看功能**
 @router.get("/watch/{filename}")
