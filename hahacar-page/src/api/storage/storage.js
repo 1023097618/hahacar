@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+const baseurl = process.env.VUE_APP_baseurl
 
 export function uploadVideo(data){
     return request({
@@ -17,3 +18,5 @@ export function uploadPicture(data){
         method:'post'
     })
 }
+
+export const getCameraLiveStream=baseurl+"/storage/getCameraLiveStream"
