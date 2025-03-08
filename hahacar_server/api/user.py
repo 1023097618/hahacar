@@ -141,8 +141,8 @@ def change_password_by_token(
 #获取用户列表（基于管理员Token）
 @router.get("/user/getUsers")
 def get_users(
-        pagenum: int = Query(..., description="当前页码"),
-        pagesize: int = Query(..., description="每页数据量"),
+        pageNum: int = Query(..., description="当前页码"),
+        pageSize: int = Query(..., description="每页数据量"),
         token: str = Header(None, alias="X-HAHACAR-TOKEN")
 ):
     """
@@ -157,7 +157,7 @@ def get_users(
     **returns**
     用户列表或认证失败信息。
     """
-    users, total_users = get_user_list(token, pagenum, pagesize)
+    users, total_users = get_user_list(token, pageNum, pageSize)
     if users is None:
         # raise HTTPException(status_code=401, detail="未认证的管理员")
         # raise CustomHTTPException(code="401", msg="未认证的管理员", data="")
