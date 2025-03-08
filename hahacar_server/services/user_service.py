@@ -5,6 +5,8 @@
 import os
 import sys
 
+from fastapi import Header
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.user import User

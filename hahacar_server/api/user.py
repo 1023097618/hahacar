@@ -12,26 +12,26 @@ from services.user_service import *
 router = APIRouter(prefix="/api")
 
 #用户注册
-@router.post("/user/register", response_model=UserCreateResponse)
-def register_user(user_data: UserCreate):
-    """
-    **description**
-    用户注册接口。
-
-    **params**
-    user_data: 用户注册信息。
-
-    **returns**
-    新用户信息。
-    """
-    user = create_user(user_data)
-    if not user:
-        # raise HTTPException(status_code=400, detail="Username already registered")
-        return {"code":"400", "msg":"Username already registered", "data":""}
-    return {
-        "code": "200",
-        "msg": "Register Successfully"
-    }
+# @router.post("/user/register", response_model=UserCreateResponse)
+# def register_user(user_data: UserCreate):
+#     """
+#     **description**
+#     用户注册接口。
+#
+#     **params**
+#     user_data: 用户注册信息。
+#
+#     **returns**
+#     新用户信息。
+#     """
+#     user = create_user(user_data)
+#     if not user:
+#         # raise HTTPException(status_code=400, detail="Username already registered")
+#         return {"code":"400", "msg":"Username already registered", "data":""}
+#     return {
+#         "code": "200",
+#         "msg": "Register Successfully"
+#     }
 
 #用户登录√
 @router.post("/auth/login",response_model=JSONResponseSchema)
@@ -48,9 +48,8 @@ def login(user_data: UserLogin):
     """
     user = authenticate_user(user_data.username, user_data.password)
     if not user:
-        # raise CustomHTTPException(code="400", msg="password not right",data="")
         return {"code": "400", "msg": "password not right", "data": ""}
-    token = create_jwt_token({"sub": str(user.id)})
+    token = create_jwt_token({"sub": str(user.id),"is_admin":bool(user.is_admin)})
     return {
         "code": "200",
         "msg": "Login Successfully",

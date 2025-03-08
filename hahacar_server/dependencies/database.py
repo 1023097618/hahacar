@@ -17,3 +17,18 @@ Base = declarative_base()
 
 # 创建数据库会话工厂
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+#确保每个请求都有独立的数据库会话
+def get_db():
+    """
+    **description**
+    创建数据库会话，并在请求结束时自动关闭。
+
+    **returns**
+    数据库会话生成器。
+    """
+    db = SessionLocal()
+    try:
+        yield db  # 生成会话
+    finally:
+        db.close()  # 关闭会话
