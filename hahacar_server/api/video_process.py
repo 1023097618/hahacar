@@ -7,7 +7,6 @@ from natsort import natsorted
 import cv2
 from fastapi import APIRouter, UploadFile, WebSocketDisconnect, BackgroundTasks, File, HTTPException, WebSocket, Header
 from fastapi.responses import JSONResponse, FileResponse
-from starlette.websockets import WebSocketState
 
 from api.socket_manager import sio
 from services.user_service import is_admin

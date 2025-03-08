@@ -38,7 +38,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=True)
     password_hash = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)
+    is_admin = Column(Integer, default=0)
     first_login = Column(Boolean, default=True)
     real_name = Column(String, default="")
     style = Column(Enum("1", "2", "3", name="style_enum"), default="1")  # 限定枚举值

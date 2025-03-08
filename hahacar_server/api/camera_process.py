@@ -21,7 +21,7 @@ URL = "http://localhost:8081"
 detector = Detector("./weights/yolov8n.pt")
 
 # RTSP 摄像头地址
-RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.100:10554/udp/av0_0"
+RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.101:10554/udp/av0_0"
 
 # **确保使用绝对路径**
 UPLOAD_FOLDER = os.path.abspath("./static/camera/frames/")
