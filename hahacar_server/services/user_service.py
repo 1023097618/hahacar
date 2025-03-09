@@ -124,7 +124,7 @@ def get_user_list(token, pagenum, pagesize):
     db.close()
 
     user_list = [
-        {"realName": u.real_name, "privilege": 1 if u.is_admin else 2, "userName": u.username}
+        {"realName": u.real_name, "privilege": 2 if u.is_admin else 1, "username": u.username}
         for u in users
     ]
     return user_list, total_users

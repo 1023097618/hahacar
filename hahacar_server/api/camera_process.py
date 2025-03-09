@@ -94,19 +94,27 @@ def process_frame(frame):
     return processedImg,detailedResult
 
 # **视频流生成器**
-async def generate_frames(RTSP_URL):
-    cap = cv2.VideoCapture(RTSP_URL)
+async def generate_frames(RTSP_URL:str):
+    """
+        :param rtsp_url: 摄像头地址
+    """
+    #设置超时时间
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "timeout;5000"
+    cap = cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG)
+
+    # 如果还是没打开，直接 return，结束生成器
     if not cap.isOpened():
-        print("无法打开摄像头")
-    else:
-        print("摄像头连接成功")
+        print("摄像头无法连接，已放弃重试")
+        return
+
+    print("摄像头打开成功，开始读帧...")
 
     while True:
         success, frame = cap.read()
         if not success:
             print("无法接收帧，等待重试...")
-            time.sleep(1)
-            continue
+        else:
+            print("接收到帧")
 
         processed ,detailedResult = process_frame(frame)
 
@@ -164,6 +172,13 @@ async def proxy_video_feed(
         rtsp_url = f"{cameraURL}?stream=preview"
 
     print(f"正在拉取 RTSP 直播流: {rtsp_url}")
+    # 先尝试打开摄像头
+    # 设置超时时间
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "timeout;5000"
+    cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+    if not cap.isOpened():
+        return JSONResponse({"code": "400", "msg": "无法连接摄像头", "data": {}}, status_code=400)
+
     return StreamingResponse(generate_frames(rtsp_url), media_type="multipart/x-mixed-replace; boundary=frame")
 
 

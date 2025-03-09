@@ -11,8 +11,8 @@ from util.detector import Detector
 router = APIRouter(prefix="/api")
 
 # **确保使用绝对路径**
-UPLOAD_FOLDER = os.path.abspath("../static/uploads/frames/")
-SAVE_DIR = os.path.abspath("../static/processed/frames/")
+UPLOAD_FOLDER = os.path.abspath("./static/uploads/frames/")
+SAVE_DIR = os.path.abspath("./static/processed/frames/")
 
 # 确保目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -26,7 +26,7 @@ detector = Detector("./weights/yolov8n.pt")
 
 #图片处理
 @router.post("/storage/pictureUpload")
-async def frames_detect(image: UploadFile = File(...)):
+async def frames_detect(file: UploadFile = File(...)):
     """
     **description**
     接收图片并返回YOLOv8检测结果，包含 labels、confidence 和 count（仅限 car, bus, van）。
@@ -39,24 +39,12 @@ async def frames_detect(image: UploadFile = File(...)):
     """
     try:
         # 读取上传的图片
-        image_bytes = await image.read()
+        image_bytes = await file.read()
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = np.array(img)
 
         # 运行YOLOv8检测
         processedImg, detailedResult = detector.detect(img, addingBoxes=False, addingLabel=False, addingConf=False)
-
-        # **筛选 labels，只保留 car, bus, van**
-        target_classes = {"car", "bus", "van","truck"}
-        filtered_labels = []
-        filtered_confidence = []
-        filtered_counts = {}
-
-        for i, label in enumerate(detailedResult.get("labels", [])):
-            if label in target_classes:
-                filtered_labels.append(label)
-                filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
-                filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
 
         # 保存处理后的图片
         timestamp = time.time_ns()
@@ -65,8 +53,8 @@ async def frames_detect(image: UploadFile = File(...)):
         cv2.imwrite(file_path, cv2.cvtColor(processedImg, cv2.COLOR_RGB2BGR))
 
         # 构造返回的 URL
-        watchURL = f"{URL}api/watch/{file_name}"
-        downloadURL = f"{URL}api/download/{file_name}"
+        watchURL = f"{URL}/api/watch/{file_name}"
+        downloadURL = f"{URL}/api/download/{file_name}"
 
         # 提取所需的关键信息（已过滤）
         results_json = {
@@ -75,9 +63,9 @@ async def frames_detect(image: UploadFile = File(...)):
             "data": {
                 "watchURL": watchURL,
                 "downloadURL": downloadURL,
-                "labels": filtered_labels,
-                "confidence": filtered_confidence,
-                "count": filtered_counts
+                "labels": detailedResult["labels"],
+                "confidence": detailedResult["confidence"],
+                "count": detailedResult["count"]
             }
         }
         return JSONResponse(content=results_json, status_code=200)

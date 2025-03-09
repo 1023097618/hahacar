@@ -51,9 +51,9 @@ async def disconnect(sid):
 @router.post("/storage/videoUpload")
 async def video_detect(
         background_tasks: BackgroundTasks,
-        video: UploadFile = File(...),
-        token: str = Header(None, alias="X-HAHACAR-TOKEN"),
-        sid: str = Header(None, alias="X-HAHACAR-SOCKET")):
+        file: UploadFile = File(...),
+        token: str = Header(..., alias="X-HAHACAR-TOKEN", description="管理员 Token"),
+        sid: str = Header(..., alias="X-HAHACAR-SOCKET", description="Socket.io 连接 ID")):
     """
     **description**
     接收视频文件，后台进行目标检测，并通过 WebSocket 实时推送处理进度。
@@ -67,7 +67,7 @@ async def video_detect(
     """
 
     # **Token 验证**
-    if token is None or is_admin(token):
+    if token is None or not is_admin(token):
         return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
 
     if sid not in active_connections:
@@ -81,7 +81,7 @@ async def video_detect(
     original_filepath = os.path.join(UPLOAD_FOLDER, original_filename)
 
     with open(original_filepath, "wb") as buffer:
-        buffer.write(await video.read())
+        buffer.write(await file.read())
 
     # 传给yolo处理
     background_tasks.add_task(process_video, original_filepath, task_id, sid)

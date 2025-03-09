@@ -40,7 +40,7 @@ class Detector:
     - `_loadModel`: Loads the YOLOv8 model.
     """
 
-    SUPPORTTED_CATEGORIES: List[str] = ["person", "car", "bus", "van", "truck", "dog"];
+    SUPPORTTED_CATEGORIES: List[str] = ["car", "bus", "van", "truck"];
 
     def __init__(self, model_path: str = "./weights/yolov8m.pt") -> None:
         """
