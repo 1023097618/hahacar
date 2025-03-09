@@ -138,23 +138,13 @@ async def process_video(file_path: str, task_id: str, sid: str):
 
     # **逐帧运行yolo检测处理**
     frame_index = 0
+    last_progress = -10 #记录上一次发送的进度
     while True:
         ret, frame = cap.read()  # 读取视频帧
         if not ret:
             break
 
-        processedImg, detailedResult = detector.detect(frame, addingBoxes=False, addingLabel=False, addingConf=False)
-        # **筛选 labels，只保留 car, bus, van,truck**
-        # filtered_labels = []
-        # filtered_confidence = []
-        # filtered_counts = {}
-
-        #后面需要在模型那里改不然效率太低了
-        # for i, label in enumerate(detailedResult.get("labels", [])):
-        #     if label in target_classes:
-        #         filtered_labels.append(label)
-        #         filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
-        #         filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
+        processedImg, detailedResult = detector.detect(frame, addingBoxes=True, addingLabel=True, addingConf=False)
 
         # 保存处理后的图片
         timestamp = time.time_ns()
@@ -183,9 +173,10 @@ async def process_video(file_path: str, task_id: str, sid: str):
 
         # 模拟处理进度：从 0 到 100，每 10% 更新一次，视频处理结束之前发送progressValue和taskId
         progress = int((frame_index / total_frames) * 100) if total_frames > 0 else 0
-        if progress % 10 == 0:  # 每 10% 更新一次
+        if progress >= last_progress + 10:  # 每 10% 更新一次
             try:
-                await sio.emit("progress",{"progressValue": progress, "taskId": task_id},to=sid)
+                await sio.emit("updateProgress",{"progressValue": progress, "taskId": task_id},to=sid)
+                last_progress = progress
             except Exception as e:
                 print(f"WebSocket send error: {e}")
                 return

@@ -40,7 +40,7 @@ class Detector:
     - `_loadModel`: Loads the YOLOv8 model.
     """
 
-    SUPPORTTED_CATEGORIES: List[str] = ["car", "bus", "van", "truck"];
+    SUPPORTTED_CATEGORIES: List[str] = ["person", "car", "bus", "van", "truck", "dog"];
 
     def __init__(self, model_path: str = "./weights/yolov8m.pt") -> None:
         """
@@ -65,6 +65,7 @@ class Detector:
         self.detectedBoxes: List[List[float]] = list();
         self.detectedLabels: List[str] = list();
         self.dectectedConf: List[float] = list();
+        self.detectedIDs: List[int] = list();
 
         self._loadModel(model_path);
 
@@ -82,7 +83,7 @@ class Detector:
         """
         __doc__:
         **Description**
-        Detect objects in an image using the loaded YOLOv8 model. Optionally draws 
+        Detect objects in an image using the loaded YOLOv8 model. Optionally draws
         bounding boxes, labels, confidence scores, and detection counts on the image.
 
         **Params**
@@ -111,7 +112,7 @@ class Detector:
             };
 
         try:
-            results = self.model.predict(source=oriImg, conf=conf);
+            results = self.model.track(source=oriImg, conf=conf, persist=True);
         except Exception as e:
             print(f"Unable to process images due to:\n{e}");
             self.outImg = oriImg;
@@ -133,12 +134,12 @@ class Detector:
             self.detectedLabels = [results[0].names[int(cls_idx)] for cls_idx in cls_list];
             self.dectectedConf = conf_list.tolist();
             self.detectedBoxes = box_list.tolist();
+            self.detectedIDs = results[0].boxes.id.cpu().numpy().tolist();
 
             for idx, tag in enumerate(self.detectedLabels):
                 box = self.detectedBoxes[idx];
                 conf_val = self.dectectedConf[idx];
                 if tag in self.SUPPORTTED_CATEGORIES:
-                    self.detectedCounts[tag] = self.detectedCounts.get(tag, 0) + 1;
 
                     if addingBoxes:
                         cv2.rectangle(
@@ -151,12 +152,13 @@ class Detector:
 
                     # 构建文本
                     labelString: str = "";
+                    if addingCount:
+                        labelString += f" No.{self.detectedIDs[idx]}";
                     if addingLabel:
                         labelString += tag;
                     if addingConf:
                         labelString += f" {conf_val:.2f}";
-                    if addingCount:
-                        labelString += f" No.{self.detectedCounts[tag]}";
+
 
                     # 绘制文本
                     if labelString:
@@ -177,21 +179,13 @@ class Detector:
                 for label in self.SUPPORTTED_CATEGORIES
             };
 
-        # 若用户不需要在图像上绘制框或标签，保存其数据于detailedResult
-        if not addingBoxes:
-            self.detailedResult["boxes"] = self.detectedBoxes;
-            self.detectedBoxes = [];
 
-        if not addingLabel:
-            self.detailedResult["labels"] = self.detectedLabels;
-            self.detectedLabels = [];
+        self.detailedResult["boxes"] = self.detectedBoxes;
+        self.detailedResult["labels"] = self.detectedLabels;
+        self.detailedResult["confidence"] = self.dectectedConf;
+        self.detailedResult["count"] = self.detectedCounts;
 
-        if not addingConf:
-            self.detailedResult["confidence"] = self.dectectedConf;
-            self.dectectedConf = [];
 
-        if not addingCount:
-            self.detailedResult["count"] = self.detectedCounts;
 
         return self.outImg, self.detailedResult;
 
@@ -210,13 +204,15 @@ class Detector:
         self.outImg = None;
         self.detailedResult = {
             "success": True,
-            "count": dict(),
+            "count": {},
             "message": "Successfully detected"
         };
-        self.detectedCounts = dict();
-        self.detectedBoxes = list();
-        self.detectedLabels = list();
-        self.dectectedConf = list();
+        self.detectedCounts = {};
+        self.detectedIDs = [];
+        self.detectedBoxes = [];
+        self.detectedLabels = [];
+        self.dectectedConf = [];
+
 
 
     def _loadModel(self, model_path: str) -> None:
@@ -234,9 +230,9 @@ class Detector:
 
 
 if __name__ == "__main__":
-    detector: Detector = Detector("weights/yolov8m.pt");
-    img: np.ndarray = cv2.imread("dog.jpeg");
-    
+    detector: Detector = Detector("./weights/yolov8m.pt");
+    img: np.ndarray = cv2.imread("./dog.jpeg");
+
     processedImg, detailedResult = detector.detect(img);
     print("detailedResult:", detailedResult);
 
