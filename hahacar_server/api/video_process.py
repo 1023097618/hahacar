@@ -144,7 +144,11 @@ async def process_video(file_path: str, task_id: str, sid: str):
         if not ret:
             break
 
-        processedImg, detailedResult = detector.detect(frame, addingBoxes=True, addingLabel=True, addingConf=False)
+        processedImg, detailedResult = detector.detect(frame, 
+                                                       addingBoxes=True, 
+                                                       addingLabel=True, 
+                                                       addingConf=False,
+                                                       verbosity=2);
 
         # 保存处理后的图片
         timestamp = time.time_ns()

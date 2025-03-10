@@ -90,7 +90,11 @@ def process_frame(frame):
     - np.ndarray: 处理后的帧
     """
     # 运行YOLOv8检测
-    processedImg, detailedResult = detector.detect(frame, addingBoxes=False, addingLabel=False, addingConf=False)
+    processedImg, detailedResult = detector.detect(frame, 
+                                                   addingBoxes=False, 
+                                                   addingLabel=False, 
+                                                   addingConf=False, 
+                                                   verbosity=2);
     return processedImg,detailedResult
 
 # **视频流生成器**
