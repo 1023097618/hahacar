@@ -1,0 +1,20 @@
+{
+    "code": "200",
+    "data": {
+      "labels": [
+        {
+          "labelName": "car",
+          "labelId": "1"
+        },
+        {
+            "labelName": "trunk",
+            "labelId": "2"
+        },
+        {
+            "labelName": "van",
+            "labelId": "3"
+        }
+      ]
+    },
+    "msg": "ok"
+  }

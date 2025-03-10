@@ -28,6 +28,7 @@
         <template slot-scope="scope">
           <el-button type="primary" size="mini" @click="handleUpdate(scope.row)"> 编辑 </el-button>
           <el-button type="danger" size="mini" @click="handleDelete(scope.row)"> 删除 </el-button>
+          <el-button type="warning" size="mini" @click="handleRules(scope.row)">规则配置</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -239,6 +240,9 @@ export default {
         return location.join(', ')
       }
       return location
+    },
+    handleRules(camera) {
+      this.$router.push({ path: '/cameraRules', query: { cameraId: camera.cameraId } })
     }
   }
 }

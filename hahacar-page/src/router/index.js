@@ -37,7 +37,8 @@ const rootRoutes=[
     ],
   },
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true },
-  { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}}
+  { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}},
+  { path: '/cameraRules', name: 'cameraRulesView', component: () => import('@/views/camera/subpages/cameraRules.vue'), hidden: true,meta:{title: '摄像头规则配置'}}
 ]
 
 function createRoute() {

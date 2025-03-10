@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-export default function getCameraRules(params){
+export function getCameraRules(params){
     return request({
         url:'/camera/getCameraRules',
         params,
@@ -8,9 +8,9 @@ export default function getCameraRules(params){
     })
 }
 
-export default function updateCameraRules(data){
+export function updateCameraRules(data){
     return request({
-        url:'camera/updateCameraRules',
+        url:'camera/updateCameraRule',
         data,
         method:'post'
     })
