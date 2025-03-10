@@ -9,6 +9,8 @@ import numpy as np;
 import seaborn as sns;
 import matplotlib.pyplot as plt;
 import ultralytics;
+import os;
+import logging;
 
 from typing import Dict, List, Any, Tuple, Optional;
 from ultralytics import YOLO;
@@ -19,19 +21,22 @@ ultralytics.checks();
 
 class Detector:
     """
-    **Description**
+    
+    **Description**  
     The Detector class encapsulates YOLOv8 inference logic and provides an interface
     to detect objects in an image, optionally draw bounding boxes, labels, confidence scores, and object counts on the image.
 
-    **Params**
-    - SUPPORTTED_CATEGORIES: List[str], the whitelisted categories for detection
-    - model: YOLO, the YOLO model instance
-    - outImg: Optional[np.ndarray], the output image with drawn detections
-    - detailedResult: Dict[str, Any], the dictionary containing detection stats
-    - detectedCounts: Dict[str, int], record counts for each detected label
-    - detectedBoxes: List[List[float]], bounding boxes [x1,y1,x2,y2] in pixel coords
-    - detectedLabels: List[str], labels of each detection
-    - dectectedConf: List[float], confidence for each detection
+    **Properties**  
+    - `SUPPORTTED_CATEGORIES`: List[str], the whitelisted categories for detection
+    - `outImg`: Optional[np.ndarray], The output image with bounding boxes, labels, etc. (if enabled).
+    - `detailedResult`: Dict[str, Any], A dict containing detection data (counts, boxes, labels, confidence, etc.).
+    - `detectedCounts`: Dict[str, int], A dict containing detected counts per label.
+    - `detectedBoxes`: List[List[float, float,float, float]], A list of detected bounding boxes.
+    - `detectedLabels`: List[str], A list of detected labels.
+    - `dectectedConf`: List[float], A list of detected confidence scores.
+    - `detectedIDs`: List[int], A list of tracking IDs.
+    - `detectedMidPoints`: List[Tuple[float, float]], A list of detected midpoints.
+    - `numProjection`: Dict[str, List[Tuple[int, int]]], A dict containing the number of projections per Category.
 
     **Methods**
     - `__init__`: Initializes the Detector object with the specified model path.
@@ -40,22 +45,21 @@ class Detector:
     - `_loadModel`: Loads the YOLOv8 model.
     """
 
-    SUPPORTTED_CATEGORIES: List[str] = ["person", "car", "bus", "van", "truck"];
+    SUPPORTTED_CATEGORIES: List[str] = ["car", "bus", "van", "truck"];
     MAX_COUNT: int = 100;
 
-    def __init__(self, model_path: str = "./weights/yolov8m.pt") -> None:
+    def __init__(self, modelPath: str = "./weights/yolov8m.pt") -> None:
         """
-        __doc__:
         **Description**
         Initializes the Detector object with a specified YOLOv8 model path.
 
         **Params**
-        - `model_path`: The file path for the YOLOv8 model weights.
+        - `modelPath`: The file path for the YOLOv8 model weights.
 
         **Returns**
         - None
         """
-        self._loadModel(model_path);
+        self._loadModel(modelPath);
         self.outImg: Optional[np.ndarray] = None;
         self.detailedResult: Dict[str, Any] = {
             "success": True,
@@ -63,14 +67,14 @@ class Detector:
             "message": "Successfully detected"
         };
         self.detectedCounts: Dict[str, int] = dict();
-        self.detectedBoxes: List[List[float]] = list();
+        self.detectedBoxes: List[List[float, float,float, float]] = list();
         self.detectedLabels: List[str] = list();
         self.dectectedConf: List[float] = list();
         self.detectedIDs: List[int] = list();
         self.detectedMidPoints: List[Tuple[float, float]] = list();
         self.numProjection: Dict[str, List[Tuple[int, int]]] = dict();
-
-
+        
+        
     def detect(
         self,
         oriImg: np.ndarray,
@@ -79,10 +83,11 @@ class Detector:
         addingLabel: bool = True,
         addingConf: bool = True,
         addingCount: bool = True,
-        pallete: Optional[Dict[str, Tuple[int, int, int]]] = None
+        pallete: Optional[Dict[str, Tuple[int, int, int]]] = None,
+        verbosity:int = 0
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
-        **Description**
+        **Description**  
         The outer part of the detection process.
         """
         # 执行检测
@@ -93,13 +98,14 @@ class Detector:
             addingLabel,
             addingConf,
             addingCount,
-            pallete
+            pallete,
+            verbosity
         );
-
+        
         # 释放资源,避免累积编号
         self._resetDetector();
         return outImg, detailedResult;
-
+        
     def _detect(
         self,
         oriImg: np.ndarray,
@@ -108,12 +114,12 @@ class Detector:
         addingLabel: bool,
         addingConf: bool,
         addingCount: bool,
-        pallete: Optional[Dict[str, Tuple[int, int, int]]]
+        pallete: Optional[Dict[str, Tuple[int, int, int]]],
+        verbosity: int
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
-        __doc__:
         **Description**
-        Detect objects in an image using the loaded YOLOv8 model. Optionally draws
+        Detect objects in an image using the loaded YOLOv8 model. Optionally draws 
         bounding boxes, labels, confidence scores, and detection counts on the image.
 
         **Params**
@@ -124,11 +130,15 @@ class Detector:
         - `addingConf`: Whether to append confidence score next to the label.
         - `addingCount`: Whether to append count index per label (e.g., "No.1").
         - `pallete`: Optional dict defining BGR color tuples for each label.
+        - `verbosity`: The level of verbosity for logging.
 
         **Returns**
         - `outImg`: The resultant image (with bounding boxes, labels, etc. if enabled).
         - `detailedResult`: A dict containing detection data (counts, boxes, labels, confidence, etc.).
         """
+        if verbosity == 2:
+            logging.getLogger("ultralytics").setLevel(logging.WARNING);
+        
         if pallete is None:
             # 构建BGR调色板
             base_colors = sns.color_palette("bright", len(self.SUPPORTTED_CATEGORIES));
@@ -167,17 +177,17 @@ class Detector:
             try:
                 self.detectedIDs = list(map(lambda x: int(x), results[0].boxes.id.cpu().numpy().tolist()));
             except Exception as e:
-                print(f"IDs retained as model made wrong in tracking as {e}");
-                noID = True
-
-
-
+                print(f"IDs resetted as model made wrong in tracking as {e}");
+                self.detectedIDs = list(range(len(self.detectedLabels)));
+                
+                
+                
             for idx, tag in enumerate(self.detectedLabels):
                 self.detectedCounts[tag] = self.detectedCounts.get(tag, 0) + 1 % self.MAX_COUNT;
                 self.numProjection[tag] = self.numProjection.get(tag, []);
                 self.numProjection[tag].append((self.detectedIDs[idx], self.detectedCounts[tag]));
-
-
+                
+                
                 box = self.detectedBoxes[idx];
                 conf_val = self.dectectedConf[idx];
                 if tag in self.SUPPORTTED_CATEGORIES:
@@ -220,20 +230,21 @@ class Detector:
                 for label in self.SUPPORTTED_CATEGORIES
             };
 
-
+        
         self.detailedResult["boxes"] = self.detectedBoxes;
         self.detailedResult["labels"] = self.detectedLabels;
         self.detailedResult["confidence"] = self.dectectedConf;
         self.detailedResult["count"] = self.detectedCounts;
-
-
+        
+        if verbosity == 0:
+            print("DetailedResult:", self.detailedResult);
 
         return self.outImg, self.detailedResult;
 
 
     def _resetDetector(self) -> None:
         """
-        **Description**
+        **Description**  
         Resets the detection-related internal states of this Detector object.
 
         **Params**
@@ -256,24 +267,24 @@ class Detector:
 
 
 
-    def _loadModel(self, model_path: str) -> None:
+    def _loadModel(self, modelPath: str) -> None:
         """
         **Description**
         Loads the YOLOv8 model from the given file path.
 
         **Params**
-        - `model_path`: The path to the YOLOv8 model weights.
+        - `modelPath`: The path to the YOLOv8 model weights.
 
         **Returns**
         - None
         """
-        self.model = YOLO(model_path);
+        self.model = YOLO(modelPath);
 
 
 if __name__ == "__main__":
     detector: Detector = Detector("./weights/yolov8x.pt");
     img: np.ndarray = cv2.imread("./dog.jpeg");
-
+    
     processedImg, detailedResult = detector.detect(img);
     print("detailedResult:", detailedResult);
 
