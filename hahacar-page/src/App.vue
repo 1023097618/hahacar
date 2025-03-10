@@ -8,10 +8,28 @@
   * {
 	box-sizing: border-box;
 	margin: 0;
-	padding: 0;	
-	font-family: Raleway, sans-serif;
+	padding: 0;
+  
+}
+h2,h3{
+  color: var(--textColor);
 }
 
+.el-table__cell{
+  background-color: var(--mainContent) !important
+}
+.el-table th.el-table__cell{
+  background-color: var(--mainContent) !important
+}
+.el-table{
+  background-color: var(--mainContent) !important
+}
+.el-table td.el-table__cell, .el-table th.el-table__cell.is-leaf{
+  border-bottom: 0px !important
+}
+.hover-row td{
+  background-color: var(--sideBarHoverColor) !important
+}
 .day{
   
   --mainContent:#f5f5f9;
@@ -20,7 +38,9 @@
   --sideBarTextColor:#303133;
   --sideBarSelectedTextColor:#409EFF;
   --sideBarSelectedColor:#ecf5ff;
-  --sideBarHoverColor:#ecf5ff
+  --sideBarHoverColor:#ecf5ff;
+
+  --textColor:#566a7f;
 }
 
 .dark{
@@ -30,7 +50,9 @@
   --sideBarTextColor:#fff;
   --sideBarSelectedTextColor:#fff;
   --sideBarSelectedColor:#4687ff;
-  --sideBarHoverColor:rgb(34, 34, 45)
+  --sideBarHoverColor:rgb(34, 34, 45);
+
+  --textColor:#cbcbe2;;
 }
 /* #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;

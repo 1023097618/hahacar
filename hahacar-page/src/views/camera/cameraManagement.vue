@@ -1,251 +1,265 @@
 <template>
-  <div class="camera-management">
-    <h2>摄像头管理页面</h2>
-    <!-- 顶部操作按钮 -->
-    <div style="margin-bottom: 20px;">
-      <el-button type="primary" @click="openAddDialog">添加摄像头</el-button>
+  <div class="app-container">
+    <!-- 筛选与操作区域 -->
+    <div class="filter-container">
+      <el-input v-model="listQuery.cameraName" clearable class="filter-item" style="width: 200px;" placeholder="请输入摄像头名称" />
+      <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
+        搜索
+      </el-button>
+      <el-button class="filter-item" type="primary" icon="el-icon-plus" @click="handleCreate">
+        添加摄像头
+      </el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">
+        导出
+      </el-button>
     </div>
 
-    <!-- 摄像头列表区域 -->
-    <section class="camera-list">
-      <h3>摄像头列表</h3>
-      <!-- 搜索框 -->
-      <el-input
-        v-model="searchKeyword"
-        placeholder="输入名称搜索摄像头"
-        clearable
-        @clear="handleSearch"
-        @input="handleSearch"
-        style="width:300px; margin-bottom: 20px;">
-      </el-input>
+    <!-- 摄像头列表 -->
+    <el-table v-loading="listLoading" :data="list" border fit highlight-current-row>
+      <el-table-column align="center" width="100px" label="摄像头ID" prop="cameraId" sortable />
+      <el-table-column align="center" min-width="200px" label="摄像头名称" prop="cameraName" />
+      <el-table-column align="center" min-width="300px" label="摄像头地址" prop="cameraURL" />
+      <el-table-column align="center" min-width="200px" label="摄像头位置">
+        <template slot-scope="scope">
+          <span>{{ formatLocation(scope.row.cameraLocation) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="操作" width="250" class-name="small-padding fixed-width">
+        <template slot-scope="scope">
+          <el-button type="primary" size="mini" @click="handleUpdate(scope.row)"> 编辑 </el-button>
+          <el-button type="danger" size="mini" @click="handleDelete(scope.row)"> 删除 </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-      <!-- 摄像头表格 -->
-      <el-table :data="cameraList" border style="width: 100%">
-        <el-table-column prop="cameraName" label="摄像头名称"></el-table-column>
-        <el-table-column prop="cameraLiveStreamPreviewURL" label="预览地址"></el-table-column>
-        <el-table-column label="位置">
-          <template #default="scope">
-            <span>{{ scope.row.cameraLocation.join(', ') }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160">
-          <template #default="scope">
-            <el-button type="primary" size="mini" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button type="danger" size="mini" @click="handleDelete(scope.row.cameraId)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页（如果需要分页功能） -->
-      <el-pagination
-        background
-        layout="prev, pager, next"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :total="totalCameras"
-        @current-change="handlePageChange"
-        style="margin-top: 20px;">
-      </el-pagination>
-    </section>
-
-    <!-- 添加摄像头弹窗 -->
-    <el-dialog title="添加摄像头" :visible.sync="addDialogVisible">
-      <el-form :model="newCamera" ref="addCameraForm" label-width="100px">
-        <el-form-item label="摄像头名称">
-          <el-input v-model="newCamera.cameraName" placeholder="请输入摄像头名称"></el-input>
+    <!-- 分页 -->
+    <pagination v-show="total > 0" :total="total" :pageNum.sync="listQuery.pageNum" :pageSize.sync="listQuery.pageSize" @pagination="getList" />
+    <!-- 添加/编辑摄像头对话框 -->
+    <el-dialog :title="textMap[dialogStatus] + '摄像头'" :visible.sync="dialogFormVisible">
+      <el-form ref="dataForm" :rules="rules" :model="dataForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
+        <el-form-item label="摄像头名称" prop="cameraName">
+          <el-input v-model="dataForm.cameraName" />
         </el-form-item>
-        <el-form-item label="摄像头地址">
-          <el-input v-model="newCamera.cameraURL" placeholder="例如：rtsp://admin:password@ip:10554/udp/av0_0"></el-input>
+        <el-form-item label="摄像头地址" prop="cameraURL">
+          <el-input v-model="dataForm.cameraURL" />
         </el-form-item>
-        <el-form-item label="摄像头位置">
-          <el-input v-model="newCamera.cameraLocation[0]" placeholder="经度" style="width:48%; margin-right:4%"></el-input>
-          <el-input v-model="newCamera.cameraLocation[1]" placeholder="纬度" style="width:48%"></el-input>
+        <el-form-item label="摄像头位置" prop="cameraLocation">
+          <el-input v-model="dataForm.cameraLocation[0]" placeholder="经度" style="width:48%; margin-right:4%;" />
+          <el-input v-model="dataForm.cameraLocation[1]" placeholder="纬度" style="width:48%;" />
         </el-form-item>
       </el-form>
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="addDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAddCamera">确定</el-button>
-      </span>
-    </el-dialog>
-
-    <!-- 编辑摄像头弹窗 -->
-    <el-dialog title="编辑摄像头" :visible.sync="editDialogVisible">
-      <el-form :model="editCamera" ref="editCameraForm" label-width="100px">
-        <el-form-item label="摄像头名称">
-          <el-input v-model="editCamera.cameraName" placeholder="请输入摄像头名称"></el-input>
-        </el-form-item>
-        <el-form-item label="摄像头地址">
-          <el-input v-model="editCamera.cameraURL" placeholder="请输入摄像头地址"></el-input>
-        </el-form-item>
-        <el-form-item label="摄像头位置">
-          <el-input v-model="editCamera.cameraLocation[0]" placeholder="经度" style="width:48%; margin-right:4%"></el-input>
-          <el-input v-model="editCamera.cameraLocation[1]" placeholder="纬度" style="width:48%"></el-input>
-        </el-form-item>
-      </el-form>
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleUpdateCamera">确定</el-button>
-      </span>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="dialogFormVisible = false">取消</el-button>
+        <el-button v-if="dialogStatus === 'create'" type="primary" @click="createData">
+          确定
+        </el-button>
+        <el-button v-else type="primary" @click="updateData">
+          确定
+        </el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { getCameraList, deleteCamera, updateCamera, addCamera } from '@/api/camera/camera.js'
+import { getCameraList, addCamera, updateCamera, deleteCamera } from '@/api/camera/camera'
+import Pagination from '@/components/Pagination'
 
 export default {
-  name: 'cameraManagementView',
+  name: 'CameraManagement',
+  components: { Pagination },
   data() {
     return {
-      cameraList: [],
-      totalCameras: 0,
-      pageNum: 1,
-      pageSize: 6,
-      searchKeyword: '',
-      // 新增摄像头弹窗状态
-      addDialogVisible: false,
-      // 新增摄像头的数据模型
-      newCamera: {
+      list: [],
+      total: 0,
+      listLoading: true,
+      listQuery: {
+        pageNum: 1,
+        pageSize: 20,
+        cameraName: ''
+      },
+      dataForm: {
+        cameraId: undefined,
         cameraName: '',
         cameraURL: '',
         cameraLocation: ['', '']
       },
-      // 编辑摄像头弹窗状态
-      editDialogVisible: false,
-      // 编辑摄像头的数据模型
-      editCamera: {
-        cameraId: '',
-        cameraName: '',
-        cameraURL: '',
-        cameraLocation: ['', '']
-      }
+      dialogFormVisible: false,
+      dialogStatus: '',
+      textMap: {
+        update: '编辑',
+        create: '创建'
+      },
+      rules: {
+        cameraName: [{ required: true, message: '摄像头名称不能为空', trigger: 'blur' }],
+        cameraURL: [{ required: true, message: '摄像头地址不能为空', trigger: 'blur' }],
+        cameraLocation: [{type: 'array', required: true, message: '请填写经度和纬度', trigger: 'blur' }]
+      },
+      downloadLoading: false
     }
   },
+  created() {
+    this.getList()
+  },
   methods: {
-    // 打开添加摄像头弹窗
-    openAddDialog() {
-      this.addDialogVisible = true
-      // 重置表单数据
-      this.newCamera = {
-        cameraName: '',
-        cameraURL: '',
-        cameraLocation: ['', '']
-      }
-    },
-    // 获取摄像头列表，同时传入分页及搜索参数
-    fetchCameraList() {
-      const params = {
-        pageNum: this.pageNum,
-        pageSize: this.pageSize
-      }
-      if(this.searchKeyword){
-        params.cameraName=this.searchKeyword
+    getList() {
+      this.listLoading = true
+      const params = { ...this.listQuery }
+      if (!params.cameraName) {
+        delete params.cameraName
       }
       getCameraList(params)
         .then(response => {
-          response=response.data
-          if(response.code === '200' || response.code === 200){
-            this.cameraList = response.data.cameras || []
-            this.totalCameras = response.data.cameraNum || 0
-          } else {
-            this.$message.error(response.msg || '获取摄像头列表失败')
-          }
+          const data = response.data.data
+          this.list = data.cameras || []
+          this.total = data.total || 0
+          this.listLoading = false
         })
-        .catch(err => {
-          console.error('获取摄像头列表异常', err)
-          this.$message.error('获取摄像头列表异常')
+        .catch(() => {
+          this.list = []
+          this.total = 0
+          this.listLoading = false
         })
     },
-    // 添加摄像头
-    handleAddCamera() {
-      addCamera(this.newCamera)
-        .then(response => {
-          response=response.data
-          if(response.code === '200' || response.code === 200){
-            this.$message.success('摄像头添加成功')
-            this.addDialogVisible = false
-            this.fetchCameraList()
-          } else {
-            this.$message.error(response.msg || '添加失败')
-          }
-        })
-        .catch(err => {
-          console.error('添加摄像头异常', err)
-          this.$message.error('添加摄像头异常')
-        })
+    handleFilter() {
+      this.listQuery.pageNum = 1
+      this.getList()
     },
-    // 打开编辑弹窗，并将数据填入表单
-    handleEdit(camera) {
-      this.editCamera = {
-        cameraId: camera.cameraId,
-        cameraName: camera.cameraName,
-        cameraURL: camera.cameraURL,
-        cameraLocation: Array.isArray(camera.cameraLocation)
-          ? [...camera.cameraLocation]
-          : camera.cameraLocation.split(',')
+    resetForm() {
+      this.dataForm = {
+        cameraId: undefined,
+        cameraName: '',
+        cameraURL: '',
+        cameraLocation: ['','']
       }
-      this.editDialogVisible = true
     },
-    // 更新摄像头信息
-    handleUpdateCamera() {
-      updateCamera(this.editCamera)
-        .then(response => {
-          if(response.code === '200' || response.code === 200){
-            this.$message.success('摄像头更新成功')
-            this.editDialogVisible = false
-            this.fetchCameraList()
-          } else {
-            this.$message.error(response.msg || '更新失败')
-          }
-        })
-        .catch(err => {
-          console.error('更新摄像头异常', err)
-          this.$message.error('更新摄像头异常')
-        })
-    },
-    // 删除摄像头
-    handleDelete(cameraId) {
-      this.$confirm('确定删除该摄像头吗？', '提示', {
-        type: 'warning'
-      }).then(() => {
-        deleteCamera({ cameraId })
-          .then(response => {
-            if(response.code === '200' || response.code === 200){
-              this.$message.success('摄像头删除成功')
-              this.fetchCameraList()
-            } else {
-              this.$message.error(response.msg || '删除失败')
-            }
-          })
-          .catch(err => {
-            console.error('删除摄像头异常', err)
-            this.$message.error('删除摄像头异常')
-          })
-      }).catch(() => {
-        // 用户取消删除操作
+    handleCreate() {
+      this.resetForm()
+      this.dialogStatus = 'create'
+      this.dialogFormVisible = true
+      this.$nextTick(() => {
+        this.$refs.dataForm.clearValidate()
       })
     },
-    // 搜索及分页变化时更新列表
-    handleSearch() {
-      this.pageNum = 1
-      this.fetchCameraList()
+    createData() {
+      this.$refs.dataForm.validate(valid => {
+        if (valid) {
+          addCamera(this.dataForm)
+            .then(response => {
+              const newCamera = response.data.data
+              this.list.unshift(newCamera)
+              this.dialogFormVisible = false
+              this.$notify.success({
+                title: '成功',
+                message: '摄像头创建成功'
+              })
+            })
+            .catch(response => {
+              this.$notify.error({
+                title: '失败',
+                message: response.data.errmsg
+              })
+            })
+        }
+      })
     },
-    handlePageChange(newPage) {
-      this.pageNum = newPage
-      this.fetchCameraList()
+    handleUpdate(row) {
+      // 拷贝数据到 dataForm
+      this.dataForm = Object.assign({},{
+        cameraId:row.cameraId,
+        cameraName:row.cameraName,
+        cameraLocation:row.cameraLocation
+      })
+      // 如果 cameraLocation 不是数组，则拆分成数组
+      if (!Array.isArray(this.dataForm.cameraLocation)) {
+        this.dataForm.cameraLocation = this.dataForm.cameraLocation.split(',')
+      }
+      this.dialogStatus = 'update'
+      this.dialogFormVisible = true
+      this.$nextTick(() => {
+        this.$refs.dataForm.clearValidate()
+      })
+    },
+    updateData() {
+      console.log("update")
+      this.$refs.dataForm.validate(valid => {
+        if (valid) {
+          updateCamera(this.dataForm)
+            .then(() => {
+              const index = this.list.findIndex(item => item.cameraId === this.dataForm.cameraId)
+              if (index !== -1) {
+                this.list.splice(index, 1, Object.assign({}, this.dataForm))
+              }
+              this.dialogFormVisible = false
+              this.$notify.success({
+                title: '成功',
+                message: '摄像头更新成功'
+              })
+            })
+            .catch(response => {
+              this.$notify.error({
+                title: '失败',
+                message: response.data.errmsg
+              })
+            })
+        }
+      })
+    },
+    handleDelete(row) {
+      this.$confirm('确定删除该摄像头吗？', '提示', { type: 'warning' })
+        .then(() => {
+          deleteCamera({cameraId:row.cameraId})
+            .then(() => {
+              this.$notify.success({
+                title: '成功',
+                message: '摄像头删除成功'
+              })
+              this.getList()
+            })
+            .catch(response => {
+              this.$notify.error({
+                title: '失败',
+                message: response.data.errmsg
+              })
+            })
+        })
+        .catch(() => {})
+    },
+    handleDownload() {
+      this.downloadLoading = true
+      import('@/vendor/Export2Excel').then(excel => {
+        const tHeader = ['摄像头ID', '摄像头名称', '摄像头地址', '摄像头位置']
+        const filterVal = ['cameraId', 'cameraName', 'cameraURL', 'cameraLocation']
+        excel.export_json_to_excel2(tHeader, this.list, filterVal, '摄像头信息')
+        this.downloadLoading = false
+      })
+    },
+    formatLocation(location) {
+      if (Array.isArray(location)) {
+        return location.join(', ')
+      }
+      return location
     }
-  },
-  mounted() {
-    this.fetchCameraList()
   }
 }
 </script>
 
 <style scoped>
-.camera-management {
+.app-container {
   padding: 20px;
 }
-.camera-list {
-  margin-top: 20px;
+.filter-container {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+.filter-item {
+  margin-right: 10px;
+}
+.small-padding {
+  padding: 4px;
+}
+.fixed-width {
+  width: 250px;
 }
 </style>
