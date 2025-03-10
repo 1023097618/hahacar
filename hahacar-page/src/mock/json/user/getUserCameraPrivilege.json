@@ -5,10 +5,6 @@
         {
           "cameraId": "1",
           "cameraName": "摄像头1"
-        },
-        {
-          "cameraId": "cam2",
-          "cameraName": "后院摄像头"
         }
       ]
     },

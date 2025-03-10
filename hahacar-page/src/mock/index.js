@@ -8,5 +8,5 @@ Mock.mock(baseurl+"/camera/getCameras?pageNum=1&pageSize=10000",'get',require('.
 Mock.mock(baseurl+"/camera/getCameras?pageNum=1&pageSize=6",'get',require('./json/camera/cameraList.json'))
 Mock.mock(baseurl+"/camera/getCameras?pageNum=1&pageSize=20",'get',require('./json/camera/cameraList.json'))
 Mock.mock(baseurl+"/user/getUsers?pageNum=1&pageSize=10",'get',require('./json/user/userList.json'))
-Mock.mock(baseurl+"/user/getUserCameraPrivilege",'get',require('./json/user/getUserCameraPrivilege.json'))
+Mock.mock(baseurl+"/user/getUserCameraPrivilege?userId=123",'get',require('./json/user/getUserCameraPrivilege.json'))
 

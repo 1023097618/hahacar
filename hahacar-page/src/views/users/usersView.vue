@@ -97,16 +97,18 @@
         </el-button>
       </div>
     </el-dialog>
+    <user-camera :visible.sync="userCameraVisible" ref="userCamera" />
   </div>
 </template>
 
 <script>
 import { getUsers, addUser, updateUser, deleteUser } from '@/api/user/user.js'
 import Pagination from '@/components/Pagination'
+import UserCamera from './components/userCamera.vue'
 
 export default {
   name: 'UserManagement',
-  components: { Pagination },
+  components: { Pagination,UserCamera },
   data() {
     return {
       list: [],
@@ -135,7 +137,8 @@ export default {
         realName: [{ required: true, message: '真实姓名不能为空', trigger: 'blur' }],
         privilege: [{ required: true, message: '请选择用户权限', trigger: 'change' }]
       },
-      downloadLoading: false
+      downloadLoading: false,
+      userCameraVisible:false
     }
   },
   created() {
@@ -272,12 +275,9 @@ export default {
         this.downloadLoading = false
       })
     },
-    handleViewCamera() {
-      // 此处可调用打开摄像头权限编辑弹窗等逻辑
-      this.$notify.info({
-        title: '提示',
-        message: '查看摄像头权限功能待实现'
-      })
+    handleViewCamera(row) {
+      // 调用 UserCamera 弹窗，并传入当前用户ID
+      this.$refs.userCamera.openDialog(row.userId)
     }
   }
 }
