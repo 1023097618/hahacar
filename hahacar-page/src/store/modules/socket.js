@@ -32,8 +32,8 @@ export default{
                 state.tasks.push(
                     {
                         taskId,
-                        isComplete: data.progressValue?data.progressValue == 100:true,
-                        progressValue: data.progressValue?data.progressValue:100,
+                        isComplete: data.progressValue !== null ?data.progressValue === 100:true,
+                        progressValue: data.progressValue !== null?data.progressValue:100,
                         downloadURL: data.downloadURL?data.downloadURL:undefined,
                         watchURL:data.watchURL?data.watchURL:undefined,
                         type:'video',
@@ -47,7 +47,7 @@ export default{
                     state.tasks[taskIndex].downloadURL=data.downloadURL
                     state.tasks[taskIndex].watchURL=data.watchURL
                 }else{
-                    state.tasks[taskIndex].isComplete=data.progressValue==100
+                    state.tasks[taskIndex].isComplete=data.progressValue===100
                     state.tasks[taskIndex].progressValue=data.progressValue
                 }
             }
