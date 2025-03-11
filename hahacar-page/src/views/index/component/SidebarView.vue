@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div id="sidebar">
     <el-menu :default-active="this.$route.path" class="el-menu-vertical-demo" @open="handleOpen" @close="handleClose"
       :router="true">
       <template  v-for="route in filteredRoutes">
@@ -83,5 +83,8 @@
 <style>
   .el-menu{
     border-right-width: 0px;
+  }
+  #sidebar{
+    background-color: var(--sideBarColor);
   }
 </style>

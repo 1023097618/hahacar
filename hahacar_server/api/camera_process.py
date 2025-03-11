@@ -40,6 +40,17 @@ os.makedirs(INFO_DIR, exist_ok=True)
 
 #保存处理后的帧/信息函数
 def save_processed_frame(frame, processedImg, detailedResult):
+    # **筛选 labels，只保留 car, bus, van，truck**
+    # target_classes = {"car", "bus", "van", "truck"}
+    # filtered_labels = []
+    # filtered_confidence = []
+    # filtered_counts = {}
+    #
+    # for i, label in enumerate(detailedResult.get("labels", [])):
+    #     if label in target_classes:
+    #         filtered_labels.append(label)
+    #         filtered_confidence.append(detailedResult["confidence"][i])  # 置信度
+    #         filtered_counts[label] = filtered_counts.get(label, 0) + 1  # 计算出现次数
 
     # 保存原始帧和处理后的图片
     timestamp = time.time_ns()
@@ -79,7 +90,11 @@ def process_frame(frame):
     - np.ndarray: 处理后的帧
     """
     # 运行YOLOv8检测
-    processedImg, detailedResult = detector.detect(frame, addingBoxes=True, addingLabel=True, addingConf=True)
+    processedImg, detailedResult = detector.detect(frame, 
+                                                   addingBoxes=False, 
+                                                   addingLabel=False, 
+                                                   addingConf=False, 
+                                                   verbosity=2);
     return processedImg,detailedResult
 
 # **视频流生成器**

@@ -44,7 +44,11 @@ async def frames_detect(file: UploadFile = File(...)):
         img = np.array(img)
 
         # 运行YOLOv8检测
-        processedImg, detailedResult = detector.detect(img, addingBoxes=True, addingLabel=True, addingConf=False)
+        processedImg, detailedResult = detector.detect(img, 
+                                                       addingBoxes=True, 
+                                                       addingLabel=True, 
+                                                       addingConf=False,
+                                                       verbosity=2);
 
         # 保存处理后的图片
         timestamp = time.time_ns()
