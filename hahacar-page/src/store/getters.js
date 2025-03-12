@@ -6,6 +6,8 @@ const getters={
     permittedRoutes: state=>state.user.permittedroutes,
     user:state=>state.user.user,
     tasks:state=>state.socket.tasks,
-    sid:state=>state.socket.sid
+    sid:state=>state.socket.sid,
+    alertMessages:state=>state.socket.alertMessages,
+    cameraSituations:state=>state.socket.cameraSituations
 }
 export default getters

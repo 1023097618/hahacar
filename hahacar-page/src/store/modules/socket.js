@@ -1,5 +1,6 @@
 //专门处理websocket有关的数据存储，使用户能第一时间获取到相关的数据。
 //网上好像这方面的资料挺少的，我不确定这个文件名是不是叫socket.js，或许有更规范的命名方式？
+import Vue from 'vue'
 export default{
     state:{
         tasks:[
@@ -11,7 +12,9 @@ export default{
             //     watchURL:"http://"
             // }
         ],
-        sid:-1
+        sid:-1,
+        alertMessages: [],
+        cameraSituations: {}
     },
     mutations:{
         UPDATE_TASKS(state,data){
@@ -54,6 +57,17 @@ export default{
         },
         UPDATE_SOCKET_ID(state,sid){
             state.sid=sid
+        },
+        UPDATE_CAMERA_SITUATION(state, data) {
+            if (data && data.cameraId) {
+                Vue.set(state.cameraSituations, data.cameraId, {
+                  online: data.online,
+                  alert: data.alert
+                })
+            }
+        },
+        ADD_ALERT(state, alert) {
+            state.alertMessages.push(alert)
         }
     },
     actions:{
@@ -62,6 +76,12 @@ export default{
         },
         UpdateSocketId({commit},sid){
             commit("UPDATE_SOCKET_ID",sid)
-        }
+        },
+        AddAlert({commit},data){
+            commit("ADD_ALERT",data)
+        },
+        UpdateCameraSituation({commit},data){
+            commit("UPDATE_CAMERA_SITUATION",data)
+        },
     }
 }

@@ -11,7 +11,7 @@ export function loadAMap() {
       // 创建 script 标签
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}`;
+      script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&plugin=AMap.ControlBar,AMap.ToolBar`;
   
       // 加载成功
       script.onload = () => {

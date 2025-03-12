@@ -10,7 +10,7 @@ import socket from '@/utils/socket'
 import VueECharts from 'vue-echarts'
 
 //伪造后端请求(调试用)
-// import './mock'
+import './mock'
 Vue.use(ElementUI)
 Vue.prototype.$socket=socket
 Vue.component('v-chart', VueECharts)

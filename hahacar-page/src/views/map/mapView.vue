@@ -4,7 +4,7 @@
     <top-header :cameras="cameras"/>
 
     <!-- 地图区域 -->
-    <map-container />
+    <map-container :cameras="cameras"/>
   </div>
 </template>
 
