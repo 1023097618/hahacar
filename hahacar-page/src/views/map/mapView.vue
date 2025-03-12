@@ -1,7 +1,7 @@
 <template>
   <div style="height: 100%;">
     <!-- 顶部 -->
-    <top-header :cameras="cameras"/>
+    <top-header :cameras="cameras" :alerts="alerts"/>
 
     <!-- 地图区域 -->
     <map-container :cameras="cameras"/>
@@ -10,6 +10,7 @@
 
 <script>
 import {getCameraList} from '@/api/camera/camera.js'
+import { getAlerts } from '@/api/alert/alert.js'
 import TopHeader from './components/TopHeader.vue';
 import MapContainer from './components/MapContainer.vue';
 //获取到所有的摄像头，因为要全部显示到地图上
@@ -28,11 +29,21 @@ export default {
       this.cameras=res.data.data
     }).catch(err=>{
       console.log(err)
+    }),
+    getAlerts({
+      pageNum:1,
+      pageSize:0,
+      alertType:["1","2"]
+    }).then(res=>{
+      this.alerts=res.data.data
+    }).catch(err=>{
+      console.log(err)
     })
   },
   data(){
     return {
-      cameras:{}
+      cameras:{},
+      alerts:{}
     }
   }
 };

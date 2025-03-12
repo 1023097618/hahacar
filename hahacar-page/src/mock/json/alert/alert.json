@@ -1,0 +1,21 @@
+{
+    "code": "200",
+    "msg": "success",
+    "data": {
+      "alerts": [
+        {
+          "alertId": "1",
+          "cameraId": "1",
+          "cameraName": "name",
+          "alertType": "1",
+          "alertStartTime": "2025-03-10 00:00:00",
+          "alertEndTime": "2025-03-10 01:00:00",
+          "alertProcessedTime": "null",
+          "alertImage": "key",
+          "ruleType": "1",
+          "ruleRemark": "检测到违规车辆"
+        }
+      ],
+      "alertNum": "1"
+    }
+  }

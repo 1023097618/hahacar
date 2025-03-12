@@ -19,14 +19,14 @@
           <i class="fa fa-user"></i>
           <span class="info-label">在线人数</span>
           <span class="info-value">331</span>
-        </div>
+        </div> -->
   
 
-        <div class="info-item">
+        <div class="info-item clickable" @click="goAlertPage">
           <i class="fa fa-bell"></i>
-          <span class="info-label">报警数</span>
-          <span class="info-value">28</span>
-        </div> -->
+          <span class="info-label">预警数</span>
+          <span class="info-value">{{alerts.alertNum}}</span>
+        </div>
   
 
         <div class="info-item clickable" @click="goCameraPage">
@@ -59,13 +59,23 @@
       // 点击后跳转到 /camera
       goCameraPage() {
         this.$router.push('/cameraList')
-      }
+      },
+      goAlertPage() {
+      this.$router.push({
+        path: '/alertList',
+        query: { alertType: ['1', '2'] }
+      })
+    }
     },
     // props:["cameras"]
     props:{
         cameras:{
             required:true,
             type:Object
+        },
+        alerts:{
+          required:true,
+          type:Object
         }
     }
   }
