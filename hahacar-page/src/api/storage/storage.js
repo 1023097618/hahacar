@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 const baseurl = process.env.VUE_APP_baseurl
+import { GetCookie } from '@/utils/auth'
 
 export function uploadVideo(data){
     return request({
@@ -20,3 +21,8 @@ export function uploadPicture(data){
 }
 
 export const getCameraLiveStream=baseurl+"/storage/getCameraLiveStream"
+
+export function getImageURL(fileName){
+    const token=GetCookie()
+    return `${process.env.VUE_APP_image_baseurl}/${fileName}?token=${token}`
+}
