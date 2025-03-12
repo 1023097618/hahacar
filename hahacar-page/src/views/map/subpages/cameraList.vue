@@ -1,12 +1,5 @@
 <template>
     <div class="camera-page">
-      <!-- 顶部 Header -->
-      <div class="camera-header">
-        <div class="back-arrow" @click="goBack">
-          <i class="fa fa-arrow-left"></i>
-        </div>
-        <div class="header-title">摄像头列表</div>
-      </div>
   
       <!-- 摄像头列表 -->
       <div class="camera-grid">
@@ -117,29 +110,12 @@
     background: #f5f5f5;
   }
   
-  /* Header 样式 */
-  .camera-header {
-    height: 50px;
-    background-color: #081737;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-  }
+
   
-  .back-arrow {
-    cursor: pointer;
-    margin-right: 10px;
-  }
+
   
-  .back-arrow i {
-    font-size: 18px;
-  }
-  
-  .header-title {
-    font-size: 18px;
-    font-weight: bold;
-  }
+
+
   
   /* 摄像头列表网格 */
   .camera-grid {

@@ -13,3 +13,8 @@ Mock.mock(baseurl+"/user/getUserCameraPrivilege?userId=123",'get',require('./jso
 Mock.mock(baseurl+"/label/getLabels",'get',require('./json/label/label.json'))
 Mock.mock(baseurl+"/camera/getCameraRules?cameraId=1",'get',require('./json/camera/cameraRule.json'))
 Mock.mock(baseurl+"/camera/getCameraLines?cameraId=1",'get',require('./json/camera/cameraLine.json'))
+
+Mock.mock(baseurl+"/stat/alert/searchAlertNum",'get',require('./json/stat/alert/alert.json'))
+Mock.mock(baseurl+"/stat/category/searchCategoryNum",'get',require('./json/stat/category/category.json'))
+Mock.mock(baseurl+"/stat/flow/searchFlowNum",'get',require('./json/stat/flow/flow.json'))
+Mock.mock(baseurl+"/stat/hold/searchHoldNum",'get',require('./json/stat/hold/hold.json'))

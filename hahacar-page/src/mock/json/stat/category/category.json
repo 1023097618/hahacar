@@ -1,0 +1,16 @@
+{
+    "code": "200",
+    "msg": "success",
+    "data": {
+      "labels": [
+        {
+          "labelName": "car",
+          "labelNum": "14"
+        },
+        {
+            "labelName": "trunk",
+            "labelNum": "14"
+          }
+      ]
+    }
+  }

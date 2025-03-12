@@ -30,6 +30,15 @@ h2,h3{
 .hover-row td{
   background-color: var(--sideBarHoverColor) !important
 }
+
+.el-header {
+    background-color: #4687ff!important;
+    color: #333;
+    line-height: 56px!important;
+    height: 56px!important;
+  }
+
+  
 .day{
   
   --mainContent:#f5f5f9;

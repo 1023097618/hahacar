@@ -19,10 +19,15 @@ const userRoutes = [
       { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
       { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'}},
       // { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
+      { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}},
+      { path: '/categoryDetail', name: 'categoryDetailView', component: () => import('@/views/data/subpages/categoryDetailView.vue'), hidden: true,meta:{title: '车辆类型分布数据'}},
+      { path: '/flowDetail', name: 'flowDetailView', component: () => import('@/views/data/subpages/flowDetailView.vue'), hidden: true,meta:{title: '车流量数据'}},
+      { path: '/holdDetail', name: 'holdDetailView', component: () => import('@/views/data/subpages/holdDetailView.vue'), hidden: true,meta:{title: '拥挤程度数据'}},
+      { path: '/alertDetail', name: 'alertDetailView', component: () => import('@/views/data/subpages/alertDetailView.vue'), hidden: true,meta:{title: '预警数量数据'}}
     ],
   },
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true },
-  { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}}
+
 ]
 
 const rootRoutes=[
@@ -35,10 +40,17 @@ const rootRoutes=[
       { path: '/camera', name: 'cameraManagementView', component: () => import('@/views/camera/cameraManagement.vue'), hidden: false,meta:{title: '摄像头管理'} },
       // { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
     ],
-  },
+  },{path: '', name: 'subPageView', component: () => import('@/views/index/subPageView.vue'), hidden: true,meta:{title: '二级页面'}, children: [
+    { path: '/categoryDetail', name: 'categoryDetailView', component: () => import('@/views/data/subpages/categoryDetailView.vue'), hidden: true,meta:{title: '车辆类型分布数据'}},
+    { path: '/flowDetail', name: 'flowDetailView', component: () => import('@/views/data/subpages/flowDetailView.vue'), hidden: true,meta:{title: '车流量数据'}},
+    { path: '/holdDetail', name: 'holdDetailView', component: () => import('@/views/data/subpages/holdDetailView.vue'), hidden: true,meta:{title: '拥挤程度数据'}},
+    { path: '/alertDetail', name: 'alertDetailView', component: () => import('@/views/data/subpages/alertDetailView.vue'), hidden: true,meta:{title: '预警数量数据'}},
+    { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}},
+    { path: '/cameraRules', name: 'cameraRulesView', component: () => import('@/views/camera/subpages/cameraRules.vue'), hidden: true,meta:{title: '摄像头规则配置'}}
+  ]},
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true },
-  { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}},
-  { path: '/cameraRules', name: 'cameraRulesView', component: () => import('@/views/camera/subpages/cameraRules.vue'), hidden: true,meta:{title: '摄像头规则配置'}}
+
+
 ]
 
 function createRoute() {

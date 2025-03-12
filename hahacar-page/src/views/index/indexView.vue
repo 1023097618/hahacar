@@ -19,12 +19,7 @@
 </template>
 
 <style>
-  .el-header {
-    background-color: #4687ff!important;
-    color: #333;
-    line-height: 56px!important;
-    height: 56px!important;
-  }
+
 
   .el-aside {
     background-color: var(--sideBarColor);
