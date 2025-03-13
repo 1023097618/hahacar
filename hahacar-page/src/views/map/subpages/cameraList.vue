@@ -5,7 +5,7 @@
       <div class="camera-grid">
         <div class="camera-item" v-for="camera in cameras" :key="camera.cameraId">
           <!-- HTTP JPEG STREAM 的摄像头画面 -->
-          <img :src="getCameraLiveStream+'?token='+token +'&liveStreamType=preview&cameraId='+camera.cameraId" :alt="camera.cameraName" class="camera-feed" @click.stop.prevent="OpenDetail(camera)"/>
+          <img :src="GetCameraLiveURL(camera.cameraId,'preview')" :alt="camera.cameraName" class="camera-feed" @click.stop.prevent="OpenDetail(camera)"/>
           <div class="camera-name">{{ camera.cameraName }}</div>
         </div>
       </div>
@@ -29,7 +29,7 @@
   
   <script>
     import {getCameraList} from '@/api/camera/camera.js'
-    import {getCameraLiveStream} from '@/api/storage/storage.js'
+    import {getCameraLiveURL} from '@/api/storage/storage.js'
   export default {
     name: 'CameraPage',
     data() {
@@ -49,7 +49,7 @@
         pageNum: 1,
         pageSize: 6,
         cameraNum:8,
-        getCameraLiveStream
+        getCameraLiveURL
       };
     },
     computed: {
@@ -93,7 +93,10 @@
         })
       },
       OpenDetail(camera){
-        window.open(getCameraLiveStream+'?token='+this.token +'&liveStreamType=full&cameraId='+camera.cameraId,"_blank")
+        window.open(this.GetCameraLiveURL(camera.cameraId,"full"),"_blank")
+      },
+      GetCameraLiveURL(cameraId,liveStreamType){
+        return getCameraLiveURL(cameraId,liveStreamType)
       }
     },
     created(){

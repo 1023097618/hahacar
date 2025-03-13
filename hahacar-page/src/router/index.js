@@ -25,7 +25,9 @@ const userRoutes = [
     { path: '/flowDetail', name: 'flowDetailView', component: () => import('@/views/data/subpages/flowDetailView.vue'), hidden: true,meta:{title: '车流量数据'}},
     { path: '/holdDetail', name: 'holdDetailView', component: () => import('@/views/data/subpages/holdDetailView.vue'), hidden: true,meta:{title: '拥挤程度数据'}},
     { path: '/alertDetail', name: 'alertDetailView', component: () => import('@/views/data/subpages/alertDetailView.vue'), hidden: true,meta:{title: '预警数量数据'}},
-    { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}}
+    { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}},
+    { path:'/alertList',name:'alertListView',component:()=>import('@/views/map/subpages/alertList.vue'), hidden: true,meta:{title: '预警信息列表'}},
+    { path:'/cameraLines',name:'cameraLineListView',component:()=>import('@/views/camera/subpages/cameraLines.vue'), hidden: true,meta:{title: '摄像头碰撞线设置列表'}}
   ]},
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true },
 
@@ -48,7 +50,8 @@ const rootRoutes=[
     { path: '/alertDetail', name: 'alertDetailView', component: () => import('@/views/data/subpages/alertDetailView.vue'), hidden: true,meta:{title: '预警数量数据'}},
     { path: '/cameraList', name: 'cameraListView', component: () => import('@/views/map/subpages/cameraList.vue'), hidden: true,meta:{title: '摄像头列表'}},
     { path: '/cameraRules', name: 'cameraRulesView', component: () => import('@/views/camera/subpages/cameraRules.vue'), hidden: true,meta:{title: '摄像头规则配置'}},
-    { path:'/alertList',name:'alertListView',component:()=>import('@/views/map/subpages/alertList.vue'), hidden: true,meta:{title: '预警信息列表'}}
+    { path:'/alertList',name:'alertListView',component:()=>import('@/views/map/subpages/alertList.vue'), hidden: true,meta:{title: '预警信息列表'}},
+    { path:'/cameraLines',name:'cameraLineListView',component:()=>import('@/views/camera/subpages/cameraLines.vue'), hidden: true,meta:{title: '摄像头碰撞线设置列表'}}
   ]},
   { path: '/resetPasswordByToken', name: 'resetPasswordByTokenView', component: () => import('@/views/login/resetPasswordByTokenView.vue'), hidden: true },
 

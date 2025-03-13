@@ -24,11 +24,12 @@
           <span>{{ formatLocation(scope.row.cameraLocation) }}</span>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="操作" width="250" class-name="small-padding fixed-width">
+      <el-table-column align="center" label="操作" width="500" class-name="small-padding fixed-width">
         <template slot-scope="scope">
           <el-button type="primary" size="mini" @click="handleUpdate(scope.row)"> 编辑 </el-button>
           <el-button type="danger" size="mini" @click="handleDelete(scope.row)"> 删除 </el-button>
           <el-button type="warning" size="mini" @click="handleRules(scope.row)">规则配置</el-button>
+          <el-button type="warning" size="mini" @click="handleLines(scope.row)">检测线配置</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -243,6 +244,9 @@ export default {
     },
     handleRules(camera) {
       this.$router.push({ path: '/cameraRules', query: { cameraId: camera.cameraId } })
+    },
+    handleLines(camera){
+      this.$router.push({path:'/cameraLines', query: {cameraId:camera.cameraId}})
     }
   }
 }
