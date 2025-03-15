@@ -341,7 +341,8 @@ export default {
             pointCloseToLine: line.pointCloseToLine ? line.pointCloseToLine.map(coord => coord.toString()) : [],
             isMainLine: line.isMainLine ? 'true' : 'false'
           }
-        })
+        }),
+        cameraId:this.cameraId
       }
       updateCameraLine(payload)
         .then(() => {
