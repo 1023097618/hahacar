@@ -5,12 +5,25 @@ from schemas.label_schema import LabelsResponse
 
 
 def getLabels(db: Session):
-    labels = db.query(VehicleLabel).filter(VehicleLabel.label_name != "").first()
+    labels = db.query(VehicleLabel).filter(VehicleLabel.label_name != "").all()
+    if not labels:
+        return {
+            "code": 200,
+            "data": {
+                "labels": []
+            }
+            ,
+            "msg": "labels is not found"
+        }
     return {
         "code": 200,
         "data": {
-            "labels":{
-                LabelsResponse.from_orm(labels).dict()
-            }
+            "labels":[
+                {
+                    "labelId": label.label_id,
+                    "labelName": label.label_name
+                }
+                for label in labels
+            ]
         }
     }

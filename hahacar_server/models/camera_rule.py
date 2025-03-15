@@ -1,5 +1,9 @@
 from datetime import datetime
+from typing import Text
+
 from sqlalchemy import Column, String, Integer, JSON, Float, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+
 from dependencies.database import Base
 
 class CameraRule(Base):
@@ -20,3 +24,6 @@ class CameraRule(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     labels_equal_hold_ids = Column(JSON, nullable=True) # 仅 rule_value=2 时适用，包含labelId以及labelHoldNum的json字符串,代表本labelId可以视为多少个交通当量
     labels_equal_flow_ids = Column(JSON, nullable=True) # 仅 rule_value=3 时适用,包含labelId以及labelFlowNum的json字符串,代表本labelId可以视为多少个交通当量
+
+    #关联
+    camera = relationship("Camera", back_populates="rules")

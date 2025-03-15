@@ -11,7 +11,7 @@ def updateCameraRule(db: Session, rule_update: CameraRuleUpdate):
     if rule_update.ruleValue == '1':
        if rule_update.labelId:
            db.query(CameraRule).filter(CameraRule.camera_id == rule_update.cameraId).update({
-               "label_ids": json.dumps([{"labelId": item.labelId} for item in rule_update.labelId])
+               "label_ids":  json.dumps(rule_update.labelId)        #sqlite不支持存储list类型，所以要存储为json字符串
            })
        else:
            return {"code": "400", "msg": "labelId is None", "data": {}}

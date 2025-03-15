@@ -19,8 +19,8 @@ class AlertResponse(BaseModel):
         orm_mode = True
 
 class GetAlertsRequest(BaseModel):
-    pageNum: str
-    pageSize: str
+    pageNum: int
+    pageSize: int
     alertType: Optional[List[str]]
     cameraId: Optional[str]
     alertStartTimeFrom: Optional[str]

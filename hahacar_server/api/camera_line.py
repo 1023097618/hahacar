@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -12,10 +14,11 @@ router = APIRouter(
 )
 
 @router.post("/updateCameraLine")
-def updateCameraLine_api(cameraLine: CameraLineUpdate, db: Session = Depends(get_db)):
-    return updateCameraLine(db, cameraLine)
+def updateCameraLine_api(cameraLines: CameraLineUpdate,cameraId: str, db: Session = Depends(get_db)):
+    return updateCameraLine(db, cameraLines,cameraId)
 
 
+#这个需要再测试，因为只返回最后一个摄像头检测线
 @router.get("/getCameraLines")
 def getCameraLines_api(cameraId: str, token: str, db: Session = Depends(get_db)):
-    return getCameraLine(db,token,cameraId)
+    return getCameraLine(db,cameraId,token)

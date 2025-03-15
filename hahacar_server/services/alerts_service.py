@@ -37,19 +37,28 @@ def processAlert(db:Session, request: ProcessAlertRequest):
     return {"code": "200", "msg": "success", "data": {}}
 
 #获取预警信息数量
+
+"""
+    **这里返回的alert_time和timefrom以及timeto的关系不很清楚
+"""
 def getAlertNum(db:Session,request: GetAlertCountRequest):
-    query = db.query(
-        func.strftime('%Y-%m-%d %H:00:00',Alert.alert_start_time).label("AlertTime"),
-        func.count(Alert.id).label("AlertNum")
-    )
+    # **计算 AlertTime 逻辑**
     if request.timeFrom:
-        query = query.filter(Alert.alert_start_time >= datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S"))
-    if request.timeTo:
-        query = query.filter(Alert.alert_start_time <= datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S"))
+        alert_time = request.timeFrom  # 如果提供了 timeFrom，则直接使用
+    else:
+        alert_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 否则取当前时间
+
+    query = db.query(func.count(Alert.id).label("alert_count"))  # 计算 Alert 表中的数量
+
     if request.cameraId:
         query = query.filter(Alert.camera_id == request.cameraId)
+    if request.timeFrom:
+        query = query.filter(
+            Alert.alert_start_time >= datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S"))
+    if request.timeTo:
+        query = query.filter(Alert.alert_end_time <= datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S"))
 
-    query = query.group_by("AlertTime").order_by("AlertNum")
-    results = query.all()
+    alert_num = query.scalar()
 
-    return {"code": "200", "msg": "success", "data": {"alerts": results}}
+
+    return {"code": "200", "msg": "success", "data": {"AlertTime": alert_time,"AlertNum": str(alert_num)}}
