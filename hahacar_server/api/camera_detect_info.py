@@ -7,7 +7,7 @@ from services.camera_detect_info_service import *
 
 router = APIRouter(
     prefix="/api/stat",
-    tags=["camera_detect_info"],
+    tags=["Camera Detect Info"],
 )
 
 """

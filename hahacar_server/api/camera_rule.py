@@ -5,7 +5,7 @@ from dependencies.database import get_db
 from schemas.camera_rule_schema import *
 from services.camera_rule_service import updateCameraRule,getCameraRule
 
-router = APIRouter(prefix="/api/camera")
+router = APIRouter(prefix="/api/camera", tags=["Camera Rule"])
 @router.get("/updateCameraRule")
 def update_camera_rule_api(
         rule_update: CameraRuleUpdate,

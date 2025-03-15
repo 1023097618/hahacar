@@ -8,7 +8,7 @@ from services.camera_line_service import *
 
 router = APIRouter(
     prefix="/camera",
-    tags=["camera_line"],
+    tags=["Camera Line"],
 )
 
 @router.post("/updateCameraLine")

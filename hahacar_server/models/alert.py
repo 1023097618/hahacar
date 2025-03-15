@@ -17,5 +17,5 @@ class Alert(Base):
     alert_processed_time = Column(DateTime, nullable=True)
     alert_image = Column(String, nullable=False)
     rule_type = Column(String, nullable=False)
-    rule_remark = Column(Text, nullable=False)
+    rule_remark = Column(JSON, nullable=False)
     alert_num = Column(Integer, nullable=False)

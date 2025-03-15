@@ -1,7 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware import Middleware
-from starlette.routing import Mount
 
 from api.socket_manager import sio
 from api.user import router as user_router
@@ -10,6 +8,11 @@ from api.video_process import router as video_router
 from api.camera_process import router as camera_process_router
 from api.camera import router as camera_router
 from api.camera_rule import router as camera_rule_router
+from api.camera_detect_info import router as camera_detect_info
+from api.alert import router as alert
+from api.camera_line import router as camera_line
+from api.label import router as label
+
 import socketio
 
 # 创建 ASGI 应用
@@ -38,6 +41,10 @@ app.include_router(video_router)
 app.include_router(camera_router)
 app.include_router(camera_process_router)
 app.include_router(camera_rule_router)
+app.include_router(camera_detect_info)
+app.include_router(camera_line)
+app.include_router(alert)
+app.include_router(label)
 
 @app.get("/")
 def read_root():

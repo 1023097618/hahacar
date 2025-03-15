@@ -6,7 +6,7 @@ from dependencies.database import get_db
 from schemas.alert_schema import *
 from services.alerts_service import *
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", tags=["Alert"])
 
 @router.get("/alert/getAlerts")
 def get_alerts_api(request:GetAlertsRequest,db:Session=Depends(get_db)):

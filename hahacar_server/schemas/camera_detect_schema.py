@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Optional, Dict
 
 from pydantic import BaseModel
 
@@ -59,4 +59,4 @@ class TrafficHoldSaveRequest(BaseModel):
 
 class VehicleLabelSaveRequest(BaseModel):
     cameraId: str
-    detected_cars_labels: json
+    detected_cars_labels: Dict[str,str]
