@@ -9,6 +9,7 @@ from fastapi import APIRouter, UploadFile, WebSocketDisconnect, BackgroundTasks,
 from fastapi.responses import JSONResponse, FileResponse
 
 from api.socket_manager import sio
+from core.security import verify_jwt_token
 from services.user_service import is_admin
 from util.detector import Detector
 
@@ -66,9 +67,13 @@ async def video_detect(
     - JSON: 任务状态
     """
 
+    # **验证管理员权限**
+    token_payload = verify_jwt_token(token)
+    if not token_payload or not token_payload.get("is_admin"):
+        return {"code": "403", "msg": "Unorthrize", "data": {}}
     # **Token 验证**
-    if token is None or not is_admin(token):
-        return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
+    # if token is None or not is_admin(token):
+    #     return JSONResponse(content={"code": "401", "data": {}, "msg": "Unauthorized"}, status_code=401)
 
     if sid not in active_connections:
         return JSONResponse(content={"code": "400","data":{}, "msg": "Invalid or missing Socket ID"}, status_code=400)

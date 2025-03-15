@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
+
 
 class CameraCreate(BaseModel):
     """
@@ -44,3 +45,4 @@ class CameraListResponse(BaseModel):
     """
     cameras: List[CameraResponse]
     cameraNum: int
+

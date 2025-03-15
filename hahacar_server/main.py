@@ -9,6 +9,7 @@ from api.photo_process import router as photo_router
 from api.video_process import router as video_router
 from api.camera_process import router as camera_process_router
 from api.camera import router as camera_router
+from api.camera_rule import router as camera_rule_router
 import socketio
 
 # 创建 ASGI 应用
@@ -36,6 +37,7 @@ app.include_router(photo_router)
 app.include_router(video_router)
 app.include_router(camera_router)
 app.include_router(camera_process_router)
+app.include_router(camera_rule_router)
 
 @app.get("/")
 def read_root():

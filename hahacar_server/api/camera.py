@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 # from sqlalchemy.orm import Session
 from dependencies.database import get_db
 from core.security import verify_jwt_token
-from schemas.camera_schema import CameraCreate, CameraUpdate, CameraDelete
+from schemas.camera_schema import *
 from services.camera_service import add_camera, get_cameras, delete_camera, update_camera
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

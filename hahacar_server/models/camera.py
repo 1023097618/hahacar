@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer
+from sqlalchemy.orm import relationship
 from dependencies.database import Base
 
 class Camera(Base):
@@ -18,3 +19,6 @@ class Camera(Base):
     cameraURL = Column(String, nullable=False)
     cameraLocation = Column(String, nullable=False)  # 存储 ["经度", "纬度"]
     cameraName = Column(String, nullable=False)
+
+    #反向关系：一个摄像头可以有多个规则
+    rules = relationship("CameraRule", back_populates="camera")

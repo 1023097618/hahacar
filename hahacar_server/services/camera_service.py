@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import Header
+
 from sqlalchemy.orm import Session
 from models.camera import Camera
 from schemas.camera_schema import CameraCreate, CameraUpdate
