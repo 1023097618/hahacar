@@ -7,3 +7,11 @@ export function getCameraLines(params){
         method:'get'
     })
 }
+
+export function updateCameraLine(data){
+    return request({
+        url:'/camera/updateCameraLine',
+        method:'post',
+        data
+    })
+}

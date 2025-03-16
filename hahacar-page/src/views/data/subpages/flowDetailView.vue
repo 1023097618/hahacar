@@ -2,45 +2,112 @@
   <div class="flow-detail-container">
     <!-- 筛选、操作与图表区域 -->
     <div class="top-bar">
-      <!-- 筛选与操作区域 -->
+      <!-- 筛选区域 -->
       <div class="filter-container">
-        <!-- 日期时间范围筛选 -->
-        <el-date-picker
-          v-model="filterQuery.timeRange"
-          type="datetimerange"
-          value-format="yyyy-MM-dd HH:mm:ss"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          class="filter-item"
-        />
-        <!-- 摄像头多选框：根据摄像头名称进行筛选 -->
-        <el-select
-          v-model="filterQuery.cameraIds"
-          filterable
-          placeholder="请选择摄像头"
-          class="filter-item"
-          style="width:200px;"
-        >
-          <el-option
-            v-for="camera in cameraOptions"
-            :key="camera.cameraId"
-            :label="camera.cameraName"
-            :value="camera.cameraId"
+        <!-- 第一行：日期、摄像头、多选、搜索与导出 -->
+        <div class="filter-top">
+          <!-- 日期时间范围筛选 -->
+          <el-date-picker
+            v-model="filterQuery.timeRange"
+            type="datetimerange"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            class="filter-item"
           />
-        </el-select>
-        <el-button type="primary" icon="el-icon-search" class="filter-item" @click="handleFilter">
-          搜索
-        </el-button>
-        <el-button :loading="downloadLoading" type="primary" icon="el-icon-download" class="filter-item" @click="handleDownload">
-          导出
-        </el-button>
+          <!-- 摄像头多选框 -->
+          <el-select
+            v-model="filterQuery.cameraIds"
+            filterable
+            placeholder="请选择摄像头"
+            class="filter-item"
+            style="width:200px;"
+          >
+            <el-option
+              v-for="camera in cameraOptions"
+              :key="camera.cameraId"
+              :label="camera.cameraName"
+              :value="camera.cameraId"
+            />
+          </el-select>
+        </div>
+        <!-- 第二行：检测线筛选模块 -->
+        <div class="filter-bottom">
+          <!-- 复选框及Popover说明 -->
+          <el-checkbox v-model="isDirectionalFlow" class="filter-item">
+            定向车流量
+          </el-checkbox>
+          <el-popover placement="top" trigger="hover">
+            <div style="line-height:1.5;">
+              勾选后表示车流量为从起始检测线到终止检测线的定向车流量；<br />
+              未勾选时表示统计单条检测线的进出流量。
+            </div>
+            <el-button slot="reference" type="text" icon="el-icon-info"></el-button>
+          </el-popover>
+          <!-- 根据复选框状态条件显示检测线选择 -->
+          <template v-if="!isDirectionalFlow">
+            <el-select
+              v-model="selectedStartLine"
+              filterable
+              placeholder="请选择检测线"
+              class="filter-item"
+              style="width:200px;"
+              :disabled="filterQuery.cameraIds.length !== 1"
+            >
+              <el-option
+                v-for="line in detectionLineOptions"
+                :key="line.cameraLineId"
+                :label="line.cameraLineName"
+                :value="line.cameraLineId"
+              />
+            </el-select>
+          </template>
+          <template v-else>
+            <el-select
+              v-model="selectedStartLine"
+              filterable
+              placeholder="请选择起始检测线"
+              class="filter-item"
+              style="width:200px;"
+              :disabled="filterQuery.cameraIds.length !== 1"
+            >
+              <el-option
+                v-for="line in detectionLineOptions"
+                :key="line.cameraLineId"
+                :label="line.cameraLineName"
+                :value="line.cameraLineId"
+              />
+            </el-select>
+            <el-select
+              v-model="selectedEndLine"
+              filterable
+              placeholder="请选择终止检测线"
+              class="filter-item"
+              style="width:200px;"
+              :disabled="filterQuery.cameraIds.length !== 1 || !selectedStartLine"
+            >
+              <el-option
+                v-for="line in detectionLineOptions"
+                :key="line.cameraLineId"
+                :label="line.cameraLineName"
+                :value="line.cameraLineId"
+              />
+            </el-select>
+          </template>
+          <el-button type="primary" icon="el-icon-search" class="filter-item" @click="handleFilter">
+            搜索
+          </el-button>
+          <el-button :loading="downloadLoading" type="primary" icon="el-icon-download" class="filter-item" @click="handleDownload">
+            导出
+          </el-button>
+        </div>
       </div>
       <!-- 右侧图表区域 -->
       <div class="chart-container">
         <div ref="flowChart" class="flow-chart"></div>
       </div>
     </div>
-  
+
     <!-- 车流量数据表格 -->
     <el-table v-loading="tableLoading" :data="flowData" border>
       <el-table-column prop="flowTime" label="流量时间" width="200" />
@@ -52,24 +119,38 @@
 <script>
 import * as echarts from 'echarts'
 import { searchFlowNum } from '@/api/stat/flow/flow.js'
-import { getCameraList } from '@/api/camera/camera'
+import { getCameraList } from '@/api/camera/camera.js'
+import { getCameraLines } from '@/api/camera/cameraLines.js'
 
 export default {
   name: 'FlowDetailView',
   data() {
     return {
       filterQuery: {
-        // 日期时间范围 [开始时间, 结束时间]（已是格式化字符串）
         timeRange: [],
-        // 摄像头多选，存放选中的摄像头 id 数组
         cameraIds: []
       },
+      // 车流量类型：false表示单条检测线（统计进出量），true表示定向（显示起始和终止检测线）
+      isDirectionalFlow: false,
       flowData: [],
       tableLoading: false,
       downloadLoading: false,
-      // 摄像头列表数据，供下拉框使用
       cameraOptions: [],
+      detectionLineOptions: [],
+      selectedStartLine: '',
+      selectedEndLine: '',
       chart: null
+    }
+  },
+  watch: {
+    'filterQuery.cameraIds'(newVal) {
+      if (newVal && newVal.length === 1) {
+        this.getDetectionLineOptions(newVal[0])
+      } else {
+        this.detectionLineOptions = []
+        this.selectedStartLine = ''
+        this.selectedEndLine = ''
+      }
     }
   },
   mounted() {
@@ -78,11 +159,9 @@ export default {
     this.getCameraOptions()
   },
   methods: {
-    // 初始化 ECharts 实例
     initChart() {
       this.chart = echarts.init(this.$refs.flowChart)
     },
-    // 根据车流量数据更新图表
     updateChart() {
       const times = this.flowData.map(item => item.flowTime)
       const nums = this.flowData.map(item => parseInt(item.flowNum))
@@ -110,7 +189,6 @@ export default {
       }
       this.chart.setOption(option)
     },
-    // 获取车流量数据，传递筛选条件
     getFlowData() {
       this.tableLoading = true
       let params = {}
@@ -120,6 +198,17 @@ export default {
       }
       if (this.filterQuery.cameraIds && this.filterQuery.cameraIds.length > 0) {
         params.cameraId = this.filterQuery.cameraIds
+      }
+      // 根据是否定向决定查询参数
+      if (this.isDirectionalFlow) {
+        if (this.selectedStartLine && this.selectedEndLine) {
+          params.cameraLineIdStart = this.selectedStartLine
+          params.cameraLineIdEnd = this.selectedEndLine
+        }
+      } else {
+        if (this.selectedStartLine) {
+          params.cameraLineId = this.selectedStartLine
+        }
       }
       searchFlowNum(params)
         .then(response => {
@@ -133,11 +222,9 @@ export default {
           this.tableLoading = false
         })
     },
-    // 处理搜索按钮点击事件
     handleFilter() {
       this.getFlowData()
     },
-    // 导出数据表格（依赖 Export2Excel 插件）
     handleDownload() {
       this.downloadLoading = true
       import('@/vendor/Export2Excel').then(excel => {
@@ -147,9 +234,7 @@ export default {
         this.downloadLoading = false
       })
     },
-    // 获取摄像头列表，供多选框使用
     getCameraOptions() {
-      // 假设一次性获取所有摄像头，分页参数可根据实际情况调整
       const params = { pageNum: 1, pageSize: 10000 }
       getCameraList(params)
         .then(response => {
@@ -158,6 +243,16 @@ export default {
         })
         .catch(() => {
           this.cameraOptions = []
+        })
+    },
+    getDetectionLineOptions(cameraId) {
+      getCameraLines({ cameraId: cameraId })
+        .then(response => {
+          const data = response.data.data
+          this.detectionLineOptions = data.cameraLines || []
+        })
+        .catch(() => {
+          this.detectionLineOptions = []
         })
     }
   }
@@ -171,15 +266,25 @@ export default {
 .top-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 20px;
 }
 .filter-container {
   display: flex;
+  flex-direction: column;
+}
+.filter-top,
+.filter-bottom {
+  display: flex;
   align-items: center;
+  flex-wrap: wrap;
+}
+.filter-top {
+  margin-bottom: 10px;
 }
 .filter-item {
   margin-right: 10px;
+  margin-bottom: 5px;
 }
 .chart-container {
   width: 800px;

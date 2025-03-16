@@ -1,28 +1,35 @@
 {
-    "code": "200",
-    "data": {
-      "cameraLines": [
-        {
-          "cameraLineName": "正门入口线",
-          "cameraLineStartX": "0.10",
-          "cameraLineStartY": "0.20",
-          "cameraLineEndX": "0.90",
-          "cameraLineEndY": "0.20",
-          "pointCloseToLine": ["120.123456", "30.123456"],
-          "cameraLineId": "line001"
-        },
-        {
-          "cameraLineName": "侧门检测线",
-          "cameraLineStartX": "0.15",
-          "cameraLineStartY": "0.25",
-          "cameraLineEndX": "0.85",
-          "cameraLineEndY": "0.25",
-          "pointCloseToLine": ["120.654321", "30.654321"],
-          "cameraLineId": "line002"
-        }
-      ],
-      "isDefault": true
-    },
-    "msg": "查询成功"
-  }
-  
+  "code": "200",
+  "data": {
+    "cameraLines": [
+      {
+        "cameraLineName": "正门入口线",
+        "cameraLineStartX": "0.10",
+        "cameraLineStartY": "0.20",
+        "cameraLineEndX": "0.90",
+        "cameraLineEndY": "0.20",
+        "pointCloseToLine": [
+          "120.123456",
+          "30.123456"
+        ],
+        "cameraLineId": "line001",
+        "isMainLine": true
+      },
+      {
+        "cameraLineName": "侧门检测线",
+        "cameraLineStartX": "0.15",
+        "cameraLineStartY": "0.25",
+        "cameraLineEndX": "0.85",
+        "cameraLineEndY": "0.25",
+        "pointCloseToLine": [
+          "120.654321",
+          "30.654321"
+        ],
+        "cameraLineId": "line002",
+        "isMainLine": false
+      }
+    ],
+    "isDefault": true
+  },
+  "msg": "查询成功"
+}

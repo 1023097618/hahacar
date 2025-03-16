@@ -9,6 +9,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import socket from '@/utils/socket'
 import VueECharts from 'vue-echarts'
 
+
 //伪造后端请求(调试用)
 // import './mock'
 Vue.use(ElementUI)
