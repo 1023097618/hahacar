@@ -11,7 +11,7 @@ class CameraRule(Base):
 
     id = Column(String, primary_key=True, index=True)
     camera_id = Column(String, ForeignKey("camera.id"),index=True)
-    rule_value = Column(Integer)  # 1: 车类别, 2: 车拥堵, 3: 车流量
+    rule_value = Column(String)  # 1: 车类别, 2: 车拥堵, 3: 车流量
     label_ids = Column(JSON, nullable=True)  # 仅 rule_value=1 时适用,包含labelID
     max_vehicle_hold_num = Column(Float, nullable=True)  # 仅 rule_value=2 时适用
     min_vehicle_hold_num = Column(Float, nullable=True)  # 仅 rule_value=2 时适用

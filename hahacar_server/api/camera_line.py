@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
 from core.security import verify_jwt_token
@@ -9,7 +9,7 @@ from schemas.camera_line_schema import CameraLineUpdate
 from services.camera_line_service import *
 
 router = APIRouter(
-    prefix="/camera",
+    prefix="/api/camera",
     tags=["Camera Line"],
 )
 
@@ -20,5 +20,6 @@ def updateCameraLine_api(cameraLines: CameraLineUpdate,cameraId: str, db: Sessio
 
 #这个需要再测试，因为只返回最后一个摄像头检测线
 @router.get("/getCameraLines")
-def getCameraLines_api(cameraId: str, token: str, db: Session = Depends(get_db)):
-    return getCameraLine(db,cameraId,token)
+def getCameraLines_api(cameraId: str,
+                       X_HAHACAR_TOKEN: str = Header(..., description="管理员访问权限 Token"), db: Session = Depends(get_db)):
+    return getCameraLine(db,cameraId,X_HAHACAR_TOKEN)

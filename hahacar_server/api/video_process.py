@@ -38,8 +38,9 @@ active_connections = {}
 # active_connections["test-sid"] = None  # 这里可以模拟 WebSocket 连接，测试阶段——发布删除
 
 @sio.event
-async def connect(sid, environ):
+async def connect(sid, environ,auth):
     print(f"客户端连接: {sid}")
+    print(f"Client {sid} connected with auth: {auth}")
     active_connections[sid] = {"sid": sid}
 
 @sio.event
