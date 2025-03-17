@@ -17,6 +17,7 @@ def getLabels(db: Session):
         }
     return {
         "code": 200,
+        "msg":"success",
         "data": {
             "labels":[
                 {
