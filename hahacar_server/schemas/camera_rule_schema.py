@@ -74,7 +74,7 @@ class CameraRuleUpdate(BaseModel):
 
 class CameraRuleUpdateRequest(BaseModel):
     camera_id: str = Field(..., alias="cameraId")
-    cameraRules: CameraRuleUpdate       #这里可能需要修改为list
+    cameraRules: List[CameraRuleUpdate]       #这里可能需要修改为list
 
     class Config:
         orm_mode = True

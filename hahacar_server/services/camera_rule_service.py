@@ -9,52 +9,54 @@ from schemas.camera_rule_schema import *
 #预警规则更新，根据camera_id
 def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
     cameraId = request.camera_id
-    rule_update = request.cameraRules
-    if rule_update.rule_value == '1':
-       if rule_update.labelId:
-           db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
-               "label_ids":  json.dumps(rule_update.labelId)        #sqlite不支持存储list类型，所以要存储为json字符串
-           })
-       else:
-           return {"code": "400", "msg": "labelId is None", "data": {}}
-    elif rule_update.rule_value == '2':
-        if isinstance(rule_update.VehicleFlow.LabelsEqual,str):
-            labels_equal_hold = rule_update.VehicleHold.LabelsEqual #直接使用字符串存储
-        else:
-            labels_equal_hold = json.dumps([{"labelId": item.labelId, "labelHoldNum": item.labelHoldNum} for item in rule_update.VehicleHold.LabelsEqual])
-        if rule_update.VehicleHold:
-            db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
-                "max_vehicle_hold_num": rule_update.VehicleHold.maxVehicleHoldNum,
-                "min_vehicle_hold_num": rule_update.VehicleHold.minVehicleHoldNum,
-                "max_continuous_time_period": rule_update.VehicleHold.maxContinuousTimePeriod,
-                "labels_equal_hold_ids": labels_equal_hold
-            })
-            db.commit()
-        else:
-            return {"code": "400", "msg": "VehicleHold is None", "data": {}}
-    elif rule_update.rule_value == '3':
-        if isinstance(rule_update.VehicleFlow.LabelsEqual,str):
-            labels_equal_flow = rule_update.VehicleFlow.LabelsEqual #直接使用字符串存储
-        else:
-            labels_equal_flow = json.dumps([{"labelId": item.labelId, "labelEqualNum": item.labelEqualNum} for item in rule_update.VehicleFlow.LabelsEqual])
-        if rule_update.VehicleFlow:
-            update_data = {
-                "max_vehicle_flow_num": rule_update.VehicleFlow.maxVehicleFlowNum,
-                "min_vehicle_flow_num": rule_update.VehicleFlow.minVehicleFlowNum,
-                "max_continuous_time_period": rule_update.VehicleFlow.maxContinuousTimePeriod,
-                "labels_equal_flow_ids": labels_equal_flow
-            }
-            if rule_update.VehicleFlow.cameraStartLine and not rule_update.VehicleFlow.cameraStartLine.isAll:
-                update_data["camera_start_line_id"] = rule_update.VehicleFlow.cameraStartLine.cameraLineId
-            if rule_update.VehicleFlow.cameraEndLine and not rule_update.VehicleFlow.cameraEndLine.isAll:
-                    update_data["camera_end_line_id"] = rule_update.VehicleFlow.cameraEndLine.cameraLineId
+    rules_update = request.cameraRules
 
-            db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update(update_data)
-            db.commit()
+    for rule_update in rules_update:
+        if rule_update.rule_value == '1':
+           if rule_update.labelId:
+               db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
+                   "label_ids":  json.dumps(rule_update.labelId)        #sqlite不支持存储list类型，所以要存储为json字符串
+               })
+           else:
+               return {"code": "400", "msg": "labelId is None", "data": {}}
+        elif rule_update.rule_value == '2':
+            if isinstance(rule_update.VehicleHold.LabelsEqual,str):
+                labels_equal_hold = rule_update.VehicleHold.LabelsEqual #直接使用字符串存储
+            else:
+                labels_equal_hold = json.dumps([{"labelId": item.labelId, "labelHoldNum": item.labelHoldNum} for item in rule_update.VehicleHold.LabelsEqual])
+            if rule_update.VehicleHold:
+                db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
+                    "max_vehicle_hold_num": rule_update.VehicleHold.maxVehicleHoldNum,
+                    "min_vehicle_hold_num": rule_update.VehicleHold.minVehicleHoldNum,
+                    "max_continuous_time_period": rule_update.VehicleHold.maxContinuousTimePeriod,
+                    "labels_equal_hold_ids": labels_equal_hold
+                })
+                db.commit()
+            else:
+                return {"code": "400", "msg": "VehicleHold is None", "data": {}}
+        elif rule_update.rule_value == '3':
+            if isinstance(rule_update.VehicleFlow.LabelsEqual,str):
+                labels_equal_flow = rule_update.VehicleFlow.LabelsEqual #直接使用字符串存储
+            else:
+                labels_equal_flow = json.dumps([{"labelId": item.labelId, "labelEqualNum": item.labelEqualNum} for item in rule_update.VehicleFlow.LabelsEqual])
+            if rule_update.VehicleFlow:
+                update_data = {
+                    "max_vehicle_flow_num": rule_update.VehicleFlow.maxVehicleFlowNum,
+                    "min_vehicle_flow_num": rule_update.VehicleFlow.minVehicleFlowNum,
+                    "max_continuous_time_period": rule_update.VehicleFlow.maxContinuousTimePeriod,
+                    "labels_equal_flow_ids": labels_equal_flow
+                }
+                if rule_update.VehicleFlow.cameraStartLine and not rule_update.VehicleFlow.cameraStartLine.isAll:
+                    update_data["camera_start_line_id"] = rule_update.VehicleFlow.cameraStartLine.cameraLineId
+                if rule_update.VehicleFlow.cameraEndLine and not rule_update.VehicleFlow.cameraEndLine.isAll:
+                        update_data["camera_end_line_id"] = rule_update.VehicleFlow.cameraEndLine.cameraLineId
+
+                db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update(update_data)
+                db.commit()
+            else:
+                return {"code": "400", "msg": "VehicleFlow is None", "data": {}}
         else:
-            return {"code": "400", "msg": "VehicleFlow is None", "data": {}}
-    else:
-        return {"code": "400", "msg": "ruleValue is None or not in '1','2','3'", "data": {}}
+            return {"code": "400", "msg": "ruleValue is None or not in '1','2','3'", "data": {}}
     return {"code": "200", "msg": "success", "data": {}}
 
 
@@ -83,9 +85,9 @@ def getCameraRule(db: Session, cameraId: str):
             else:
                 LabelsEqual = json.loads(rule.labels_equal_hold_ids) if rule.labels_equal_hold_ids else []
             rule_data["VehicleHold"] = {
-                "maxVihicleHoldNum": str(rule.max_vehicle_hold_num) if rule.max_vehicle_hold_num else "0",
+                "maxVehicleHoldNum": str(rule.max_vehicle_hold_num) if rule.max_vehicle_hold_num else "0",
                 "maxContinuousTimePeriod": rule.max_continuous_time_period if rule.max_continuous_time_period else 0,
-                "minVihicleHoldNum": str(rule.min_vehicle_hold_num) if rule.min_vehicle_hold_num else "0",
+                "minVehicleHoldNum": str(rule.min_vehicle_hold_num) if rule.min_vehicle_hold_num else "0",
                 "minContinuousTimePeriod": rule.min_continuous_time_period if rule.min_continuous_time_period else 0,
                 "LabelsEqual": LabelsEqual
             }
@@ -96,9 +98,9 @@ def getCameraRule(db: Session, cameraId: str):
             else:
                 LabelsEqual = json.loads(rule.labels_equal_flow_ids) if rule.labels_equal_flow_ids else []
             rule_data["VehicleFlow"] = {
-                "maxVihicleFlowNum": str(rule.max_vehicle_flow_num) if rule.max_vehicle_flow_num else "0",
+                "maxVehicleFlowNum": str(rule.max_vehicle_flow_num) if rule.max_vehicle_flow_num else "0",
                 "maxContinuousTimePeriod": rule.max_continuous_time_period if rule.max_continuous_time_period else 0,
-                "minVihicleFlowNum": str(rule.min_vehicle_flow_num) if rule.min_vehicle_flow_num else "0",
+                "minVehicleFlowNum": str(rule.min_vehicle_flow_num) if rule.min_vehicle_flow_num else "0",
                 "minContinuousTimePeriod": rule.min_continuous_time_period if rule.min_continuous_time_period else 0,
                 "LabelsEqual": LabelsEqual,
                 "cameraStartLine": {"cameraLineId": rule.camera_start_line_id,
