@@ -15,7 +15,6 @@ def update_camera_rule_api(
     **description**
     更新摄像头预警信息 API
     """
-
     return updateCameraRule(db, rule_update)
 
 # 获取摄像头预警规则

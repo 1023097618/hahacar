@@ -36,7 +36,7 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
         if isinstance(rule_update.VehicleFlow.LabelsEqual,str):
             labels_equal_flow = rule_update.VehicleFlow.LabelsEqual #直接使用字符串存储
         else:
-            labels_equal_flow = json.dumps([{"labelId": item.labelId, "labelEuqalNum": item.labelEqualNum} for item in rule_update.VehicleFlow.LabelsEqual])
+            labels_equal_flow = json.dumps([{"labelId": item.labelId, "labelEqualNum": item.labelEqualNum} for item in rule_update.VehicleFlow.LabelsEqual])
         if rule_update.VehicleFlow:
             update_data = {
                 "max_vehicle_flow_num": rule_update.VehicleFlow.maxVehicleFlowNum,
