@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from models import camera_line
+from models.camera_line import CameraLine
 from models.camera_detect_info import camera_detect_info
 from schemas.camera_detect_schema import *
 
@@ -56,7 +56,7 @@ def save_traffic_flow(db:Session,request: TrafficFlowSaveRequest):
 def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
     # **如果 cameraLineId、cameraLineIdStart、cameraLineIdEnd 未提供，则查找 is_main_line=True 的检测线**
     if not request.cameraLineId and not request.cameraLineIdStart and not request.cameraLineIdEnd:
-        main_line = db.query(camera_line.camera_line_id).filter(camera_line.is_main_line == True).first()
+        main_line = db.query(CameraLine.camera_line_id).filter(CameraLine.is_main_line == True).first()
         if main_line:
             request.cameraLineId = main_line[0]  # 获取 `camera_line_id`
 
