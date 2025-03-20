@@ -8,7 +8,7 @@ def getLabels(db: Session):
     labels = db.query(VehicleLabel).filter(VehicleLabel.label_name != "").all()
     if not labels:
         return {
-            "code": 200,
+            "code": "200",
             "data": {
                 "labels": []
             }
@@ -16,7 +16,7 @@ def getLabels(db: Session):
             "msg": "labels is not found"
         }
     return {
-        "code": 200,
+        "code": "200",
         "msg":"success",
         "data": {
             "labels":[

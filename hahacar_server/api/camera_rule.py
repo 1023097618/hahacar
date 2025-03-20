@@ -8,7 +8,7 @@ from services.camera_rule_service import updateCameraRule,getCameraRule
 router = APIRouter(prefix="/api/camera", tags=["Camera Rule"])
 @router.post("/updateCameraRule")
 def update_camera_rule_api(
-        rule_update: CameraRuleUpdate,
+        rule_update: CameraRuleUpdateRequest,
         db: Session = Depends(get_db)
 ):
     """
