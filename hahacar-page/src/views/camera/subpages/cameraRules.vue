@@ -37,13 +37,13 @@
           <!-- 当规则类型为2：车辆拥堵预警时 -->
           <div v-if="rule.ruleValue === '2'">
             <el-form-item label="最大交通当量">
-              <el-input v-model="rule.VehicleHold.maxVihicleHoldNum" placeholder="例如：1.5" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleHold.maxVehicleHoldNum" placeholder="例如：1.5" style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最大持续时长">
               <el-input-number v-model="rule.VehicleHold.maxContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
             <el-form-item label="最小交通当量">
-              <el-input v-model="rule.VehicleHold.minVihicleHoldNum" placeholder="例如：1.0" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleHold.minVehicleHoldNum" placeholder="例如：1.0" style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最小持续时长">
               <el-input-number v-model="rule.VehicleHold.minContinuousTimePeriod" :min="0"></el-input-number>
@@ -68,13 +68,13 @@
           <!-- 当规则类型为3：车流量预警时 -->
           <div v-if="rule.ruleValue === '3'">
             <el-form-item label="最大交通当量">
-              <el-input v-model="rule.VehicleFlow.maxVihicleFlowNum" placeholder="例如：1.5" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleFlow.maxVehicleFlowNum" placeholder="例如：1.5" style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最大持续时长">
               <el-input-number v-model="rule.VehicleFlow.maxContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
             <el-form-item label="最小交通当量">
-              <el-input v-model="rule.VehicleFlow.minVihicleFlowNum" placeholder="例如：1.0" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleFlow.minVehicleFlowNum" placeholder="例如：1.0" style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最小持续时长">
               <el-input-number v-model="rule.VehicleFlow.minContinuousTimePeriod" :min="0"></el-input-number>
@@ -203,9 +203,9 @@ export default {
         if (!rule.VehicleHold) {
           // 初始化拥堵预警规则的对象
           this.$set(rule, 'VehicleHold', {
-            maxVihicleHoldNum: '',
+            maxVehicleHoldNum: '',
             maxContinuousTimePeriod: 0,
-            minVihicleHoldNum: '',
+            minVehicleHoldNum: '',
             minContinuousTimePeriod: 0,
             LabelsEqual: []
           })
@@ -215,9 +215,9 @@ export default {
         if (!rule.VehicleFlow) {
           // 初始化车流量预警规则的对象
           this.$set(rule, 'VehicleFlow', {
-            maxVihicleFlowNum: '',
+            maxVehicleFlowNum: '',
             maxContinuousTimePeriod: 0,
-            minVihicleFlowNum: '',
+            minVehicleFlowNum: '',
             minContinuousTimePeriod: 0,
             LabelsEqual: [],
             cameraStartLine: { cameraLineId: '', isAll: false },
@@ -262,9 +262,9 @@ export default {
     // 如果选择车辆拥堵预警，只初始化VehicleHold，并删除VehicleFlow
     else if (rule.ruleValue === '2') {
       this.$set(rule, 'VehicleHold', {
-        maxVihicleHoldNum: '',
+        maxVehicleHoldNum: '',
         maxContinuousTimePeriod: 0,
-        minVihicleHoldNum: '',
+        minVehicleHoldNum: '',
         minContinuousTimePeriod: 0,
         LabelsEqual: []
       });
@@ -275,9 +275,9 @@ export default {
     // 如果选择车流量预警，只初始化VehicleFlow，并删除VehicleHold
     else if (rule.ruleValue === '3') {
       this.$set(rule, 'VehicleFlow', {
-        maxVihicleFlowNum: '',
+        maxVehicleFlowNum: '',
         maxContinuousTimePeriod: 0,
-        minVihicleFlowNum: '',
+        minVehicleFlowNum: '',
         minContinuousTimePeriod: 0,
         LabelsEqual: [],
         startLine: '',
