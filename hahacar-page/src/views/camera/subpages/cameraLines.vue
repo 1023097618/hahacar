@@ -20,7 +20,7 @@
 
     <!-- 编辑表单区域 -->
     <el-card class="line-form-panel" style="margin-top: 20px;">
-      <div v-for="(line, index) in lines" :key="line.id" class="line-form">
+      <div v-for="(line, index) in lines" :key="line.cameraLineId" class="line-form">
         <el-form :model="line" label-width="120px" inline>
           <el-form-item label="检测线名称">
             <el-input v-model="line.cameraLineName" placeholder="请输入检测线名称"></el-input>
@@ -170,7 +170,7 @@
             cameraLineName: '检测线',
             points: [...this.currentLine.points],
             pointCloseToLine: [],
-            id: Date.now().toString(),
+            cameraLineId: Date.now().toString(),
             marker: null,
             isMainLine: false
           })
@@ -193,7 +193,7 @@
                 ],
                 // 后端传来的关联点为字符串数组
                 pointCloseToLine: item.pointCloseToLine || [],
-                id: item.cameraLineId,
+                cameraLineId: item.cameraLineId,
                 marker: null,
                 // 转换 isMainLine 字段（支持 boolean 或字符串形式）
                 isMainLine: item.isMainLine === true || item.isMainLine === 'true'
@@ -328,12 +328,12 @@
               cameraLineEndX: (pts[2] / this.canvasWidth).toString(),
               cameraLineEndY: (pts[3] / this.canvasHeight).toString(),
               pointCloseToLine: line.pointCloseToLine ? line.pointCloseToLine.map(coord => coord.toString()) : [],
-              isMainLine: line.isMainLine ? 'true' : 'false'
+              isMainLine: line.isMainLine ? 'true' : 'false',
+              cameraLineId: line.cameraLineId
             }
           }),
           cameraId: this.cameraId
         }
-        console.log('payload', JSON.stringify(payload, null, 2))
         updateCameraLine(payload)
           .then(() => {
             this.$message.success('保存成功')
