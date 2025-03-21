@@ -51,7 +51,7 @@ def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
             return {"code": "400", "msg": "cameraLine is None", "data": {}}
 
         existing_line = db.query(CameraLine).filter(
-            CameraLine.line_name == cameraLineUpdate.cameraLineName,
+            CameraLine.camera_line_id == cameraLineUpdate.cameraLineId,
         ).first()
 
         if not existing_line:
@@ -88,7 +88,7 @@ def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
                 "is_main_line": cameraLineUpdate.isMainLine,
             }
 
-            db.query(CameraLine).filter(CameraLine.line_name == existing_line.line_name).update(update_data)
+            db.query(CameraLine).filter(CameraLine.camera_line_id == existing_line.camera_line_id).update(update_data)
             db.commit()
 
     return {
