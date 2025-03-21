@@ -55,10 +55,10 @@ def save_traffic_flow(db:Session,request: TrafficFlowSaveRequest):
 
 def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
     # **如果 cameraLineId、cameraLineIdStart、cameraLineIdEnd 未提供，则查找 is_main_line=True 的检测线**
-    if not request.cameraLineId and not request.cameraLineIdStart and not request.cameraLineIdEnd:
-        main_line = db.query(CameraLine.camera_line_id).filter(CameraLine.is_main_line == True).first()
-        if main_line:
-            request.cameraLineId = main_line[0]  # 获取 `camera_line_id`
+    # if not request.cameraLineId and not request.cameraLineIdStart and not request.cameraLineIdEnd:
+    #     main_line = db.query(CameraLine.camera_line_id).filter(CameraLine.is_main_line == True).first()
+    #     if main_line:
+    #         request.cameraLineId = main_line[0]  # 获取 `camera_line_id`
 
     query = db.query(
         func.strftime('%Y-%m-%d %H:00:00', camera_detect_info.detected_flow_time.label("flowTime")),
