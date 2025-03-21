@@ -2,3 +2,4 @@ dev/*
 !dev/.gitkeep
 .idea
 static/*
+.DS_Store
