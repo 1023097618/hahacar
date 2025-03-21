@@ -14,7 +14,7 @@ import logging;
 
 from typing import Dict, List, Any, Tuple, Optional;
 from ultralytics import YOLO;
-from hitBar import hitBar;
+from util.hitBar import hitBar
 
 # 环境与模型基本检查
 ultralytics.checks();

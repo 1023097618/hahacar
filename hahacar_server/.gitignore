@@ -8,5 +8,7 @@ util/**/*.mp4
 util/**/*.avi
 util/**/*.jpeg
 util/**/*.jpg
+util/detector.py
+util/hitBar.py
 static/*
 weights/*
