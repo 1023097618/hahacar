@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, String, Integer, JSON, Float, DateTime, Boolean
@@ -9,7 +10,7 @@ class CameraLine(Base):
     __tablename__ = "camera_lines"
 
     #前后端通讯的时候同一条线的起始点和终点是一样的，没有设置则应有一个默认值
-    camera_line_id = Column(String, primary_key=True, index=True)
+    camera_line_id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     camera_id = Column(String, index=True)
     line_name = Column(String)
     start_x = Column(String, comment = "摄像头检测线起始点的X轴，从左往右占了整个宽度的多少")

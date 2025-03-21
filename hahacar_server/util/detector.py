@@ -14,6 +14,7 @@ import logging;
 
 from typing import Dict, List, Any, Tuple, Optional;
 from ultralytics import YOLO;
+from hitBar import hitBar;
 
 # 环境与模型基本检查
 ultralytics.checks();
@@ -37,6 +38,7 @@ class Detector:
     - `detectedIDs`: List[int], A list of tracking IDs.
     - `detectedMidPoints`: List[Tuple[float, float]], A list of detected midpoints.
     - `numProjection`: Dict[str, List[Tuple[int, int]]], A dict containing the number of projections per Category.
+    - `hitBarResults`: List[Dict[str, int]], A list containing hitBars' evenBetterResults for each hitBar.
 
     **Methods**
     - `__init__`: Initializes the Detector object with the specified model path.
@@ -46,7 +48,7 @@ class Detector:
     """
 
     SUPPORTTED_CATEGORIES: List[str] = ["person", "car", "bus", "van", "truck"];
-    MAX_COUNT: int = 100;
+    MAX_COUNT: int = 1000;
 
     def __init__(self, modelPath: str = "./weights/yolov8m.pt") -> None:
         """
@@ -73,6 +75,7 @@ class Detector:
         self.detectedIDs: List[int] = list();
         self.detectedMidPoints: List[Tuple[float, float]] = list();
         self.numProjection: Dict[str, List[Tuple[int, int]]] = dict();
+        self.hitBarResults: List[Dict[str, int]] = list();
         
         
     def detect(
@@ -84,6 +87,7 @@ class Detector:
         addingConf: bool = True,
         addingCount: bool = True,
         pallete: Optional[Dict[str, Tuple[int, int, int]]] = None,
+        hitBars: Optional[List[hitBar]] = None,
         verbosity:int = 0
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
@@ -91,7 +95,7 @@ class Detector:
         The outer part of the detection process.
         """
         # 执行检测
-        outImg, detailedResult = self._detect(
+        outImg, detailedResult, hitBarResult = self._detect(
             oriImg,
             conf,
             addingBoxes,
@@ -99,12 +103,13 @@ class Detector:
             addingConf,
             addingCount,
             pallete,
+            hitBars,
             verbosity
         );
         
         # 释放资源,避免累积编号
         self._resetDetector();
-        return outImg, detailedResult;
+        return outImg, detailedResult, hitBarResult;
         
     def _detect(
         self,
@@ -115,6 +120,7 @@ class Detector:
         addingConf: bool,
         addingCount: bool,
         pallete: Optional[Dict[str, Tuple[int, int, int]]],
+        hitBars: Optional[List[hitBar]],
         verbosity: int
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
@@ -171,13 +177,13 @@ class Detector:
             box_list = results[0].boxes.xyxy.cpu().numpy();
 
             self.detectedLabels = [results[0].names[int(cls_idx)] for cls_idx in cls_list];
-            self.detectedMidPoints = [results[0].boxes.xywh.cpu().numpy()[:, 0:2]];
+            self.detectedMidPoints = [results[0].boxes.xywh.cpu().numpy()[:, 0:2].tolist()];
             self.dectectedConf = conf_list.tolist();
             self.detectedBoxes = box_list.tolist();
             try:
                 self.detectedIDs = list(map(lambda x: int(x), results[0].boxes.id.cpu().numpy().tolist()));
             except Exception as e:
-                print(f"IDs resetted as model didnot convolve in tracking for {e}");
+                print(f"IDs resetted as model didnot convolve in tracking.");
                 self.detectedIDs = list(range(len(self.detectedLabels)));
                 
                 
@@ -235,11 +241,20 @@ class Detector:
         self.detailedResult["labels"] = self.detectedLabels;
         self.detailedResult["confidence"] = self.dectectedConf;
         self.detailedResult["count"] = self.detectedCounts;
+        self.detailedResult["IDs"] = self.detectedIDs;
+        self.detailedResult["midPoints"] = self.detectedMidPoints[0];
+        self.detailedResult["numProjection"] = self.numProjection;
+        
+        if bool(hitBars):
+            for hb in hitBars:
+                self.outImg, evenBetterResults = hb.update(self.outImg, self.detailedResult);
+                self.hitBarResults.append(evenBetterResults);
         
         if verbosity == 0:
             print("DetailedResult:", self.detailedResult);
+            print("hitBarResult:", self.hitBarResults);
 
-        return self.outImg, self.detailedResult;
+        return self.outImg, self.detailedResult, self.hitBarResults;
 
 
     def _resetDetector(self) -> None:
@@ -264,6 +279,7 @@ class Detector:
         self.detectedBoxes = [];
         self.detectedLabels = [];
         self.dectectedConf = [];
+        self.hitBarResults: List[Dict[str, int]] = [];
 
 
 
@@ -282,11 +298,11 @@ class Detector:
 
 
 if __name__ == "__main__":
-    detector: Detector = Detector("./weights/yolov8x.pt");
+    detector: Detector = Detector("./weights/yolov8s.pt");
     img: np.ndarray = cv2.imread("./dog.jpeg");
     
-    processedImg, detailedResult = detector.detect(img);
-    print("detailedResult:", detailedResult);
+    processedImg, detailedResult, _ = detector.detect(img);
+    # print("detailedResult:", detailedResult);
 
     cv2.imshow("Detected Image", processedImg);
     cv2.waitKey(0);

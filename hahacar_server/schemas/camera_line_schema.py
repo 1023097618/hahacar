@@ -15,6 +15,14 @@ class CameraLineUpdate(BaseModel):
     class Config:
         orm_mode = True
 
+class CameraLineUpdateRequest(BaseModel):
+    cameraLines: List[CameraLineUpdate]
+    camera_id: str = Field(..., alias="cameraId")
+
+    class Config:
+        orm_mode = True
+        allow_population_by_field_name = True
+
 class CameraLineGet(BaseModel):
     line_name: str = Field(..., description="摄像头检测线名称，可能会叫’成化大道方向‘")
     start_x: str = Field(..., description="摄像头检测线起始点的X轴，从左往右占了整个宽度的多少")

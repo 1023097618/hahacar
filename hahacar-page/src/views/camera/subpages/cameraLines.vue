@@ -344,11 +344,13 @@ export default {
         }),
         cameraId:this.cameraId
       }
+      console.log('payload', JSON.stringify(payload,null,2))
       updateCameraLine(payload)
         .then(() => {
           this.$message.success('保存成功')
         })
         .catch(err => {
+          console.log('payload', JSON.stringify(payload,null,2))
           console.error('保存摄像头检测线失败:', err)
           this.$message.error('保存失败')
         })
