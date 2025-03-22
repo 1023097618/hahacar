@@ -4,6 +4,10 @@ import os
 
 import cv2
 import time
+
+import numpy as np
+import requests
+import aiohttp
 from fastapi import APIRouter, Depends, Query, HTTPException, WebSocket, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -79,14 +83,14 @@ def process_frame(frame):
     - np.ndarray: 处理后的帧
     """
     # 运行YOLOv8检测
-    processedImg, detailedResult = detector.detect(frame, 
+    processedImg, detailedResult,hitBarResult = detector.detect(frame,
                                                    addingBoxes=False, 
                                                    addingLabel=False, 
                                                    addingConf=False, 
                                                    verbosity=2);
     return processedImg,detailedResult
 
-# **视频流生成器**
+# **视频流生成器——用于处理RSTP协议的摄像头**
 async def generate_frames(RTSP_URL:str):
     """
         :param rtsp_url: 摄像头地址
@@ -97,10 +101,10 @@ async def generate_frames(RTSP_URL:str):
 
     # 如果还是没打开，直接 return，结束生成器
     if not cap.isOpened():
-        print("摄像头无法连接，已放弃重试")
+        print("RTSP摄像头无法连接，已放弃重试")
         return
 
-    print("摄像头打开成功，开始读帧...")
+    print("RTSP摄像头打开成功，开始读帧...")
 
     while True:
         success, frame = cap.read()
@@ -126,6 +130,58 @@ async def generate_frames(RTSP_URL:str):
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
     cap.release()
+
+#HTTP请求的方式解析MJPEG流
+async def generate_frames_http(MJPEG_URL:str):
+    """
+        **description**
+        通过 HTTP 读取 MJPEG 视频流，并逐帧处理。
+
+        **params**
+        MJPEG_URL (str): 摄像头的 HTTP MJPEG 地址。
+
+        **returns**
+        逐帧返回处理后的 JPEG 数据流。
+    """
+    try:
+        # response = requests.get(MJPEG_URL,stream = True)
+
+        # 使用异步的 aiohttp ClientSession
+        async with aiohttp.ClientSession() as session:
+            async with session.get(MJPEG_URL) as response:
+                if response.status != 200:
+                    print(f"无法连接http协议摄像头：{response.status}")
+                    return
+                print("HTTP摄像头连接成功，开始接收帧...")
+
+                byte_stream = b""
+                for chunk in response.iter_content(chunk_size=1024):
+                    byte_stream += chunk
+
+                    a = byte_stream.find(b'\xff\xd8')   #JPEG起始标志
+                    b = byte_stream.find(b'\xff\xd9')   #JPEG结束标志
+                    if a != -1 and b != -1:
+                        jpg = byte_stream[a:b+2]
+                        byte_stream = byte_stream[b+2:]
+                        frame = cv2.imdecode(np.frombuffer(jpg,dtype=np.uint8),cv2.IMREAD_COLOR)
+                        if frame is None:
+                            continue
+                        processed, detailedResult = process_frame(frame)
+
+                        #先不保存原始帧、处理帧以及处理信息
+
+                        #**Socket.IO 发送 JSON 结果**
+                        sio.emit("detection", detailedResult)
+
+                        ret,buffer = cv2.imencode('.jpg', processed)
+                        if not ret:
+                            continue
+                        frame_bytes = buffer.tobytes()
+
+                        yield(b'--frame\r\n'
+                              b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    except Exception as e:
+        print(f"HTTP协议摄像头连接失败：{e}")
 
 # **FastAPI 端点：返回 RTSP 直播流**
 @router.get("/storage/getCameraLiveStream")
@@ -158,21 +214,28 @@ async def proxy_video_feed(
     if not cameraURL:
         return JSONResponse(content={"code": "404", "data": {}, "msg": "Camera not found"}, status_code=404)
 
-    #根据liveStreamType选择不同的流
-    if liveStreamType == 'full':
-        rtsp_url = f"{cameraURL}?stream=full"
-    else:
-        rtsp_url = f"{cameraURL}?stream=preview"
 
-    print(f"正在拉取 RTSP 直播流: {rtsp_url}")
-    # 先尝试打开摄像头
-    # 设置超时时间
-    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "timeout;5000"
-    cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-    if not cap.isOpened():
-        return JSONResponse({"code": "400", "msg": "无法连接摄像头", "data": {}}, status_code=400)
+    #这里要新增获取摄像头类型，根据是http还是rstp来判断使用哪种处理方法
+    if cameraURL.startswith("http"):
+        print(f"正在拉取 HTTP 直播流: {cameraURL}")
+        return StreamingResponse(generate_frames_http(cameraURL), media_type="multipart/x-mixed-replace; boundary=frame" )
+    elif cameraURL.startswith("rtsp"):
 
-    return StreamingResponse(generate_frames(rtsp_url), media_type="multipart/x-mixed-replace; boundary=frame")
+        # 根据liveStreamType选择不同的流
+        if liveStreamType == 'full':
+            camera_url = f"{cameraURL}?stream=full"
+        else:
+            camera_url = f"{cameraURL}?stream=preview"
+
+        print(f"正在拉取 RTSP 直播流: {camera_url}")
+        # 先尝试打开摄像头
+        # 设置超时时间
+        # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "timeout;5000"
+        # cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        # if not cap.isOpened():
+        #     return JSONResponse({"code": "400", "msg": "无法连接摄像头", "data": {}}, status_code=400)
+
+        return StreamingResponse(generate_frames(camera_url), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 # **Socket.IO 端点：发送 YOLOv8 检测结果**
