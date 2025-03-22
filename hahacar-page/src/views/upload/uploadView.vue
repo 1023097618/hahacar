@@ -1,35 +1,42 @@
 <template>
-  <div class="container">
-    <h1>在线识别</h1>
-    <!-- 上传区域 -->
-    <div class="upload-wrapper">
-      <div class="upload-text">拖动视频到此识别(现在还拖不了，先点按钮上传吧)</div>
-      <!-- 自定义按钮，点击后触发隐藏的 file input -->
-      <button class="btn-select-file" @click="triggerFileInput">从本设备选择</button>
-      <!-- 隐藏的文件输入框 -->
-      <input type="file" ref="fileInput" style="display: none" accept="image/*,video/*" @change="handleFileChange" />
-      <div class="file-size-tips">
-        上传视频/图片
-      </div>
-    </div>
-    <!-- 进度和完成状态区域 -->
-    <div class="progress-container" v-if="tasks.length">
-      <h2>文件区</h2>
-      <div v-for="(task,index) in tasks" :key="index">
-        <!-- 正在处理的任务 -->
-        <div v-if="!task.isComplete" class="file-progress-item">
-          <div class="file-name">{{ task.fileName }}</div>
-          <div class="progress-bar-container">
-            <div class="progress-bar" :style="{ width: task.progressValue + '%' }"></div>
-          </div>
-          <div class="progress-percentage">{{ task.progressValue }}% Complete</div>
+  <div class="drag-container"
+       @dragover.prevent="handleDragOver"
+       @dragenter.prevent="handleDragEnter"
+       @dragleave.prevent="handleDragLeave"
+       @drop.prevent="handleDrop"
+       :class="{ 'drag-over': isDragging }">
+    <div class="container">
+      <h1>在线识别</h1>
+      <!-- 上传区域 -->
+      <div class="upload-wrapper">
+        <div class="upload-text">拖动视频到此识别</div>
+        <!-- 自定义按钮，点击后触发隐藏的 file input -->
+        <button class="btn-select-file" @click="triggerFileInput">从本设备选择</button>
+        <!-- 隐藏的文件输入框 -->
+        <input type="file" ref="fileInput" style="display: none" accept="image/*,video/*" @change="handleFileChange" />
+        <div class="file-size-tips">
+          上传视频/图片
         </div>
-        <!-- 处理完成的任务 -->
-        <div v-else class="file-finished-item">
-          <div class="file-name">{{ task.fileName }}</div>
-          <div class="button-group">
-            <button class="btn-view" @click="openLink(task.watchURL)">View</button>
-            <button class="btn-download" @click="openLink(task.downloadURL)">Download</button>
+      </div>
+      <!-- 进度和完成状态区域 -->
+      <div class="progress-container" v-if="tasks.length">
+        <h2>文件区</h2>
+        <div v-for="(task,index) in tasks" :key="index">
+          <!-- 正在处理的任务 -->
+          <div v-if="!task.isComplete" class="file-progress-item">
+            <div class="file-name">{{ task.fileName }}</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" :style="{ width: task.progressValue + '%' }"></div>
+            </div>
+            <div class="progress-percentage">{{ task.progressValue }}% Complete</div>
+          </div>
+          <!-- 处理完成的任务 -->
+          <div v-else class="file-finished-item">
+            <div class="file-name">{{ task.fileName }}</div>
+            <div class="button-group">
+              <button class="btn-view" @click="openLink(task.watchURL)">View</button>
+              <button class="btn-download" @click="openLink(task.downloadURL)">Download</button>
+            </div>
           </div>
         </div>
       </div>
@@ -43,7 +50,8 @@
     name: 'uploadView',
     data() {
       return {
-
+        isDragging: false,
+        dragCounter: 0
       }
     },
     methods: {
@@ -55,10 +63,48 @@
       handleFileChange(event) {
         const file = event.target.files[0]
         if (!file) return
+        this.uploadFile(file)
+      },
+      // 打开链接
+      openLink(url) {
+        window.open(url, '_blank')
+      },
+      // 拖拽相关事件处理
+      handleDragOver(event) {
+        event.preventDefault()
+      },
+      handleDragEnter(event) {
+        event.preventDefault()
+        this.dragCounter++
+        if (this.dragCounter === 1) {
+          // 只有第一次进入拖拽容器时，设置拖拽状态为 true
+          this.isDragging = true
+        }
+      },
+      handleDragLeave(event) {
+        event.preventDefault()
+        this.dragCounter--
+        if (this.dragCounter === 0) {
+          // 当所有子元素都离开后重置状态
+          this.isDragging = false
+        }
+      },
+      handleDrop(event) {
+        event.preventDefault()
+        // 重置计数器与拖拽状态
+        this.dragCounter = 0
+        this.isDragging = false
+        if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          const file = event.dataTransfer.files[0]
+          this.uploadFile(file)
+          event.dataTransfer.clearData()
+        }
+      },
+      uploadFile(file) {
         const formData = new FormData()
         formData.append('file', file)
         const fileType = file.type
-        var isImage
+        let isImage
         if (fileType.startsWith('image/')) {
           isImage = true
         } else if (fileType.startsWith('video/')) {
@@ -71,17 +117,13 @@
           if (isImage) {
             this.$store.dispatch("UpdateTasks", {
               type: "picture",
-              fileName:file.name,
+              fileName: file.name,
               ...res.data.data
             })
           }
         }).catch(err => {
           console.log(err)
         })
-      },
-      // 打开链接
-      openLink(url) {
-        window.open(url, '_blank')
       }
     },
     computed:{
@@ -93,6 +135,14 @@
 </script>
 
 <style scoped>
+  .drag-container {
+    width: 100%;
+    height: 100%;
+  }
+  /* 拖拽反馈样式应用在 drag-container 上 */
+  .drag-container.drag-over {
+    background-color: #f0f8ff;
+  }
   .container {
     max-width: 800px;
     margin: 0 auto;
