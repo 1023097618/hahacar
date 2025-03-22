@@ -148,6 +148,7 @@
     margin: 0 auto;
     padding: 50px 20px;
     text-align: center;
+    color: var(--textColor);
   }
 
   .container h1 {
@@ -163,12 +164,14 @@
     padding: 40px 20px;
     margin-top: 30px;
     position: relative;
+
+    background-color: var(--sideBarColor);
+    color: var(--textColor);
   }
 
   .upload-text {
     font-size: 18px;
     margin-bottom: 20px;
-    color: #666;
   }
 
   .btn-select-file {

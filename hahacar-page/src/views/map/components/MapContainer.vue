@@ -45,7 +45,10 @@
             },
             cameraSituations(){
                 return this.$store.getters.cameraSituations
-            }
+            },
+            currentTheme() {
+                return this.$store.getters.user.style; 
+            },
         },
         mounted() {
             this.getHeight()
@@ -79,6 +82,11 @@
                     })
                 },
                 deep: true
+            },
+            currentTheme(newVal) {
+                if (this.mapInstance) {
+                    this.mapInstance.setMapStyle(this.getMapStyleByTheme(newVal));
+                }
             }
         },
         methods: {
@@ -87,21 +95,10 @@
             },
             initMap() {
                 let center = [116.397428, 39.90923]
-                if (this.cameras && this.cameras.cameras && this.cameras.cameras.length > 0) {
-                    let totalLng = 0, totalLat = 0
-                    this.cameras.cameras.forEach((camera) => {
-                        totalLng += parseFloat(camera.cameraLocation[0])
-                        totalLat += parseFloat(camera.cameraLocation[1])
-                    })
-                    center = [
-                        totalLng / this.cameras.cameras.length,
-                        totalLat / this.cameras.cameras.length
-                    ]
-                }
                 this.mapInstance = new window.AMap.Map(this.$refs.mapContainer, {
                     center: center,
                     zoom: 14,
-                    mapStyle: 'amap://styles/blue',
+                    mapStyle: this.getMapStyleByTheme(this.currentTheme),
                     viewMode: '3D',
                     pitch: 0
                 })
@@ -119,6 +116,18 @@
                 controlBar.addTo(this.mapInstance)
             },
             addMarkers() {
+                if (this.cameras && this.cameras.cameras && this.cameras.cameras.length > 0) {
+                    let totalLng = 0, totalLat = 0
+                    this.cameras.cameras.forEach((camera) => {
+                        totalLng += parseFloat(camera.cameraLocation[0])
+                        totalLat += parseFloat(camera.cameraLocation[1])
+                    })
+                    const center = [
+                        totalLng / this.cameras.cameras.length,
+                        totalLat / this.cameras.cameras.length
+                    ]
+                    this.mapInstance.setCenter(center)
+                }
                 if (this.cameras && this.cameras.cameras) {
                     this.cameras.cameras.forEach((camera) => {
                         const position = [
@@ -136,6 +145,20 @@
                         this.markers[camera.cameraId] = marker
                         this.mapInstance.add(marker)
                     })
+                }
+            },  
+            getMapStyleByTheme(themeValue) {
+                switch(themeValue) {
+                    case 1: // 浅色
+                        return 'amap://styles/normal';
+                    case 2: // 深色
+                        return 'amap://styles/blue';
+                    case 3: // 跟随系统
+                        return window.matchMedia('(prefers-color-scheme: dark)').matches 
+                            ? 'amap://styles/blue'
+                            : 'amap://styles/normal';
+                    default:
+                        return 'amap://styles/normal';
                 }
             }
         }

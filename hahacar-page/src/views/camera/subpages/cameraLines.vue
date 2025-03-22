@@ -97,6 +97,18 @@
       this.initCanvas()
       this.initMap()
     },
+    computed: {
+      currentTheme() {
+        return this.$store.getters.user.style;
+      }
+    },
+    watch: {
+      currentTheme(newVal) {
+        if (this.map) {
+          this.map.setMapStyle(this.getMapStyleByTheme(newVal));
+        }
+      }
+    },
     methods: {
       // 获取摄像头实时画面 URL
       GetCameraLiveURL(cameraId) {
@@ -268,7 +280,8 @@
             // 初始中心点，后续会根据关联点更新
             this.map = new AMap.Map(this.$refs.mapContainer, {
               zoom: 12,
-              center: [116.397428, 39.90923]
+              center: [116.397428, 39.90923],
+              mapStyle: this.getMapStyleByTheme(this.currentTheme)
             })
             // 地图点击事件：如果有待关联的检测线，则更新关联点并添加 marker
             this.map.on('click', (e) => {
@@ -343,7 +356,21 @@
             console.error('保存摄像头检测线失败:', err)
             this.$message.error('保存失败')
           })
-      }
+      },
+      getMapStyleByTheme(themeValue) {
+        switch (themeValue) {
+          case 1:
+            return 'amap://styles/normal';
+          case 2:
+            return 'amap://styles/blue';
+          case 3:
+            return window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'amap://styles/blue'
+              : 'amap://styles/normal';
+          default:
+            return 'amap://styles/normal';
+        }
+      },
     }
   }
 </script>
