@@ -15,9 +15,9 @@ const constantRoutes = [
 const userRoutes = [
   {
     path: '', name: 'indexView', component: () => import('@/views/index/indexView.vue'), hidden: false,meta:{title: '主页'}, children: [
-      { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心'} },
-      { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
-      { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'} },
+      { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心',icon:'icon-map'} },
+      { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心',icon:'icon-data'} },
+      { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别',icon:'icon-find-car'} }
       // { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
     ],
   },{path: '', name: 'subPageView', component: () => import('@/views/index/subPageView.vue'), hidden: true,meta:{title: '二级页面'}, children: [
@@ -36,11 +36,11 @@ const userRoutes = [
 const rootRoutes=[
   {
     path: '', name: 'indexView', component: () => import('@/views/index/indexView.vue'), hidden: false,meta:{title: '主页'}, children: [
-      { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心'} },
-      { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心'} },
-      { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别'} },
-      { path: '/users', name: 'usrsView', component: () => import('@/views/users/usersView.vue'), hidden: false,meta:{title: '用户管理'} },
-      { path: '/camera', name: 'cameraManagementView', component: () => import('@/views/camera/cameraManagement.vue'), hidden: false,meta:{title: '摄像头管理'} },
+      { path: '/map', name: 'mapView', component: () => import('@/views/map/mapView.vue'), hidden: false,meta:{title: '地图中心',icon:'icon-map'} },
+      { path: '/data', name: 'dataView', component: () => import('@/views/data/dataView.vue'), hidden: false,meta:{title: '数据中心',icon:'icon-data'} },
+      { path: '/vedio', name: 'vedioView', component: () => import('@/views/upload/uploadView.vue'), hidden: false,meta:{title: '在线识别',icon:'icon-find-car'} },
+      { path: '/users', name: 'usrsView', component: () => import('@/views/users/usersView.vue'), hidden: false,meta:{title: '用户管理',icon:'icon-user'} },
+      { path: '/camera', name: 'cameraManagementView', component: () => import('@/views/camera/cameraManagement.vue'), hidden: false,meta:{title: '摄像头管理',icon:'icon-camera_add_fill'} },
       // { path: '/dev', name: 'devView', component: () => import('@/views/dev/devView.vue'), hidden: false,meta:{title: '实验页面'}}
     ],
   },{path: '', name: 'subPageView', component: () => import('@/views/index/subPageView.vue'), hidden: true,meta:{title: '二级页面'}, children: [
