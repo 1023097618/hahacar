@@ -132,10 +132,10 @@ async def generate_frames(RTSP_URL:str):
     cap.release()
 
 #HTTP请求的方式解析MJPEG流
-async def generate_frames_http(MJPEG_URL:str):
+async def generate_frames_http(SNAPSHOT_URL:str):
     """
         **description**
-        通过 HTTP 读取 MJPEG 视频流，并逐帧处理。
+        通过 HTTP 轮询获取摄像头快照，并逐帧处理。
 
         **params**
         MJPEG_URL (str): 摄像头的 HTTP MJPEG 地址。
@@ -144,42 +144,37 @@ async def generate_frames_http(MJPEG_URL:str):
         逐帧返回处理后的 JPEG 数据流。
     """
     try:
-        # response = requests.get(MJPEG_URL,stream = True)
+        print("摄像头快照模式启动，开始抓取图片...")
+        interval = 0.5      #获取快照的时间间隔，默认0.5s
+        while True:
+            response = requests.get(SNAPSHOT_URL)  # 直接请求单张图片
+            if response.status_code != 200:
+                print(f"无法获取摄像头快照: {response.status_code}")
+                time.sleep(1)  # 失败时等待 1 秒再尝试
+                continue
 
-        # 使用异步的 aiohttp ClientSession
-        async with aiohttp.ClientSession() as session:
-            async with session.get(MJPEG_URL) as response:
-                if response.status != 200:
-                    print(f"无法连接http协议摄像头：{response.status}")
-                    return
-                print("HTTP摄像头连接成功，开始接收帧...")
+            # 解析图像
+            image_array = np.frombuffer(response.content, dtype=np.uint8)
+            frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            if frame is None:
+                print("无法解码快照，跳过...")
+                continue
 
-                byte_stream = b""
-                for chunk in response.iter_content(chunk_size=1024):
-                    byte_stream += chunk
+            processed, detailedResult = process_frame(frame)
 
-                    a = byte_stream.find(b'\xff\xd8')   #JPEG起始标志
-                    b = byte_stream.find(b'\xff\xd9')   #JPEG结束标志
-                    if a != -1 and b != -1:
-                        jpg = byte_stream[a:b+2]
-                        byte_stream = byte_stream[b+2:]
-                        frame = cv2.imdecode(np.frombuffer(jpg,dtype=np.uint8),cv2.IMREAD_COLOR)
-                        if frame is None:
-                            continue
-                        processed, detailedResult = process_frame(frame)
+            # **Socket.IO 发送 JSON 结果**
+            await sio.emit("detection", detailedResult)
 
-                        #先不保存原始帧、处理帧以及处理信息
+            ret, buffer = cv2.imencode('.jpg', processed)
+            if not ret:
+                continue
+            frame_bytes = buffer.tobytes()
 
-                        #**Socket.IO 发送 JSON 结果**
-                        sio.emit("detection", detailedResult)
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-                        ret,buffer = cv2.imencode('.jpg', processed)
-                        if not ret:
-                            continue
-                        frame_bytes = buffer.tobytes()
+            time.sleep(interval)  # 控制快照采集速率
 
-                        yield(b'--frame\r\n'
-                              b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
     except Exception as e:
         print(f"HTTP协议摄像头连接失败：{e}")
 
