@@ -23,45 +23,27 @@
 
     export default {
         name: 'MapAlertContainer',
-        props: {
-            cameras: {
-                required: true,
-                type: Object
-            }
-        },
         data() {
             return {
                 mapInstance: null,
                 mapHeight: 400,
                 markers: {},
                 defaultIconUrl: require('@/assets/default_marker.png'),
-                alertIconUrl: require('@/assets/red_marker.png')
+                alertIconUrl: require('@/assets/red_marker.png'),
+                cameras: []
             }
         },
         computed: {
             // 通过 Vuex getter 获取预警信息和摄像头状态
-            alertMessages(){
+            alertMessages() {
                 return this.$store.getters.alertMessages
             },
-            cameraSituations(){
+            cameraSituations() {
                 return this.$store.getters.cameraSituations
             },
             currentTheme() {
-                return this.$store.getters.user.style; 
+                return this.$store.getters.user.style;
             },
-        },
-        mounted() {
-            this.getHeight()
-            window.addEventListener('resize', this.getHeight)
-
-            loadAMap()
-                .then(() => {
-                    this.initMap()
-                    this.addMarkers()
-                })
-                .catch((error) => {
-                    console.error('地图加载出错:', error)
-                })
         },
         beforeDestroy() {
             window.removeEventListener('resize', this.getHeight)
@@ -146,20 +128,33 @@
                         this.mapInstance.add(marker)
                     })
                 }
-            },  
+            },
             getMapStyleByTheme(themeValue) {
-                switch(themeValue) {
+                switch (themeValue) {
                     case 1: // 浅色
                         return 'amap://styles/normal';
                     case 2: // 深色
                         return 'amap://styles/blue';
                     case 3: // 跟随系统
-                        return window.matchMedia('(prefers-color-scheme: dark)').matches 
+                        return window.matchMedia('(prefers-color-scheme: dark)').matches
                             ? 'amap://styles/blue'
                             : 'amap://styles/normal';
                     default:
                         return 'amap://styles/normal';
                 }
+            },
+            init(cameras) {
+                this.cameras = cameras
+                this.getHeight()
+                window.addEventListener('resize', this.getHeight)
+                loadAMap()
+                    .then(() => {
+                        this.initMap()
+                        this.addMarkers()
+                    })
+                    .catch((error) => {
+                        console.error('地图加载出错:', error)
+                    })
             }
         }
     }
