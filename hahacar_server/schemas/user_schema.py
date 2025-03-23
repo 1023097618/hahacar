@@ -3,7 +3,8 @@
 from typing import Optional, Any
 
 from fastapi import HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+
 
 class UserCreate(BaseModel):
     """
@@ -87,9 +88,12 @@ class UpdatePasswordRequest(BaseModel):
     **returns**
     None
     """
-    old_password: str
-    new_password: str
+    old_password: str = Field(..., alias="oldPassword")
+    new_password: str = Field(..., alias="newPassword")
     username: str
+
+    class Config:
+        allow_population_by_field_name = True
 
 class JSONResponseSchema(BaseModel):
     """
