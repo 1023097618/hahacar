@@ -19,8 +19,8 @@ class CameraRule(Base):
     min_continuous_time_period = Column(Integer, nullable=True)  # 适用于 2 和 3
     max_vehicle_flow_num = Column(Float, nullable=True)  # 仅 rule_value=3 时适用
     min_vehicle_flow_num = Column(Float, nullable=True)  # 仅 rule_value=3 时适用
-    camera_start_line_id = Column(String, ForeignKey("camera_line.camera_line_id"),nullable=True) #和camera_line表关联
-    camera_end_line_id = Column(String, ForeignKey("camera_line.camera_line_id"), nullable=True)  # 和camera_line表关联
+    camera_start_line_id = Column(String, ForeignKey("camera_lines.camera_line_id"),nullable=True) #和camera_line表关联
+    camera_end_line_id = Column(String, ForeignKey("camera_lines.camera_line_id"), nullable=True)  # 和camera_line表关联
     created_at = Column(DateTime, default=datetime.utcnow)
     labels_equal_hold_ids = Column(JSON, nullable=True) # 仅 rule_value=2 时适用，包含labelId以及labelHoldNum的json字符串,代表本labelId可以视为多少个交通当量
     labels_equal_flow_ids = Column(JSON, nullable=True) # 仅 rule_value=3 时适用,包含labelId以及labelFlowNum的json字符串,代表本labelId可以视为多少个交通当量

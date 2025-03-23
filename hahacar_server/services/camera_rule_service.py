@@ -1,4 +1,5 @@
 import json
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -12,11 +13,22 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
     rules_update = request.cameraRules
 
     for rule_update in rules_update:
+        #先根据cameraid和rulevalue查询一下是否有对应的记录
+        existing_rule = db.query(CameraRule).filter(CameraRule.camera_id == cameraId, CameraRule.rule_value == rule_update.rule_value).first()
+        if existing_rule is None:
+            existing_rule = CameraRule(
+                id=str(uuid4()),  # 主键，可用UUID
+                camera_id=cameraId,
+                rule_value=rule_update.rule_value,
+            )
+            db.add(existing_rule)
+
         if rule_update.rule_value == '1':
            if rule_update.labelId:
                db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
                    "label_ids":  json.dumps(rule_update.labelId)        #sqlite不支持存储list类型，所以要存储为json字符串
                })
+               db.commit()
            else:
                return {"code": "400", "msg": "labelId is None", "data": {}}
         elif rule_update.rule_value == '2':
