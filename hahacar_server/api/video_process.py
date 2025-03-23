@@ -150,7 +150,7 @@ async def process_video(file_path: str, task_id: str, sid: str):
         if not ret:
             break
 
-        processedImg, detailedResult = detector.detect(frame, 
+        processedImg, detailedResult, hitBarResult = detector.detect(frame,
                                                        addingBoxes=True, 
                                                        addingLabel=True, 
                                                        addingConf=False,

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.orm import relationship
 from dependencies.database import Base
@@ -15,7 +17,7 @@ class Camera(Base):
     """
     __tablename__ = "camera"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True , default=lambda: str(uuid.uuid4()))
     cameraURL = Column(String, nullable=False)
     cameraLocation = Column(String, nullable=False)  # 存储 ["经度", "纬度"]
     cameraName = Column(String, nullable=False)

@@ -44,7 +44,7 @@ async def frames_detect(file: UploadFile = File(...)):
         img = np.array(img)
 
         # 运行YOLOv8检测
-        processedImg, detailedResult = detector.detect(img, 
+        processedImg, detailedResult, hitBarResult= detector.detect(img,
                                                        addingBoxes=True, 
                                                        addingLabel=True, 
                                                        addingConf=False,
