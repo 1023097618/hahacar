@@ -1,6 +1,10 @@
 <template>
-  <div class="navbar" style="display: flex; justify-content: flex-end">
-    <el-header>
+  <div class="navbar" >
+    <el-header style="display: flex; justify-content:space-between">
+      <div style="display: flex; align-items: center;">
+        <img src="@/assets/logoNoText.png" alt="Logo" style="height: 60px;">
+        <span style="margin-left: 10px; font-size: 18px; color: #FFF;">星瞳智行预警系统</span>
+      </div>
       <el-select :value="styleValue" placeholder="请选择" @change="selectStyle" select="mini">
         <el-option v-for="item in styles" :key="item.value" :label="item.label" :value="item.value">
           <i :class="item.icon"></i>
