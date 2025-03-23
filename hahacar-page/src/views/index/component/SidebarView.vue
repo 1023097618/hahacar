@@ -5,13 +5,21 @@
       <template  v-for="route in filteredRoutes">
         <el-submenu :index="route.path" :key="route.path" v-if="route.children && route.children.length">
           <template slot="title">
-            <i class="el-icon-location"></i>
+            <!-- <i
+              class="custom-icon"
+              :style="{ backgroundImage: 'url(' + route.meta.icon + ')' }"
+            ></i> -->
+            <i :class="['icon', route.meta.icon]"></i>
             <span>{{route.meta.title}}</span>
           </template>
           <MenuItem :routes="route.children"></MenuItem>
         </el-submenu>
         <el-menu-item v-else :key="route.path" :index="route.path">
-          <i class="el-icon-menu"></i>
+          <!-- <i
+          class="custom-icon"
+          :style="{ backgroundImage: 'url(' + route.meta.icon + ')' }"
+        ></i> -->
+        <i :class="['icon', route.meta.icon]"></i>
           <span slot="title">{{route.meta.title}}</span>
         </el-menu-item>
       </template>
@@ -63,13 +71,13 @@
           <template v-for="route in routes">
             <el-submenu v-if="route.children && route.children.length" :key="route.path" :index="route.path">
               <template slot="title">
-                <i class="el-icon-location"></i>
+                <i class="custom-icon" :style="{ backgroundImage: 'url(' + route.meta.icon + ')' }"></i>
                 <span>{{ route.meta.title }}</span>
               </template>
               <MenuItem :routes="route.children"></MenuItem>
             </el-submenu>
             <el-menu-item v-else :key="route.path" :index="route.path">
-              <i class="el-icon-menu"></i>
+              <i class="custom-icon" :style="{ backgroundImage: 'url(' + route.meta.icon + ')' }"></i>
               <span>{{ route.meta.title }}</span>
             </el-menu-item>
           </template>
@@ -87,4 +95,14 @@
   #sidebar{
     background-color: var(--sideBarColor);
   }
+
+  .custom-icon {
+  display: inline-block;
+  width: 24px;    /* 根据需要调整尺寸 */
+  height: 24px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  color: var(--textColor);
+}
 </style>

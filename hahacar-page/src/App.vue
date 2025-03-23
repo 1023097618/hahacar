@@ -38,6 +38,21 @@ h2,h3{
     height: 56px!important;
   }
 
+  .pagination-container{
+    background-color: var(--paginationBg) !important
+  }
+  .el-input__inner{
+    background-color: var(--inputBg) !important
+  }
+
+  .el-dialog{
+    background-color: var(--tooltipBg) !important;
+  }
+
+  .el-card{
+    background-color: var(--sideBarColor) !important;
+  }
+
   
 .day{
   
@@ -50,6 +65,10 @@ h2,h3{
   --sideBarHoverColor:#ecf5ff;
 
   --textColor:#566a7f;
+
+  --paginationBg: #e8e8e8;
+  --inputBg: #ffffff;
+  --tooltipBg: #ffffff;
 }
 
 .dark{
@@ -61,7 +80,11 @@ h2,h3{
   --sideBarSelectedColor:#4687ff;
   --sideBarHoverColor:rgb(34, 34, 45);
 
-  --textColor:#cbcbe2;;
+  --textColor:#cbcbe2;
+
+  --paginationBg: #2a2a36;
+  --inputBg: #2b2b3a;
+  --tooltipBg: #2b2b3a;
 }
 /* #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;

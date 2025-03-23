@@ -110,7 +110,6 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: #f5f5f5;
   }
   
 
@@ -131,7 +130,7 @@
   }
   
   .camera-item {
-    background: #fff;
+    background: var(--sideBarColor);
     border: 1px solid #ddd;
     border-radius: 4px;
     width: calc(33.33% - 20px); /* 每行 3 个 */

@@ -4,7 +4,7 @@
     <top-header :cameras="cameras" :alerts="alerts"/>
 
     <!-- 地图区域 -->
-    <map-container :cameras="cameras"/>
+    <map-container :cameras="cameras" ref="mapContainer"/>
   </div>
 </template>
 
@@ -27,6 +27,7 @@ export default {
       pageSize:max_number
     }).then(res=>{
       this.cameras=res.data.data
+      this.$refs.mapContainer.init(this.cameras)
     }).catch(err=>{
       console.log(err)
     }),
