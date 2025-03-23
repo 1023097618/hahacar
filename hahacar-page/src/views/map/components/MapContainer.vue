@@ -121,7 +121,7 @@
                             title: camera.cameraName,
                             icon: this.defaultIconUrl,
                             offset: new window.AMap.Pixel(-26, -60),
-                            zooms: [12, 20]
+                            // zooms: [12, 20]
                         })
                         marker.cameraId = camera.cameraId
                         this.markers[camera.cameraId] = marker
