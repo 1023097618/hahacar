@@ -2,7 +2,7 @@
     <div class="top-header">
       <!-- 左侧：平台名称 -->
       <div class="left">
-        <div class="platform-name">城市公共安全智慧平台</div>
+        <div class="platform-name"></div>
       </div>
   
       <!-- 右侧：固定 6 个统计项 -->
