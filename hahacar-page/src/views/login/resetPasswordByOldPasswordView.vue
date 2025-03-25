@@ -95,7 +95,8 @@
 .container {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+	padding-left: 23%;
   background: url('@/assets/bg.png') no-repeat center center;
   background-size: cover;
 }

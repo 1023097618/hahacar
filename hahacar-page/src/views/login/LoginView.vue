@@ -89,7 +89,8 @@
 	.container {
 		display: flex;
 		align-items: center;
-		justify-content: center;
+		justify-content: flex-start;
+		padding-left: 23%;
 		background: url('@/assets/bg.png') no-repeat center center;
 		background-size: cover;
 		/* 这里保持原有的最小高度逻辑，如果希望完全铺满，可以去掉 height 或者做其他适配 */
