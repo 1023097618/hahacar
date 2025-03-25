@@ -22,3 +22,5 @@ Mock.mock(baseurl+"/stat/hold/searchHoldNum",'get',require('./json/stat/hold/hol
 Mock.mock(baseurl+"/alert/getAlerts?pageNum=1&pageSize=0&alertType[]=1&alertType[]=2",'get',require('./json/alert/alert.json'))
 Mock.mock(baseurl+"/alert/getAlerts?pageNum=1&pageSize=20",'get',require('./json/alert/alert.json'))
 Mock.mock(baseurl+"/alert/getAlerts?pageNum=1&pageSize=20&alertType[]=1&alertType[]=2",'get',require('./json/alert/alert.json'))
+
+Mock.mock(baseurl+"/event/getEvents",'get',require('./json/event/event.json'))
