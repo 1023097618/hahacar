@@ -14,14 +14,15 @@ class camera_detect_info(Base):
     camera_id = Column(String, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    detected_cars_labels = Column(JSON) #包含labelName和labelNum的用于记录一段时间内所有车的类别和不同类别车的数量的json数据
+    detected_cars_labels = Column(JSON) #包含labelName和labelNum的用于记录当前帧所有【车的类别和该类别车的数量】的json数据
+
     detected_hold_time = Column(DateTime, default=datetime.datetime.utcnow)
-    detected_hold_num = Column(String)
+    detected_hold_num = Column(String)              #交通当量
 
     camera_line_id_start = Column(String,nullable = True)   #可选参数，一个id，从哪个起始线驶入的，没有指定就是所有其他线驶入的都算
     camera_line_id_end = Column(String,nullable = True)     #可选参数，一个id，从哪个结束线驶出的，没有指定就是所有其他线驶出的都算
     camera_line_id = Column(String, nullable = True)    #可选参数，只记录某个检测线驶入驶出的交通量，和驶入起始线和驶出起始线相矛盾
 
     detected_flow_time = Column(DateTime, default=datetime.datetime.utcnow) #记录哪一段时间内所有车的总流量
-    detected_flow_num = Column(String)  #记录一段时间内所有车的总流量
+    detected_flow_num = Column(String)  #记录一段时间内所有车的总流量——交通当量
 

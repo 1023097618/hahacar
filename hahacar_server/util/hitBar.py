@@ -38,7 +38,7 @@ class hitBar:
         endPoint: Optional[Tuple[int,int]] = None,
         name: str = "hitBar",
         monitor: Optional[List[str]] = None,
-        width: float = 5.0,
+        width: float = 10.0,
         maxLength: int = 50,
         visualize: bool = True
     ):
@@ -134,8 +134,8 @@ class hitBar:
 
         **Returns**  
         (imgOut, self.Accumulator)  
-        - imgOut: The new image with the bar drawn (if visualize & 'img' present)
-        - Accumulator: The counters for each category
+        - `imgOut`: The new image with the bar drawn (if visualize & 'img' present)
+        - `Accumulator`: The counters for each category
         - 
         """
         
@@ -143,25 +143,49 @@ class hitBar:
         self.history.append(detailedResult);
         if len(self.history) > self.maxLength:
             self.history.pop(0);
+        self.Accumulator = {cat:0 for cat in self.monitoredCatagories};
+
+        # Recalculate realmIn and realmOut as parallelograms
+        A = np.array(self.startPoint, dtype=np.float32);
+        B = np.array(self.endPoint, dtype=np.float32);
+        
+        offsetIn  = -self.width * self.direction;
+        offsetOut = self.width * self.direction;
+
+        AIn  = A + offsetIn;
+        BIn  = B + offsetIn;
+        AOut = A + offsetOut;
+        BOut = B + offsetOut;
+
+        self.realmIn  = np.array([AIn, BIn, B, A], dtype=np.float32);
+        self.realmOut = np.array([AOut, BOut, B, A], dtype=np.float32);
 
         self.imgOut = img.copy();
         if self.visualize:
-            # Draw line => red
+            # Draw the centerline in solid red
             cv2.line(self.imgOut, self.startPoint, self.endPoint, (0,0,255), 2);
-            # realmIn => green
-            pts_in  = np.int32(self.realmIn.reshape(-1,1,2));
-            cv2.polylines(self.imgOut, [pts_in], True, (0,255,0), 2);
-            # realmOut => blue
-            pts_out = np.int32(self.realmOut.reshape(-1,1,2));
-            cv2.polylines(self.imgOut, [pts_out], True, (255,0,0), 2);
+        # Create an overlay for transparency
+            overlay = img.copy();
+
+            # Convert realmIn and realmOut to integer points
+            ptsIn  = np.int32(self.realmIn.reshape(-1,1,2));
+            ptsOut = np.int32(self.realmOut.reshape(-1,1,2));
+
+            # Fill the realms with semi-transparent colors
+            cv2.fillPoly(overlay, [ptsIn], (0,0,255,100));  # Red with transparency
+            cv2.fillPoly(overlay, [ptsOut], (255,0,0,100));  # Blue with transparency
+
+            # Blend the overlay with the original image
+            alpha = 0.4;  # Transparency level (0: fully transparent, 1: fully opaque)
+            self.imgOut = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0);
+
+
 
         labels    = detailedResult.get("labels", []);
         IDs       = detailedResult.get("IDs", []);
         midPoints = detailedResult.get("midPoints", []);
-        # print(midPoints);
 
         for idx, pt in enumerate(midPoints):
-            # print(pt);
             cat = labels[idx];
             if cat not in self.monitoredCatagories:
                 continue;
@@ -174,18 +198,19 @@ class hitBar:
                     numInCat = arr[0];
 
             if self._inRealm(pt, self.realmOut):
-                if self._hasIn(cat, objID, numInCat):
+                if self._hasIn(pt, cat, objID, numInCat):
                     self.Accumulator[cat] += 1;
                     print(f"[{self.name}] {cat} No.{numInCat} (ID={objID})  count={self.Accumulator[cat]};");
 
         return self.imgOut, self.Accumulator;
 
-    def _hasIn(self, cat: str, objID: int, numInCat: Optional[int]) -> bool:
+    def _hasIn(self, pt: Tuple[int, int], cat: str, objID: int, numInCat: Optional[int]) -> bool:
         """
         **Description**  
         Check if the target (cat, objID) was in realmIn in a previous frame.
 
         **Params**  
+        - `pt`: The point to check.
         - `cat`: The category name.
         - `objID`: The object ID in that category.
         - `numInCat`: If used to differentiate multiple objects with same cat.
@@ -212,6 +237,8 @@ class hitBar:
                             continue;
                     oldPt = mids[i];
                     if self._inRealm(oldPt, self.realmIn):
+                        self.direction = (self.direction + np.array([pt[0] - oldPt[0], pt[1] - oldPt[1]], dtype=np.float32));
+                        self.direction = self.direction / np.linalg.norm(self.direction);
                         return True;
         return False;
 
@@ -227,7 +254,6 @@ class hitBar:
         **Returns**
         bool, True if inside/on boundary, else False.
         """
-        # print(point);
         px, py = point;
         contour = realm.reshape(-1,1,2);
         inside = cv2.pointPolygonTest(contour, (px, py), False);
@@ -248,7 +274,7 @@ if __name__ == "__main__":
         imgSize=bg.shape,
         startPoint=(200,150),
         endPoint=(600,450),
-        width=50.0,
+        width=10.0,
         name="demoBar",
         visualize=True
     );

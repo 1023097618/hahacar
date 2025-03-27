@@ -5,6 +5,42 @@ from models.alert import Alert
 from schemas.alert_schema import *
 
 
+
+def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert_type: int,alert_start_time, alert_end_time, alert_processed_time, alert_image, rule_type: str, rule_remark: str):
+    # 查询是否已有该预警
+    existing_alert = db.query(Alert).filter(Alert.id == alert_id).first()
+
+    if existing_alert:
+        # **更新预警信息**
+        if alert_type == 2:  # "已经发生"
+            existing_alert.alert_type = 2
+            existing_alert.alert_end_time = alert_end_time
+
+        elif alert_type == 3:  # "已处理"
+            existing_alert.alert_type = 3
+            existing_alert.alert_processed_time = alert_processed_time
+
+        db.commit()
+        print(f"[更新] 预警 {alert_id} 更新为类型 {alert_type}")
+
+    else:
+        # **新增预警信息**
+        new_alert = Alert(
+            alert_id=alert_id,
+            camera_id=camera_id,
+            camera_name=camera_name,
+            alert_type=alert_type,
+            alert_start_time=alert_start_time,
+            alert_end_time=alert_end_time,
+            alert_processed_time=alert_processed_time,
+            alert_image=alert_image,
+            rule_type=rule_type,
+            rule_remark=rule_remark
+        )
+        db.add(new_alert)
+        db.commit()
+        print(f"[新增] 预警 {alert_id} 已存入数据库")
+
 def getAlerts(db:Session, request:GetAlertsRequest):
     query = db.query(Alert)
 

@@ -11,6 +11,31 @@ from schemas.camera_detect_schema import *
     ***存储车辆类别、车流量、车拥挤度***
     暂时设定10s求平均保存一次
 """
+
+
+def save_to_camera_detect_info(db:Session, camera_id, avg_hold_volume, avg_flow_volume, timestamp):
+    """
+    **description** 将计算出的交通当量存入数据库
+
+    **params**
+    camera_id: str  摄像头ID
+    avg_hold_volume: float  平均 hold 交通当量
+    avg_flow_volume: float  平均 flow 交通当量
+    timestamp: float  记录时间
+
+    **returns** 无
+    """
+    new_record = camera_detect_info(
+        camera_id=camera_id,
+        hold_volume=avg_hold_volume,
+        flow_volume=avg_flow_volume,
+        timestamp=timestamp
+    )
+    db.add(new_record)
+    db.commit()
+
+
+
 def save_vehicle_labels(db:Session,request: VehicleLabelSaveRequest):
     new_data = camera_detect_info(
         camera_id=request.cameraId,

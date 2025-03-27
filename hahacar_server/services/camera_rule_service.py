@@ -22,10 +22,11 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                 rule_value=rule_update.rule_value,
             )
             db.add(existing_rule)
+            db.flush()
 
         if rule_update.rule_value == '1':
            if rule_update.labelId:
-               db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
+               db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '1').update({
                    "label_ids":  json.dumps(rule_update.labelId)        #sqlite不支持存储list类型，所以要存储为json字符串
                })
                db.commit()
@@ -37,10 +38,11 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
             else:
                 labels_equal_hold = json.dumps([{"labelId": item.labelId, "labelHoldNum": item.labelHoldNum} for item in rule_update.VehicleHold.LabelsEqual])
             if rule_update.VehicleHold:
-                db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update({
+                db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '2').update({
                     "max_vehicle_hold_num": rule_update.VehicleHold.maxVehicleHoldNum,
                     "min_vehicle_hold_num": rule_update.VehicleHold.minVehicleHoldNum,
                     "max_continuous_time_period": rule_update.VehicleHold.maxContinuousTimePeriod,
+                    "min_continuous_time_period": rule_update.VehicleHold.minContinuousTimePeriod,
                     "labels_equal_hold_ids": labels_equal_hold
                 })
                 db.commit()
@@ -56,6 +58,7 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                     "max_vehicle_flow_num": rule_update.VehicleFlow.maxVehicleFlowNum,
                     "min_vehicle_flow_num": rule_update.VehicleFlow.minVehicleFlowNum,
                     "max_continuous_time_period": rule_update.VehicleFlow.maxContinuousTimePeriod,
+                    "min_continuous_time_period": rule_update.VehicleHold.minContinuousTimePeriod,
                     "labels_equal_flow_ids": labels_equal_flow
                 }
                 if rule_update.VehicleFlow.cameraStartLine and not rule_update.VehicleFlow.cameraStartLine.isAll:
@@ -63,7 +66,7 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                 if rule_update.VehicleFlow.cameraEndLine and not rule_update.VehicleFlow.cameraEndLine.isAll:
                         update_data["camera_end_line_id"] = rule_update.VehicleFlow.cameraEndLine.cameraLineId
 
-                db.query(CameraRule).filter(CameraRule.camera_id == cameraId).update(update_data)
+                db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '3').update(update_data)
                 db.commit()
             else:
                 return {"code": "400", "msg": "VehicleFlow is None", "data": {}}
@@ -124,3 +127,5 @@ def getCameraRule(db: Session, cameraId: str):
         rules_data.append(rule_data)
 
     return {"code": "200", "msg": "查询成功", "data": {"cameraRules": rules_data}}
+
+#根据camera_url获取camera_rule
