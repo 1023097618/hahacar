@@ -58,7 +58,7 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                     "max_vehicle_flow_num": rule_update.VehicleFlow.maxVehicleFlowNum,
                     "min_vehicle_flow_num": rule_update.VehicleFlow.minVehicleFlowNum,
                     "max_continuous_time_period": rule_update.VehicleFlow.maxContinuousTimePeriod,
-                    "min_continuous_time_period": rule_update.VehicleHold.minContinuousTimePeriod,
+                    "min_continuous_time_period": rule_update.VehicleFlow.minContinuousTimePeriod,
                     "labels_equal_flow_ids": labels_equal_flow
                 }
                 if rule_update.VehicleFlow.cameraStartLine and not rule_update.VehicleFlow.cameraStartLine.isAll:

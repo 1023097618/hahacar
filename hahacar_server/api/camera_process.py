@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import traceback
 import uuid
 from datetime import datetime
 
@@ -50,8 +51,10 @@ os.makedirs(INFO_DIR, exist_ok=True)
 
 #获取label_id 和 label_name 的映射关系
 def get_label_mapping(db: Session) -> dict:
-    labels = getLabels(db)
-    label_mapping = {label.label_id: label.label_name for label in labels}
+    labelsResponse = getLabels(db)
+    data = labelsResponse.get('data',{})
+    labels = data.get('labels',[])
+    label_mapping = {label["labelId"]: label["labelName"] for label in labels}
     return label_mapping
 
 
@@ -59,20 +62,38 @@ def get_label_mapping(db: Session) -> dict:
     # labels_equal_flow_ids = Column(JSON, nullable=True) # 仅 rule_value=3 时适用,包含labelId以及labelFlowNum的json字符串,代表本labelId可以视为多少个交通当量
 def calculate_traffic_volume_hold(detailedResult: dict, labels_equal_hold_ids: dict) -> dict:
     hold_volume = 0
+    db = next(get_db())
+    label_mapping = get_label_mapping(db)
+    # 转换 labels_equal_flow_ids，将 labelId 替换为 labelName
+    labels_equal_hold_names = {
+        label_mapping.get(labelId, labelId): value  # 如果 labelId 不在映射中，则保留原值
+        for labelId, value in labels_equal_hold_ids.items()
+    }
 
     for label, count in detailedResult.get("count", {}).items():
-        if label in labels_equal_hold_ids:                              #这里好像对不上一个是id，一个是labelname————————
-            hold_volume += count * labels_equal_hold_ids[label]
+        if label in labels_equal_hold_names:                              #这里好像对不上一个是id，一个是labelname————————
+            hold_volume += count * int(labels_equal_hold_names[label])
 
     return {
         "hold_volume": hold_volume,
     }
-def calculate_traffic_volume_flow(hitbarResult: dict,labels_equal_flow_ids: dict) -> dict:
-    flow_volume = 0
 
-    for label, count in hitbarResult.get("count", {}).items():
-        if label in labels_equal_flow_ids:
-            flow_volume += count * labels_equal_flow_ids[label]
+#检测线还没考虑。。。。。。。。。。。
+def calculate_traffic_volume_flow(hitbarResult: list,labels_equal_flow_ids: dict) -> dict:
+    flow_volume = 0
+    db = next(get_db())
+    label_mapping = get_label_mapping(db)
+    # 转换 labels_equal_flow_ids，将 labelId 替换为 labelName
+    labels_equal_flow_names = {
+        label_mapping.get(labelId, labelId): value  # 如果 labelId 不在映射中，则保留原值
+        for labelId, value in labels_equal_flow_ids.items()
+    }
+
+    #如果是主要检测线就不需要循环-----------还有591行
+    for hbResult in hitbarResult:
+        for label, count in hbResult.items():
+            if label in labels_equal_flow_names:
+                flow_volume += count * int(labels_equal_flow_names[label])
 
     return {
         "flow_volume": flow_volume
@@ -110,7 +131,7 @@ def calculate_traffic_volume_flow(hitbarResult: dict,labels_equal_flow_ids: dict
 def process_frame(frame):
     """
     **description**
-    示例：将图像转换为灰度图，你可以替换为你的机器学习模型处理逻辑。
+    yolo模型处理
 
     **params**
     - frame (np.ndarray): 读取的原始帧
@@ -452,7 +473,7 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
             processed, detailedResult ,hitBarResult= process_frame(frame)
 
             # 获取camera_rule的数据
-            camera_rule_response = getCameraRule(camera_id)
+            camera_rule_response = getCameraRule(db,camera_id)
             if camera_rule_response["code"] != "200":
                 print(f"摄像头规则查询失败: {camera_rule_response['msg']}")
             else:
@@ -479,20 +500,20 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                     elif rule_value == "2":
                         vehicle_hold = rule.get("VehicleHold", {})
                         data = vehicle_hold.get("LabelsEqual", [])
-                        print("raw data =", data)
+                        # print("raw data =", data)
                         # data 可能是列表，也可能是字符串
-                        if isinstance(data, str):
-                            try:
-                                data = json.loads(data)
-                                print("after json.loads =", data)
-                            except json.JSONDecodeError:
-                                print("labelsEqual 解析出错", data)
-                                data = []  # 或者 continue
+                        # if isinstance(data, str):
+                        #     try:
+                        #         data = json.loads(data)
+                        #         print("after json.loads =", data)
+                        #     except json.JSONDecodeError:
+                        #         print("labelsEqual 解析出错", data)
+                        #         data = []  # 或者 continue
                         labels_equal_hold_ids = {
                             label["labelId"]: label["labelHoldNum"] for label in data
                         }
-                        maxVehicleHoldNum = int(vehicle_hold.get("maxVehicleHoldNum", 0))
-                        minVehicleHoldNum = int(vehicle_hold.get("minVehicleHoldNum", 0))
+                        maxVehicleHoldNum = float(vehicle_hold.get("maxVehicleHoldNum", 0))
+                        minVehicleHoldNum = float(vehicle_hold.get("minVehicleHoldNum", 0))
                         maxContinuousTimePeriod = int(vehicle_hold.get("maxContinuousTimePeriod", 0))
                         minContinuousTimePeriod = int(vehicle_hold.get("minContinuousTimePeriod", 0))
 
@@ -511,8 +532,8 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                         labels_equal_flow_ids = {
                             label["labelId"]: label["labelEqualNum"] for label in data
                         }
-                        maxVehicleFlowNum = int(vehicle_flow.get("maxVehicleFlowNum", 0))
-                        minVehicleFlowNum = int(vehicle_flow.get("minVehicleFlowNum", 0))
+                        maxVehicleFlowNum = float(vehicle_flow.get("maxVehicleFlowNum", 0))
+                        minVehicleFlowNum = float(vehicle_flow.get("minVehicleFlowNum", 0))
 
                 # 计算各种类型汽车car_counts在十秒中的累计保存到数据库中，首先要通过getLabels方法获取labelid和labelname的映射关系，再统计十秒中该种类型汽车的合计保存到camera_detect_info表中
 
@@ -561,15 +582,20 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                             print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
 
                 # 计算 hold 和 flow 的交通当量
-                hold_volume = calculate_traffic_volume_hold(detailedResult, labels_equal_hold_ids)
-                flow_volume = calculate_traffic_volume_flow(hitBarResult, labels_equal_flow_ids)
+                hold_volume = calculate_traffic_volume_hold(detailedResult, labels_equal_hold_ids)["hold_volume"]
+                flow_volume = calculate_traffic_volume_flow(hitBarResult, labels_equal_flow_ids)["flow_volume"]
 
                 # 根据hitBarResult统计10秒内所有 labelName 的累计总数
                 # 计算各种类型汽车car_counts在十秒中的累计保存到数据库中，首先要通过getLabels方法获取labelid和labelname的映射关系，再统计十秒中该种类型汽车的合计保存到camera_detect_info表中
                 label_counts = {label_name: 0 for label_name in label_map.values()}  # 初始化所有标签计数为0
-                for label_id, count in hitBarResult.get("count", {}).items():
-                    if label_id in label_map:
-                        label_counts[label_map[label_id]] += count
+                for hbResult in hitBarResult:
+                    for label, count in hbResult.items():
+                        if label in label_counts:
+                            label_counts[label] += count
+
+                # for label_id, count in hitBarResult.get("count", {}).items():
+                #     if label_id in label_map:
+                #         label_counts[label_map[label_id]] += count
 
                 # 记录数据
                 traffic_data.append((current_time, hold_volume, flow_volume, label_counts))
@@ -577,17 +603,17 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                 # **严格控制 10 秒后进行计算**
                 if current_time - start_time >= time_window:
                     if traffic_data:  # 确保数据不为空
-                        avg_hold_volume = sum(h for h, _, _ in traffic_data) / len(traffic_data)
-                        avg_flow_volume = sum(f for _, f, _ in traffic_data) / len(traffic_data)
+                        avg_hold_volume = sum(h for _, h, _, _ in traffic_data) / len(traffic_data)
+                        avg_flow_volume = sum(f for _,_, f, _ in traffic_data) / len(traffic_data)
 
                         # 计算 10 秒内的累计 label 数量
                         aggregated_label_counts = {label: 0 for label in label_map.values()}
-                        for _, _, label_dict in traffic_data:
+                        for _,_, _, label_dict in traffic_data:
                             for label, count in label_dict.items():
                                 aggregated_label_counts[label] += count
 
                         # 存入数据库
-                        save_to_camera_detect_info(camera_id, avg_hold_volume, avg_flow_volume, aggregated_label_counts,
+                        save_to_camera_detect_info(db,camera_id, avg_hold_volume, avg_flow_volume, aggregated_label_counts,
                                                    current_time)
 
                         # **🚨 预警逻辑 🚨**
@@ -673,6 +699,7 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
 
     except Exception as e:
         print(f"HTTP协议摄像头连接失败：{e}")
+        traceback.print_exc()  # 这里打印完整的错误堆栈信息
 
 # **FastAPI 端点：返回 RTSP 直播流**
 @router.get("/storage/getCameraLiveStream")
@@ -710,23 +737,17 @@ async def proxy_video_feed(
     if cameraURL.startswith("http"):
         print(f"正在拉取 HTTP 直播流: {cameraURL}")
         return StreamingResponse(generate_frames_http(cameraURL,cameraId), media_type="multipart/x-mixed-replace; boundary=frame" )
-    elif cameraURL.startswith("rtsp"):
-
-        # 根据liveStreamType选择不同的流
-        if liveStreamType == 'full':
-            camera_url = f"{cameraURL}?stream=full"
-        else:
-            camera_url = f"{cameraURL}?stream=preview"
-
-        print(f"正在拉取 RTSP 直播流: {camera_url}")
-        # 先尝试打开摄像头
-        # 设置超时时间
-        # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "timeout;5000"
-        # cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-        # if not cap.isOpened():
-        #     return JSONResponse({"code": "400", "msg": "无法连接摄像头", "data": {}}, status_code=400)
-
-        return StreamingResponse(generate_frames(camera_url,cameraId), media_type="multipart/x-mixed-replace; boundary=frame")
+    # elif cameraURL.startswith("rtsp"):
+    #
+    #     # 根据liveStreamType选择不同的流
+    #     if liveStreamType == 'full':
+    #         camera_url = f"{cameraURL}?stream=full"
+    #     else:
+    #         camera_url = f"{cameraURL}?stream=preview"
+    #
+    #     print(f"正在拉取 RTSP 直播流: {camera_url}")
+    #
+    #     return StreamingResponse(generate_frames(camera_url,cameraId), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 # **Socket.IO 端点：发送 YOLOv8 检测结果**
