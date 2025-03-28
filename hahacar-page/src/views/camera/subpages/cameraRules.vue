@@ -122,11 +122,8 @@
 
           <!-- 当规则类型为5：异常事故预警时 -->
           <div v-if="rule.ruleValue === '5'">
-            <el-form-item label="选择事故">
-              <el-select v-model="rule.eventId" multiple placeholder="请选择事故" style="width: 300px;">
-                <el-option v-for="event in events" :key="event.eventId" :label="event.eventName" :value="event.eventId">
-                </el-option>
-              </el-select>
+            <el-form-item label="开启事故预警">
+              <el-checkbox v-model="rule.eventDetect">开启事故预警</el-checkbox>
             </el-form-item>
           </div>
         </el-form>
@@ -143,7 +140,6 @@
   import { getCameraRules, updateCameraRules } from '@/api/camera/cameraRules.js'
   import { getLabels } from '@/api/label/label.js'
   import { getCameraLines } from '@/api/camera/cameraLines'
-  import { getEvents } from '@/api/event/event.js'
   export default {
     name: 'cameraRulesView',
     data() {
@@ -151,8 +147,7 @@
         cameraId: '',     // 从路由query中获取
         rules: [],        // 规则列表
         labels: [],       // 可选标签
-        cameraLines: [],   // 摄像头检测线列表
-        events: []
+        cameraLines: []   // 摄像头检测线列表
       }
     },
     created() {
@@ -161,7 +156,6 @@
       this.fetchRules()
       this.fetchLabels()
       this.fetchCameraLines()
-      this.fetchEvents()
     },
     methods: {
       // 获取当前摄像头的规则配置
@@ -273,6 +267,12 @@
           if (rule.VehicleFlow) {
             delete rule.VehicleFlow;
           }
+          if (rule.VehicleReserve !== undefined) {
+            delete rule.VehicleReserve;
+          }
+          if (rule.eventDetect !== undefined) {
+            delete rule.eventDetect;
+          }
         }
         // 如果选择车辆拥堵预警，只初始化VehicleHold，并删除VehicleFlow
         else if (rule.ruleValue === '2') {
@@ -285,6 +285,12 @@
           });
           if (rule.VehicleFlow) {
             delete rule.VehicleFlow;
+          }
+          if (rule.VehicleReserve !== undefined) {
+            delete rule.VehicleReserve;
+          }
+          if (rule.eventDetect !== undefined) {
+            delete rule.eventDetect;
           }
         }
         // 如果选择车流量预警，只初始化VehicleFlow，并删除VehicleHold
@@ -302,36 +308,32 @@
           if (rule.VehicleHold) {
             delete rule.VehicleHold;
           }
+          if (rule.VehicleReserve !== undefined) {
+            delete rule.VehicleReserve;
+          }
+          if (rule.eventDetect !== undefined) {
+            delete rule.eventDetect;
+          }
         }
         // 新增：如果选择车辆预约检测，初始化VehicleReserve，并删除其他多余属性
         else if (rule.ruleValue === '4') {
           this.$set(rule, 'VehicleReserve', false);
           if (rule.VehicleHold) { delete rule.VehicleHold; }
           if (rule.VehicleFlow) { delete rule.VehicleFlow; }
-          if (rule.eventId) { delete rule.eventId; }
+          if (rule.eventDetect !== undefined) { delete rule.eventDetect; }
         }
         // 新增：如果选择异常事故预警，初始化eventId，并删除其他多余属性
         else if (rule.ruleValue === '5') {
-          this.$set(rule, 'eventId', []);
+          this.$set(rule, 'eventDetect', false);
           if (rule.VehicleHold) { delete rule.VehicleHold; }
           if (rule.VehicleFlow) { delete rule.VehicleFlow; }
           if (rule.VehicleReserve !== undefined) { delete rule.VehicleReserve; }
+          if (rule.labelId !== undefined) { delete rule.labelId; }
         }
       },
       // 返回上一级
       goBack() {
         this.$router.back()
-      },
-      fetchEvents() {
-        getEvents().then(response => {
-          const data = response.data.data;
-          this.events = data.events || [];
-        }).catch(() => {
-          this.$notify.error({
-            title: '错误',
-            message: '获取事故信息失败'
-          });
-        });
       }
     }
   }

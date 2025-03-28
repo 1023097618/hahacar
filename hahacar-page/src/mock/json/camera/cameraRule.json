@@ -7,7 +7,7 @@
         {"ruleValue": "2", "VehicleHold": {"maxVihicleHoldNum": "1.5", "maxContinuousTimePeriod": 30, "minVihicleHoldNum": "1.0", "minContinuousTimePeriod": 10, "LabelsEqual": [{"labelId": "1", "labelHoldNum": "1"}]}},
         {"ruleValue": "3", "VehicleFlow": {"maxVihicleFlowNum": "2.0", "maxContinuousTimePeriod": 60, "minVihicleFlowNum": "1.5", "minContinuousTimePeriod": 20, "LabelsEqual": [{"labelId": "2", "labelEqualNum": "1.5"}], "cameraStartLine": {"cameraLineId": "line001", "isAll": false}, "cameraEndLine": {"cameraLineId": "line002", "isAll": true}}},
         {"ruleValue": "4", "VehicleReserve": true},
-        {"ruleValue": "5", "eventId": ["1"]}
+        {"ruleValue": "5", "eventDetect": true}
       ]
     }
   }
