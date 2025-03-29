@@ -20,13 +20,16 @@ from core.security import verify_jwt_token
 from dependencies.database import get_db
 from services.alerts_service import saveAlert
 from services.camera_detect_info_service import save_to_camera_detect_info
+from services.camera_line_service import get_camera_line
 from services.camera_rule_service import getCameraRule
 from services.camera_service import get_camera_url, get_camera_name_by_id
+from services.car_through_route_service import saveCarThroughFixedRoute
 from services.labels_service import getLabels
 from services.user_service import is_admin
 from util.detector import Detector
 from fastapi.responses import JSONResponse, FileResponse
 from api.socket_manager import sio
+from util.hitBar import hitBar
 
 router = APIRouter(prefix="/api")
 
@@ -48,6 +51,8 @@ INFO_DIR = os.path.abspath("./static/camera/info/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SAVE_DIR, exist_ok=True)
 os.makedirs(INFO_DIR, exist_ok=True)
+
+
 
 #获取label_id 和 label_name 的映射关系
 def get_label_mapping(db: Session) -> dict:
@@ -78,26 +83,32 @@ def calculate_traffic_volume_hold(detailedResult: dict, labels_equal_hold_ids: d
         "hold_volume": hold_volume,
     }
 
-#检测线还没考虑。。。。。。。。。。。
+#检测线还没考虑。。。。。。。。。。。____
 def calculate_traffic_volume_flow(hitbarResult: list,labels_equal_flow_ids: dict) -> dict:
-    flow_volume = 0
+    """
+        计算每条检测线的 flow 当量
+        返回字典，键为检测线的名称，值为该检测线的 flow 当量
+        """
+    flow_for_line = {}
     db = next(get_db())
     label_mapping = get_label_mapping(db)
-    # 转换 labels_equal_flow_ids，将 labelId 替换为 labelName
+    # 将 labels_equal_flow_ids 中的 labelId 替换为 labelName，若找不到则保留原值
     labels_equal_flow_names = {
-        label_mapping.get(labelId, labelId): value  # 如果 labelId 不在映射中，则保留原值
+        label_mapping.get(labelId, labelId): value
         for labelId, value in labels_equal_flow_ids.items()
     }
 
-    #如果是主要检测线就不需要循环-----------还有591行
     for hbResult in hitbarResult:
-        for label, count in hbResult.items():
+        # 使用 hitBarResult 中的 "name" 字段作为检测线名称
+        line_name = hbResult.get("name", "unknown")
+        line_flow = 0
+        accumulator = hbResult.get("Accumulator", {})
+        for label, count in accumulator.items():
             if label in labels_equal_flow_names:
-                flow_volume += count * int(labels_equal_flow_names[label])
+                line_flow += count * int(labels_equal_flow_names[label])
+        flow_for_line[line_name] = line_flow
 
-    return {
-        "flow_volume": flow_volume
-    }
+    return flow_for_line
 
 #保存处理后的帧/信息函数
 # def save_processed_frame(frame, processedImg, detailedResult):
@@ -128,7 +139,7 @@ def calculate_traffic_volume_flow(hitbarResult: list,labels_equal_flow_ids: dict
 
 
 # **帧处理函数**
-def process_frame(frame):
+def process_frame(frame,hitbars):
     """
     **description**
     yolo模型处理
@@ -144,7 +155,8 @@ def process_frame(frame):
                                                    addingBoxes=True,
                                                    addingLabel=True,
                                                    addingConf=False,
-                                                   verbosity=2);
+                                                   verbosity=2,
+                                                    hitBars=hitbars);
     return processedImg,detailedResult,hitBarResult
 
 # **视频流生成器——用于处理RSTP协议的摄像头**
@@ -272,7 +284,7 @@ async def generate_frames(RTSP_URL:str,camera_id:str):
                     if vehicle not in vehicle_warning_state:
                         alert_id = str(uuid.uuid4())
                         alert_image = f"{alert_id}.jpg"
-                        cv2.imwrite(f"/path/to/alerts/{alert_image}", frame)        #还有这里的图片存储，存哪？如何访问？——————————
+                        cv2.imwrite(f"/alerts/on/{alert_image}", frame)        #还有这里的图片存储，存哪？如何访问？——————————
 
                         rule_type = "1"
                         rule_remark = f"检测到违规车辆: {vehicle}"
@@ -453,6 +465,18 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
         vehicle_clear_count = {}  # 预警清除计数器
         clearThreshold = 3  # 连续 N 个 time_window 未检测到该车辆则结束预警
 
+        vehicle_history = {}  # 格式：{ vehicle_no: [ { "time": timestamp, "line": line_name, "label": label }, ... ] }
+        history_last_checked = time.time()
+
+        camera_line_response = get_camera_line(db, camera_id)
+        lines = []
+        if camera_line_response["code"] == "200" and camera_line_response["data"].get("cameraLines"):
+            lines = camera_line_response["data"]["cameraLines"]
+        else:
+            print("该摄像头没有检测线")
+
+        hitBars = []
+
         while True:
             response = requests.get(SNAPSHOT_URL)  # 直接请求单张图片
             if response.status_code != 200:
@@ -470,7 +494,25 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                 print("无法解码快照，跳过...")
                 continue
 
-            processed, detailedResult ,hitBarResult= process_frame(frame)
+            # 根据获取的检测线数据构造 hitBars 对象
+            if not hitBars:
+                frame_h, frame_w = frame.shape[:2]
+                for i, line in enumerate(lines):
+                    startPoint = (int(line["cameraLineStartX"]), int(line["cameraLineStartY"]))
+                    endPoint = (int(line["cameraLineEndX"]), int(line["cameraLineEndY"]))
+                    # 主检测线 name 设为 "0"，其他检测线依次为 "1", "2", "3"……
+                    name = "0" if line.get("isMainLine", False) else str(i + 1)
+                    hb = hitBar(
+                        imgSize=(frame_h, frame_w),
+                        startPoint=startPoint,
+                        endPoint=endPoint,
+                        name=name,
+                        # 如有其他需要的参数，可在此添加
+                    )
+                    hitBars.append(hb)
+
+            processed, detailedResult ,hitBarResult= process_frame(frame,hitBars=hitBars)
+
 
             # 获取camera_rule的数据
             camera_rule_response = getCameraRule(db,camera_id)
@@ -479,7 +521,7 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
             else:
                 camera_rules = camera_rule_response["data"]["cameraRules"]
 
-                # **解析 camera_rules**——————其实可以直接从camera_rule表中查询数据。。。。
+                # **解析 camera_rules**——————其实可以直接从camera_rule表中查询数据。。。。这个规则的解析放在外面函数里把
                 car_category = []
                 labels_equal_hold_ids = {}
                 labels_equal_flow_ids = {}
@@ -490,12 +532,19 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                 maxContinuousTimePeriod = 0
                 minContinuousTimePeriod = 0
                 rule_type = "未知规则"
+                cameraStartLine = {}
+                cameraEndLine = {}
+                camera_start_line_id = ""
+                camera_end_line_id = ""
+                rule_first_camera_line_id = ""
 
                 for rule in camera_rules:
                     rule_value = rule.get("ruleValue")
 
                     if rule_value == "1":
-                        car_category = rule.get("labelId", [])  # 直接赋值，无需 json.loads
+                        rule_first_label = rule.get("label",[])
+                        car_category = rule_first_label.get("labelId", [])  # 直接赋值，无需 json.loads
+                        rule_first_camera_line_id = rule_first_label.get("cameraLineId","")
 
                     elif rule_value == "2":
                         vehicle_hold = rule.get("VehicleHold", {})
@@ -534,18 +583,185 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                         }
                         maxVehicleFlowNum = float(vehicle_flow.get("maxVehicleFlowNum", 0))
                         minVehicleFlowNum = float(vehicle_flow.get("minVehicleFlowNum", 0))
+                        cameraStartLine = vehicle_flow.get("cameraStartLine", {})
+                        if cameraStartLine:
+                            camera_start_line_id = cameraStartLine.get("cameraLineId", "")
+                        cameraEndLine = vehicle_flow.get("cameraEndLine", {})
+                        if cameraEndLine:
+                            camera_end_line_id = cameraEndLine.get("cameraLineId", "")
 
-                # 计算各种类型汽车car_counts在十秒中的累计保存到数据库中，首先要通过getLabels方法获取labelid和labelname的映射关系，再统计十秒中该种类型汽车的合计保存到camera_detect_info表中
 
-                # 车辆类型预警逻辑--------这里的car_category是id，和detailresult对不上，记得改——————————————————
-                detected_vehicles = [label for label in detailedResult.get("count", {}).keys() if label in car_category]
+            # flow_for_line = {}  # 用于存储每条检测线的 flow 当量，键为检测线的名称
+            flow_for_line = calculate_traffic_volume_flow(hitBarResult, labels_equal_flow_ids)
+            # 示例：打印各检测线的 flow 当量
+            print("各检测线 Flow 当量：", flow_for_line)
+
+            #起止线检测
+            if camera_start_line_id is not None and camera_end_line_id is not None and camera_start_line_id != camera_end_line_id:
+                # 在每一帧处理后，将车辆检测结果存入 history
+                # 假设 hitBarResult 中每个检测线的 hitDetails 内含车辆检测信息，其中 "ID" 为车辆唯一标识
+                for hb in hitBarResult:
+                    line_name = hb.get("name", "unknown")
+                    for detail in hb.get("hitDetails", []):
+                        vehicle_no = detail.get("ID")  # 车辆唯一标识
+                        if not vehicle_no:
+                            continue
+                        detection_record = {
+                            "time": current_time,
+                            "line": line_name,
+                            "label": detail.get("cat"),
+                        }
+                        if vehicle_no not in vehicle_history:
+                            vehicle_history[vehicle_no] = []
+                        vehicle_history[vehicle_no].append(detection_record)
+
+                # -----------------------------
+                # 每分钟检查一次车辆历史记录，并计算从起始线到终止线的当量及方向
+                if current_time - history_last_checked >= 60:
+                    for vehicle_no, records in list(vehicle_history.items()):
+                        # 保留最近1分钟内的记录
+                        records = [r for r in records if current_time - r["time"] <= 60]
+                        if not records:
+                            del vehicle_history[vehicle_no]
+                            continue
+                        vehicle_history[vehicle_no] = records
+
+                        # 筛选出同时在历史记录中出现过起始和终止检测线的车辆
+                        vehicles_through_channel = {}
+                        for vehicle_no, records in vehicle_history.items():
+                            detected_lines = {r["line"] for r in records}
+                            if camera_start_line_id in detected_lines and camera_end_line_id in detected_lines:         #好像这里的id不太对的上
+                                vehicles_through_channel[vehicle_no] = records
+
+                        # 对每辆车计算方向及其他信息
+                        for vehicle_no, records in vehicles_through_channel.items():
+                            # 按时间排序，确定起始和终止检测记录
+                            sorted_records = sorted(records, key=lambda r: r["time"])
+                            start_line = sorted_records[0]["line"]
+                            end_line = sorted_records[-1]["line"]
+
+                            # 判断车辆方向
+                            if start_line == camera_start_line_id and end_line == camera_end_line_id:
+                                direction = "正向"
+                            elif start_line == camera_end_line_id and end_line == camera_start_line_id:
+                                direction = "逆向"
+                            else:
+                                direction = "未知"
+
+                            # 直接取最早记录的 label 作为车辆类型（即车辆 id 对应的 label）
+                            vehicle_type = sorted_records[0]["label"]
+
+                            # 存储车辆信息：汽车No、类型、起线、止线、检测时间（使用当前时间）以及方向
+                            saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, start_line, end_line,
+                                                     current_time, direction)
+                            print(f"{vehicle_type} {vehicle_no}")
+
+                            # 处理完后从history中移除该车辆记录
+                            del vehicle_history[vehicle_no]
+
+                        # 获取 label 映射（label_id -> label_name）
+                        label_mapping = get_label_mapping(db)
+                        # 为了根据记录中存储的 label_name 获取 label_id，这里构造反向映射：label_name -> label_id
+                        inv_label_mapping = {v: k for k, v in label_mapping.items()}
+
+                        total_flow_equivalent = 0
+                        for vehicle_no, records in vehicles_through_channel.items():
+                            # 统计该车辆在1分钟内各 label 的累计数量
+                            label_counts = {}
+                            for rec in records:
+                                label_name = rec["label"]  # hitDetails中记录的 cat，一般为 label_name
+                                label_counts[label_name] = label_counts.get(label_name, 0) + rec["count"]
+
+                            # 计算该车辆的当量：遍历 label_counts，若对应的 label_id 存在于 labels_equal_flow_ids 则计算当量
+                            vehicle_equivalent = 0
+                            for label_name, count in label_counts.items():
+                                label_id = inv_label_mapping.get(label_name)
+                                if label_id and label_id in labels_equal_flow_ids:
+                                    vehicle_equivalent += count * labels_equal_flow_ids[label_id]
+                            total_flow_equivalent += vehicle_equivalent
+
+
+                        # 丢弃所有超过1分钟未更新的记录（这里只保留有更新的记录）
+                        for vehicle_no in list(vehicle_history.keys()):
+                            vehicle_history[vehicle_no] = [r for r in vehicle_history[vehicle_no] if
+                                                           current_time - r["time"] <= 60]
+                            if not vehicle_history[vehicle_no]:
+                                del vehicle_history[vehicle_no]
+                        history_last_checked = current_time
+
+            #假如规则中的起始线和终止线为空，则设置为主检测线
+            if camera_start_line_id is None:
+                camera_start_line_id = "0"
+
+            if camera_end_line_id is None:
+                camera_end_line_id = "0"
+
+            # 此时目标检测线就是主检测线，此时 target_line_id 设为 "0"
+            target_line_id = "0"
+
+            #目标检测线的flow当量
+            target_flow = flow_for_line.get(target_line_id,0)
+            print(f"目标检测线/主检测线 {target_line_id} 的 Flow 当量：", target_flow)
+
+            # 计算各种类型汽车car_counts在十秒中的累计保存到数据库中，首先要通过getLabels方法获取labelid和labelname的映射关系，再统计十秒中该种类型汽车的合计保存到camera_detect_info表中
+
+
+            # 计算 hold 和 flow 的交通当量
+            hold_volume = calculate_traffic_volume_hold(detailedResult, labels_equal_hold_ids)["hold_volume"]
+
+            # 根据hitBarResult统计10秒内所有 labelName 的累计总数
+            # 计算各种类型汽车car_counts在十秒中的累计保存到数据库中，首先要通过getLabels方法获取labelid和labelname的映射关系，再统计十秒中该种类型汽车的合计保存到camera_detect_info表中
+            # 车辆类型预警逻辑--------这里的car_category是id，和label对不上，记得改-------
+            # detected_vehicles = [label for label in label_counts.keys() if label in car_category]
+
+            #这是所有检测线的所有结果的累计，好像没有什么用处
+            for label_id, count in hitBarResult.get("Accumulator", {}).items():
+                if label_id in label_map:
+                    label_counts[label_map[label_id]] += count
+
+            # 记录数据
+            traffic_data.append((current_time, hold_volume, target_flow, label_counts))         #注意这里只存入了主检测线时的车流量检测
+
+            # 同时，为后续 10 秒窗口内的统计，我们建立一个按检测线分类的存储结构
+            # 例如，lineWiseTrafficData 为字典：键为检测线名称，值为该线在窗口内各帧的 flow 当量
+            if 'lineWiseTrafficData' not in globals():
+                lineWiseTrafficData = {}
+            for line_name, flow in flow_for_line.items():
+                if line_name not in lineWiseTrafficData:
+                    lineWiseTrafficData[line_name] = []
+                lineWiseTrafficData[line_name].append(flow)
+
+            # 维护各检测线的预警计数，使用字典存储
+            if 'flow_warning_count_dict' not in globals():
+                flow_warning_count_dict = {}
+            if 'flow_clear_count_dict' not in globals():
+                flow_clear_count_dict = {}
+
+            # 将规则中车辆类型 id 转换为 label 名称列表
+            car_category_names = [label_map.get(cid) for cid in car_category if cid in label_map]
+            # 从 hitBarResult 中查找检测线 rule_first_camera_line_id 对应的记录:这两个id好像对应不上————-------------要改
+
+
+            # 车辆类型预警逻辑--------这里的car_category是id，和label对不上，记得改-------car_category_names是name，已改
+            #这里的预警逻辑不对，应该是根据规则中的某条检测线进行的。。。。。
+            target_hitbar = None
+            for hb in hitBarResult:
+                if hb.get("name") == rule_first_camera_line_id:
+                    target_hitbar = hb
+                    break
+            if target_hitbar:
+                accumulator = target_hitbar.get("Accumulator", {})
+                # 从 accumulator 中提取检测到的车辆类型（键为 label 名称）列表
+                detected_vehicle_types = list(accumulator.keys())
+                # 如果存在任一车辆类型属于规则定义的 car_category_names，则触发车辆类型预警
+                detected_vehicles = [vt for vt in detected_vehicle_types if vt in car_category_names]
 
                 if detected_vehicles:
                     for vehicle in detected_vehicles:
                         if vehicle not in vehicle_warning_state:
                             alert_id = str(uuid.uuid4())
                             alert_image = f"{alert_id}.jpg"
-                            cv2.imwrite(f"/path/to/alerts/{alert_image}", frame)  # 还有这里的图片存储，存哪？如何访问？——————————
+                            cv2.imwrite(f"/alerts/on/{alert_image}", frame)  # 还有这里的图片存储，存哪？如何访问？——————————
 
                             rule_type = "1"
                             rule_remark = f"检测到违规车辆: {vehicle}"
@@ -564,6 +780,7 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
                             vehicle_clear_count[vehicle] = 0  # 预警清除计数器重置
 
                 else:
+                    rule_type = "1"
                     # **如果 `detailedResult` 中未检测到 `car_category` 车辆**
                     for vehicle in list(vehicle_warning_state.keys()):
                         vehicle_clear_count[vehicle] += 1
@@ -581,100 +798,106 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
 
                             print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
 
-                # 计算 hold 和 flow 的交通当量
-                hold_volume = calculate_traffic_volume_hold(detailedResult, labels_equal_hold_ids)["hold_volume"]
-                flow_volume = calculate_traffic_volume_flow(hitBarResult, labels_equal_flow_ids)["flow_volume"]
 
-                # 根据hitBarResult统计10秒内所有 labelName 的累计总数
-                # 计算各种类型汽车car_counts在十秒中的累计保存到数据库中，首先要通过getLabels方法获取labelid和labelname的映射关系，再统计十秒中该种类型汽车的合计保存到camera_detect_info表中
-                label_counts = {label_name: 0 for label_name in label_map.values()}  # 初始化所有标签计数为0
-                for hbResult in hitBarResult:
-                    for label, count in hbResult.items():
-                        if label in label_counts:
-                            label_counts[label] += count
+            # **严格控制 10 秒后进行计算**
+            if current_time - start_time >= time_window:
+                if traffic_data:  # 确保数据不为空
+                    avg_hold_volume = sum(h for _, h, _, _ in traffic_data) / len(traffic_data)
 
-                # for label_id, count in hitBarResult.get("count", {}).items():
-                #     if label_id in label_map:
-                #         label_counts[label_map[label_id]] += count
+                    # 计算 10 秒内的累计 label 数量
+                    aggregated_label_counts = {label: 0 for label in label_map.values()}
+                    for _,_, _, label_dict in traffic_data:
+                        for label, count in label_dict.items():
+                            aggregated_label_counts[label] += count
 
-                # 记录数据
-                traffic_data.append((current_time, hold_volume, flow_volume, label_counts))
+                    # 存入数据库
+                    save_to_camera_detect_info(db,camera_id, avg_hold_volume, target_flow, aggregated_label_counts,
+                                               current_time)
 
-                # **严格控制 10 秒后进行计算**
-                if current_time - start_time >= time_window:
-                    if traffic_data:  # 确保数据不为空
-                        avg_hold_volume = sum(h for _, h, _, _ in traffic_data) / len(traffic_data)
-                        avg_flow_volume = sum(f for _,_, f, _ in traffic_data) / len(traffic_data)
+                    # 如果 active_alerts 不存在，则初始化
+                    if 'active_alerts' not in globals():
+                        active_alerts = {}  # 键为 rule_type（如 "2" 或 "3"），值为预警详细信息字典
 
-                        # 计算 10 秒内的累计 label 数量
-                        aggregated_label_counts = {label: 0 for label in label_map.values()}
-                        for _,_, _, label_dict in traffic_data:
-                            for label, count in label_dict.items():
-                                aggregated_label_counts[label] += count
+                    # **🚨 预警逻辑 🚨**
+                    if avg_hold_volume >= maxVehicleHoldNum:
+                        hold_warning_count += 1
+                        # hold_clear_count = 0
+                    else:
+                        hold_warning_count = 0
+                        # hold_clear_count += 1
 
-                        # 存入数据库
-                        save_to_camera_detect_info(db,camera_id, avg_hold_volume, avg_flow_volume, aggregated_label_counts,
-                                                   current_time)
+                    if target_flow >= maxVehicleFlowNum:
+                        flow_warning_count += 1
+                        # flow_clear_count = 0
+                    else:
+                        flow_warning_count = 0
+                        # flow_clear_count += 1
 
-                        # **🚨 预警逻辑 🚨**
-                        if avg_hold_volume >= maxVehicleHoldNum:
-                            hold_warning_count += 1
-                            # hold_clear_count = 0
-                        else:
-                            hold_warning_count = 0
-                            # hold_clear_count += 1
+                    if avg_hold_volume <= minVehicleHoldNum:
+                        hold_clear_count += 1
+                    else:
+                        hold_clear_count = 0
+                    if target_flow <= minVehicleFlowNum:
+                        flow_clear_count += 1
+                    else:
+                        flow_clear_count = 0
 
-                        if avg_flow_volume >= maxVehicleFlowNum:
-                            flow_warning_count += 1
-                            # flow_clear_count = 0
-                        else:
-                            flow_warning_count = 0
-                            # flow_clear_count += 1
+                        # **连续 N 次触发 "正在发生"**
+                    if hold_warning_count >= maxContinuousTimePeriod // time_window or flow_warning_count >= maxContinuousTimePeriod // time_window:
+                        if (hold_warning_count >= maxContinuousTimePeriod // time_window):
+                            rule_type = "2"
+                            rule_remark = "车辆拥挤度预警"
+                        elif (flow_warning_count >= maxContinuousTimePeriod // time_window):
+                            rule_type = "3"
+                            rule_remark = "车流量预警"
 
-                        if avg_hold_volume <= minVehicleHoldNum:
-                            hold_clear_count += 1
-                        else:
-                            hold_clear_count = 0
-                        if avg_flow_volume <= minVehicleFlowNum:
-                            flow_clear_count += 1
-                        else:
-                            flow_clear_count = 0
-
-                            # **连续 N 次触发 "正在发生"**
-                        if hold_warning_count >= maxContinuousTimePeriod // time_window or flow_warning_count >= maxContinuousTimePeriod // time_window:
-                            if warning_state != "正在发生":
+                            # 如果该类型预警还没有记录，则新增预警，否则不重复生成
+                            if rule_type not in active_alerts:
                                 warning_state = "正在发生"
                                 warning_start_time = current_time
-                                alert_id = str(uuid.uuid4())
-                                alert_image = f"{alert_id}.jpg"
-                                cv2.imwrite(f"/path/to/alerts/{alert_image}", frame)
-                                if (hold_warning_count >= maxContinuousTimePeriod // time_window):
-                                    rule_type = "2"
-                                    rule_remark = "车辆拥挤度预警"
-                                elif (flow_warning_count >= maxContinuousTimePeriod // time_window):
-                                    rule_type = "3"
-                                    rule_remark = "车流量预警"
+                                new_alert_id = str(uuid.uuid4())
+                                alert_image = f"{new_alert_id}.jpg"
+                                cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
-                                saveAlert(
-                                    alert_id, camera_id, camera_name, 1, warning_start_time, None, None, alert_image,
-                                    rule_type, rule_remark
-                                )
+                                # 新增预警记录（alert_type=1 表示预警开始）
+                                saveAlert(new_alert_id, camera_id, camera_name, 1, warning_start_time, None, None,
+                                          alert_image,
+                                          rule_type, rule_remark)
+                                sio.emit("updateHappeningAlert", {
+                                    "alertId": new_alert_id,
+                                    "cameraId": camera_id,
+                                    "cameraName": camera_name
+                                })
+                                # 记录该预警状态到字典中
+                                active_alerts[rule_type] = {
+                                    "alert_id": new_alert_id,
+                                    "warning_start_time": warning_start_time,
+                                    "alert_image": alert_image,
+                                    "rule_remark": rule_remark
+                                }
 
-                                sio.emit("updateHappeningAlert",
-                                         {"alertId": alert_id, "cameraId": camera_id, "cameraName": camera_name})
+                    # **连续 N 次触发 "已经发生"**
+                    if hold_clear_count >= minContinuousTimePeriod // time_window or flow_clear_count >= minContinuousTimePeriod // time_window:
+                        if warning_state == "正在发生":
+                            warning_state = "已经发生"
+                            warning_end_time = current_time
 
-                        # **连续 N 次触发 "已经发生"**
-                        if hold_clear_count >= minContinuousTimePeriod // time_window or flow_clear_count >= minContinuousTimePeriod // time_window:
-                            if warning_state == "正在发生":
-                                warning_state = "已经发生"
-                                warning_end_time = current_time
-
+                            # 对字典中所有预警进行更新，使用原先记录的 alert_id
+                            for rule_type, alert_info in active_alerts.items():
+                                alert_id = alert_info["alert_id"]
+                                warning_start_time = alert_info["warning_start_time"]
+                                alert_image = alert_info["alert_image"]
+                                rule_remark = alert_info["rule_remark"]
+                                # 更新预警（alert_type=2 表示预警结束）
                                 saveAlert(alert_id, camera_id, camera_name, 2, warning_start_time, warning_end_time,
                                           None, alert_image, rule_type, rule_remark)
+                            # 清空字典，预警状态更新完毕
+                            active_alerts.clear()
 
                     # **清空 traffic_data，更新 start_time**
-                    traffic_data.clear()
-                    start_time = current_time
+                traffic_data.clear()
+                start_time = current_time
+
 
             # ————detailresult有效结果保存到数据库中————从上一次保存到这一次间隔十秒钟count的和
                 #————还要计算一段时间内的车的拥挤度：求和【此label交通当量值*这个label的数量】，
@@ -695,7 +918,7 @@ async def generate_frames_http(SNAPSHOT_URL:str,camera_id:str):
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-            time.sleep(interval)  # 控制快照采集速率
+            await asyncio.sleep(interval)  # 控制快照采集速率
 
     except Exception as e:
         print(f"HTTP协议摄像头连接失败：{e}")

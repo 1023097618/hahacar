@@ -25,13 +25,15 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
             db.flush()
 
         if rule_update.rule_value == '1':
-           if rule_update.labelId:
-               db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '1').update({
-                   "label_ids":  json.dumps(rule_update.labelId)        #sqlite不支持存储list类型，所以要存储为json字符串
-               })
+           if rule_update.label:
+               update_data = {
+                   "label_ids": json.dumps(rule_update.label.labelId),  # 存储为 JSON 字符串
+                   "camera_line_id": rule_update.label.cameraLineId  # 直接存储字符串
+               }
+               db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '1').update(update_data)
                db.commit()
            else:
-               return {"code": "400", "msg": "labelId is None", "data": {}}
+               return {"code": "400", "msg": "label is None", "data": {}}
         elif rule_update.rule_value == '2':
             if isinstance(rule_update.VehicleHold.LabelsEqual,str):
                 labels_equal_hold = rule_update.VehicleHold.LabelsEqual #直接使用字符串存储
@@ -72,6 +74,21 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                 return {"code": "400", "msg": "VehicleFlow is None", "data": {}}
         else:
             return {"code": "400", "msg": "ruleValue is None or not in '1','2','3'", "data": {}}
+
+        # 新增：处理 VehicleReserve 与 eventDetect（无论 rule_value 为何，都可传输这两个可选字段）
+        update_extra = {}
+        if rule_update.VehicleReserve is not None:
+            update_extra["vehicle_reserve"] = rule_update.VehicleReserve
+        if rule_update.eventDetect is not None:
+            update_extra["event_detect"] = rule_update.eventDetect
+        if update_extra:
+            db.query(CameraRule).filter(
+                CameraRule.camera_id == cameraId,
+                CameraRule.rule_value == rule_update.rule_value
+            ).update(update_extra)
+            db.commit()
+
+
     return {"code": "200", "msg": "success", "data": {}}
 
 
@@ -89,11 +106,14 @@ def getCameraRule(db: Session, cameraId: str):
 
         # 处理不同 rule_value 的规则
         if rule.rule_value == '1':
-            if isinstance(rule.label_ids, list):
-                rule_data["labelId"] = rule.label_ids       #如果是list类型，不需jsonloads处理，直接赋值
+            if isinstance(rule.label.label_ids, list):
+                label_ids = rule.label.label_ids       #如果是list类型，不需jsonloads处理，直接赋值
             else:
-                rule_data["labelId"] = json.loads(rule.label_ids) if rule.label_ids else []
-
+                label_ids = json.loads(rule.label.label_ids) if rule.label.label_ids else []
+            rule_data["label"] = {
+                "labelId": label_ids,
+                "cameraLineId": rule.camera_line_id if rule.camera_line_id else ""
+            }
         elif rule.rule_value == '2':
             if isinstance(rule.labels_equal_hold_ids, list):
                 LabelsEqual = rule.labels_equal_hold_ids
@@ -123,6 +143,11 @@ def getCameraRule(db: Session, cameraId: str):
                 "cameraEndLine": {"cameraLineId": rule.camera_end_line_id,
                                   "isAll": True} if rule.camera_end_line_id else None
             }
+
+
+        # 将 VehicleReserve 与 eventDetect 加入返回结果
+        rule_data["VehicleReserve"] = rule.vehicle_reserve if rule.vehicle_reserve is not None else False
+        rule_data["eventDetect"] = rule.event_detect if rule.event_detect is not None else False
 
         rules_data.append(rule_data)
 
