@@ -260,6 +260,8 @@ def parse_camera_rules(camera_rules: list) -> dict:
             cameraEndLine = vehicle_flow.get("cameraEndLine", {})
             if cameraEndLine:
                 result["camera_end_line_id"] = cameraEndLine.get("cameraLineId", "")
+        elif rule_value == "5":
+            result["eventDetect"] = rule.get("eventDetect", False)  # 解析事故检测是否开启
     return result
 
 def update_vehicle_history(vehicle_history: dict, hitBarResult: list, current_time: float):
@@ -293,6 +295,11 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
     vehicles_through_channel = {}
     total_flow_equivalent = 0
     processed_vehicles = []  # 记录已处理的车辆，避免在循环中直接删除
+    label_mapping = get_label_mapping(db)  # {labelId: labelName}
+    labels_equal_flow_names = {
+        label_mapping.get(label_id, label_id): float(value)
+        for label_id, value in labels_equal_flow_ids.items()
+    }
     for vehicle_no, records in vehicle_history.items():
         # 保留最近1分钟内记录
         records = [r for r in records if current_time - r["time"] <= 60]
@@ -318,7 +325,7 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
 
         # 计算该车辆的当量
         vehicle_type = sorted_records[0]["label"]
-        vehicle_equivalent = labels_equal_flow_ids.get(vehicle_type, 1)  # 默认为 1
+        vehicle_equivalent = labels_equal_flow_names.get(vehicle_type, 1)
 
         # 累加该车辆的当量
         if direction == "正向":
@@ -581,6 +588,60 @@ def process_vehicle_congestion_warning(
 
     return hold_warning_count, hold_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
 
+
+def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str, camera_name: str):
+    """
+    **description**
+    处理事故检测逻辑：当 detailedResult 返回 accidentBoxes 和 accidentConf 时，触发事故预警。
+
+    **params**
+    - detailedResult (dict): YOLO 检测结果，包含 accidentBoxes 和 accidentConf
+    - frame (np.ndarray): 当前帧图像
+    - current_time (float): 当前时间戳
+    - db: 数据库连接
+    - camera_id (str): 摄像头 ID
+    - camera_name (str): 摄像头名称
+
+    **returns**
+    - 触发事故预警并保存到数据库，同时通过 Socket.IO 发送到前端
+    """
+    accident_boxes = detailedResult.get("accidentBoxes", [])
+    accident_conf = detailedResult.get("accidentConf", [])
+
+    if accident_boxes and accident_conf:
+        # 事故发生，生成唯一 ID
+        alert_id = str(uuid.uuid4())
+        alert_image = f"{alert_id}.jpg"
+        cv2.imwrite(f"/alerts/on/accident/{alert_image}", frame)
+
+        # 获取最高事故置信度
+        max_accident_confidence = max(accident_conf)
+
+        # 事故预警详情
+        rule_type = "5"
+        rule_remark = f"⚠️ 事故预警 - 最高置信度: {max_accident_confidence:.2f}"
+
+        # 保存事故预警到数据库
+        saveAlert(alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
+
+        # 通过 Socket.IO 发送事故预警到前端
+        sio.emit("updateHappeningAlert", {
+            "alertId": alert_id,
+            "cameraId": camera_id,
+            "cameraName": camera_name,
+            # "alertType": "事故检测",
+            # "alertConfidence": max_accident_confidence,
+            # "timestamp": current_time
+        })
+
+        print(f"🚨 事故预警触发！最高置信度: {max_accident_confidence:.2f}")
+
+        return True  # 预警已触发
+
+    return False  # 未触发预警
+
+
+
 #HTTP请求的方式
 async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = None):
     """
@@ -652,6 +713,16 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         hitBars = []
 
+        # 存储事故状态
+        accident_warning_state = "正常"
+        accident_alert_start_time = None
+        accident_alert_end_time = None
+        accident_active_alerts = {}  # 记录事故报警的 alert_id
+        accident_clear_count = 0
+        accident_warning_count = 0
+        clearAccidentThreshold = 3  # N 个时间窗口内未检测到事故才解除报警
+        accident_threshold = 0.8  # 事故置信度阈值（可调整）
+
         while True:
             frame, current_time = fetch_frame(source_url,cap)
             if frame is None:
@@ -677,6 +748,20 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             # 解析规则
             rules = parse_camera_rules(camera_rules)
+
+            # 假设规则中开启了事故检测 eventDetect
+            if rules.get("eventDetect", False):
+                accident_detected = process_accident_warning(
+                    detailedResult=detailedResult,
+                    frame=frame,
+                    current_time=current_time,
+                    db=db,
+                    camera_id=camera_id,
+                    camera_name=camera_name
+                )
+
+                if accident_detected:
+                    print(f"⚠️ 事故检测 - 事故已上报")
 
             # flow_for_line = {}  用于存储每条检测线的 flow 当量，键为检测线的名称
             flow_for_line = calculate_traffic_volume_flow(hitBarResult, rules["labels_equal_flow_ids"])
@@ -730,8 +815,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             if rules["camera_start_line_id"] == rules["camera_end_line_id"] and rules["camera_start_line_id"] != "0":
                 target_line_id = rules["camera_start_line_id"]  # 使用该检测线
                 print(f"⚠️ 车流量预警：起止线相同，使用检测线 {target_line_id}")
-
-            target_line_id = "0"
+            else:
+                target_line_id = "0"
             target_flow = flow_for_line.get(target_line_id, 0)
             print(f"目标检测线/主检测线 {target_line_id} 的 Flow 当量：", target_flow)
 
@@ -846,11 +931,13 @@ async def proxy_video_feed(
     if not cameraURL:
         return JSONResponse(content={"code": "404", "data": {}, "msg": "Camera not found"}, status_code=404)
 
-
-    #这里要新增获取摄像头类型，根据是http还是rstp来判断使用哪种处理方法
-    # if cameraURL.startswith("http"):
-        # print(f"正在拉取 HTTP 直播流: {cameraURL}")
     return StreamingResponse(generate_frames(cameraURL,cameraId,liveStreamType if liveStreamType else None), media_type="multipart/x-mixed-replace; boundary=frame" )
+
+    # 这里要新增获取摄像头类型，根据是http还是rstp来判断使用哪种处理方法
+    # if cameraURL.startswith("http"):
+    # print(f"正在拉取 HTTP 直播流: {cameraURL}")
+    # return StreamingResponse(generate_frames(cameraURL, cameraId, liveStreamType if liveStreamType else None),
+    #                          media_type="multipart/x-mixed-replace; boundary=frame")
     # elif cameraURL.startswith("rtsp"):
     #
     #     # 根据liveStreamType选择不同的流
