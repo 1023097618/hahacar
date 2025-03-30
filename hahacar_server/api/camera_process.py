@@ -613,7 +613,7 @@ def process_vehicle_congestion_warning(
 
 
 def process_vehicle_reservation_warning(
-    hitBarResult: list,
+    detected_vehicles: dict,
     vehicle_history: dict,
     current_time: float,
     frame,
@@ -625,12 +625,12 @@ def process_vehicle_reservation_warning(
     **description**
     处理车辆预约预警：
     - 读取预约车辆信息（TXT 文件）
-    - 记录当前帧车辆检测数据，并检查是否按照预约路线行进
+    - 仅检查 **当前帧中检测到的车辆** 是否符合预约路线
     - 如果车辆未按照预约路线行进，则触发预警
 
     **params**
-    - hitBarResult (list): 车辆检测数据（包含检测线 ID 和车辆信息）
-    - vehicle_history (dict): 车辆历史行进记录 { 车牌号: [最近检测到的线路] }
+    - detected_vehicles (dict): 仅包含当前帧检测到的车辆 {车牌号: 当前检测线}
+    - vehicle_history (dict): 车辆历史行进记录 { 车牌号: 最近检测线 }
     - current_time (float): 当前时间戳
     - frame (np.ndarray): 当前帧图像
     - db: 数据库连接
@@ -662,17 +662,7 @@ def process_vehicle_reservation_warning(
         print(f"❌ 读取预约车辆数据失败: {e}")
         return False
 
-    # **遍历 hitBarResult，记录当前帧的车辆检测信息**
-    detected_vehicles = {}
-    for hb in hitBarResult:
-        line_name = hb.get("name", "unknown")  # 当前检测线 ID
-        for detail in hb.get("hitDetails", []):
-            vehicle_no = detail.get("ID")
-            if not vehicle_no:
-                continue
-            detected_vehicles[vehicle_no] = line_name  # 记录车辆当前检测线
-
-    # **检测预约违规**
+    # **遍历当前帧的检测车辆**
     for vehicle_no, line_id in detected_vehicles.items():
         if vehicle_no in vehicle_reservations:
             reservation = vehicle_reservations[vehicle_no]
@@ -713,6 +703,7 @@ def process_vehicle_reservation_warning(
                     return True  # 预警已触发
 
     return False  # 未触发预警
+
 
 
 
@@ -841,6 +832,10 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         hitBars = []
 
+        #车辆预约路线预警
+        the_vehicle_history = {} #该车辆的历史行进记录
+        detected_vehicles = {}  # 记录车牌号对应的检测线
+
         # 存储事故状态
         accident_warning_state = "正常"
         accident_alert_start_time = None
@@ -894,11 +889,20 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 if accident_detected:
                     print(f"⚠️ 事故检测 - 事故已上报")
 
-            # 🚗 预约车辆预警（基于摄像头规则）
-            if rules.get("VehicleReserve", False):
+            # 提前解析 hitBarResult，筛选出预约车辆
+            for hb in hitBarResult:
+                line_name = hb.get("name", "unknown")  # 当前检测线 ID
+                for detail in hb.get("hitDetails", []):
+                    vehicle_no = detail.get("ID")
+                    if not vehicle_no:
+                        continue
+                    detected_vehicles[vehicle_no] = line_name  # 记录该车当前所在的检测线
+
+            # 🚗 预约车辆预警（仅当有检测到的车辆时才执行）
+            if rules.get("VehicleReserve", False) and detected_vehicles:
                 reservation_alert_triggered = process_vehicle_reservation_warning(
-                    hitBarResult=hitBarResult,
-                    vehicle_history=vehicle_history,  # 车辆历史行进记录
+                    detected_vehicles=detected_vehicles,  # 只传入当前帧检测到的目标车辆
+                    the_vehicle_history=the_vehicle_history,  # 车辆历史行进记录
                     current_time=current_time,
                     frame=frame,
                     db=db,
