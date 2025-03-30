@@ -331,7 +331,7 @@ class Detector:
         **Returns**
         - None
         """
-        self.accDetector = YOLO("./weights/accdetect.pt");
+        self.accDetector = YOLO("util/weights/accdetect.pt");
         self.model = YOLO(modelPath);
 
 

@@ -27,8 +27,8 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
         if rule_update.rule_value == '1':
            if rule_update.label:
                update_data = {
-                   "label_ids": json.dumps(rule_update.label.labelId),  # 存储为 JSON 字符串
-                   "camera_line_id": rule_update.label.cameraLineId  # 直接存储字符串
+                   "label_ids": json.dumps(rule_update.label.labelId),  # 存储为 JSON 字符串              #这个有没有label？？
+                   "camera_line_id": rule_update.label.label_line_id  # 直接存储字符串
                }
                db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '1').update(update_data)
                db.commit()
@@ -106,13 +106,13 @@ def getCameraRule(db: Session, cameraId: str):
 
         # 处理不同 rule_value 的规则
         if rule.rule_value == '1':
-            if isinstance(rule.label.label_ids, list):
-                label_ids = rule.label.label_ids       #如果是list类型，不需jsonloads处理，直接赋值
+            if isinstance(rule.label_ids, list):
+                label_ids = rule.label_ids       #如果是list类型，不需jsonloads处理，直接赋值
             else:
-                label_ids = json.loads(rule.label.label_ids) if rule.label.label_ids else []
+                label_ids = json.loads(rule.label_ids) if rule.label_ids else []
             rule_data["label"] = {
                 "labelId": label_ids,
-                "cameraLineId": rule.camera_line_id if rule.camera_line_id else ""
+                "cameraLineId": rule.label_line_id if rule.label_line_id else ""
             }
         elif rule.rule_value == '2':
             if isinstance(rule.labels_equal_hold_ids, list):

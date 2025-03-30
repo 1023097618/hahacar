@@ -37,7 +37,10 @@ router = APIRouter(prefix="/api")
 URL = "http://localhost:8081"
 
 # 加载 YOLO 模型
-detector = Detector("./weights/yolov8n.pt")
+detector = Detector("util/weights/yolo12s.pt")
+
+# 全局字典，用于存储每个摄像头最新处理后的MJPEG格式帧数据，键为摄像头ID
+latest_frame = {}
 
 # RTSP 摄像头地址
 # RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.101:10554/udp/av0_0"
@@ -190,8 +193,8 @@ def build_hitBars(frame, lines: list):
     hitBars = []
     frame_h, frame_w = frame.shape[:2]
     for i, line in enumerate(lines):
-        startPoint = (int(line["cameraLineStartX"]), int(line["cameraLineStartY"]))
-        endPoint = (int(line["cameraLineEndX"]), int(line["cameraLineEndY"]))
+        startPoint = (round(float(line["cameraLineStartX"])*frame_w), round(float(line["cameraLineStartY"])*frame_h))
+        endPoint = (round(float(line["cameraLineEndX"])*frame_w), round(float(line["cameraLineEndY"])*frame_h))
         # 主检测线 name 设为 "0"，其它依次为 "1", "2", ...
         name = "0" if line.get("isMainLine", False) else str(i + 1)
         hb = hitBar(
@@ -684,6 +687,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         start_time = time.time()
 
         # 预警状态变量
+        active_alerts = {}
         warning_state = "正常"
         warning_start_time = None
         warning_end_time = None
@@ -736,7 +740,11 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             if not hitBars:
                 hitBars = build_hitBars(frame, lines)
 
-            processed, detailedResult ,hitBarResult= process_frame(frame,hitBars=hitBars)
+            processed, detailedResult ,hitBarResult= process_frame(frame,hitBars)
+            # 打印 detailedResult 和 hitBarResult
+            print("detailedResult:", detailedResult)
+            print("hitBarResult:", hitBarResult)
+
 
 
             # 获取camera_rule的数据
@@ -900,39 +908,59 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         print(f"摄像头连接失败：{e}")
         traceback.print_exc()  # 这里打印完整的错误堆栈信息
 
-# **FastAPI 端点：返回 RTSP 直播流**
+
+async def background_camera_task(camera_id: str, liveStreamType: str = None):
+    """
+    后台任务：单个摄像头持续读取帧，并将最新的帧保存到全局字典中
+    """
+    global latest_frames
+    db = next(get_db())
+    camera_url = get_camera_url(db, camera_id)
+    if not camera_url:
+        print(f"摄像头 {camera_id} 的 URL 未找到")
+        return
+
+    try:
+        async for frame in generate_frames(camera_url, camera_id, liveStreamType):
+            # 如果 generate_frames 内部出现错误，latest_frames[camera_id] 已被更新为错误信息
+            # 否则，持续更新最新帧
+            latest_frames[camera_id] = frame
+    except Exception as e:
+        # 捕获后台任务其他未处理异常
+        print(f"后台任务中摄像头 {camera_id} 发生异常：{e}")
+        traceback.print_exc()
+        latest_frames[camera_id] = f"后台任务异常: {e}"
+
+
+# **FastAPI 端点**
 @router.get("/storage/getCameraLiveStream")
 async def proxy_video_feed(
-        cameraId: str = Query(..., description="摄像头 ID"),
-        liveStreamType: str = Query(..., description="直播流类型"),
-        # X_HAHACAR_TOKEN: str = Header(..., description="管理员访问权限 Token"),
-        token: str = Query(..., description="管理员访问权限 Token"),
-        db: Session = Depends(get_db)
-        ):
-    """
-    **description**
-    代理 RTSP 视频流，并返回处理后的 MJPEG 流
-
-    **params**
-    - cameraId (str): 摄像头 ID（必须）
-    - liveStreamType (str): 直播流类型（可选，'preview' 或 'full'，默认 'preview'）
-    - token (str): 访问权限 Token
-
-    **returns**
-    - StreamingResponse: 返回 MJPEG 视频流
-    """
-    # **验证管理员权限**
+    cameraId: str = Query(..., description="摄像头 ID"),
+    liveStreamType: str = Query(..., description="直播流类型"),
+    token: str = Query(..., description="管理员访问权限 Token"),
+    db: Session = Depends(get_db)
+):
+    # 验证管理员权限
     token_payload = verify_jwt_token(token)
     if not token_payload or not token_payload.get("is_admin"):
-        return {"code": "403", "msg": "Unorthrize", "data": {}}
+        return JSONResponse(content={"code": "403", "msg": "Unauthorized", "data": {}}, status_code=403)
 
-    #获取摄像头URL
-    cameraURL = get_camera_url(db, cameraId)
-    if not cameraURL:
-        return JSONResponse(content={"code": "404", "data": {}, "msg": "Camera not found"}, status_code=404)
+    # 检查该摄像头是否在全局字典中存在
+    if cameraId not in latest_frames:
+        return JSONResponse(content={"code": "404", "msg": "Camera not found or not started", "data": {}}, status_code=404)
 
-    return StreamingResponse(generate_frames(cameraURL,cameraId,liveStreamType if liveStreamType else None), media_type="multipart/x-mixed-replace; boundary=frame" )
+    # 定义异步生成器，从全局字典中不断读取最新帧数据并返回
+    async def video_streamer():
+        while True:
+            frame = latest_frames.get(cameraId)
+            if frame is not None:
+                yield frame
+            await asyncio.sleep(0.05)
 
+    return StreamingResponse(
+        video_streamer(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
     # 这里要新增获取摄像头类型，根据是http还是rstp来判断使用哪种处理方法
     # if cameraURL.startswith("http"):
     # print(f"正在拉取 HTTP 直播流: {cameraURL}")
