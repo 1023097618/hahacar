@@ -1,6 +1,6 @@
 from hitBar import hitBar;
 import cv2;
-from detector import Detector;
+from util.detector import Detector;
 import numpy as np;
 from typing import List, Dict, Any, Optional, Tuple;
 
@@ -23,16 +23,14 @@ while True:
                                                              hitBars=[hb1, hb2],
                                                              verbosity=2);
         # 打印 detailedResult 和 hitBarResult
-        print("detailedResult:", detailedResult)
-        print("hitBarResult:", hitBarResults)
+        print("hitBarResult:", hitBarResults, "\n\n\n")
 
         h1his.append(hitBarResults[0]["hitDetails"]);
         if len(h1his) > 100:
             h1his.pop(0);
         h1Event = []
         for hitEvent in hitBarResults[1]["hitDetails"]:
-            [h1Event.extend([h1Event["ID"] for h1Event in h1rec]) for h1rec in h1his]
-        h2his.append(hitBarResults[1]["hitDetails"]);
+            [h1Event.extend([h1Event["ID"] for h1Event in h1rec]) for h1rec in h1his];
         for event in hitBarResults[1]["hitDetails"]:
             if event["ID"] in h1Event:
                 print(f"No.{event['numInCat']} {event['cat']} Passed from hitBar1 to hitBar2");

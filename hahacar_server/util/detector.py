@@ -111,6 +111,8 @@ class Detector:
             hitBars,
             verbosity
         );
+        # print(detailedResult);
+
 
         # 释放资源,避免累积编号
         self._resetDetector();

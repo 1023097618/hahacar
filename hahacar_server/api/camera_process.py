@@ -742,7 +742,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             processed, detailedResult ,hitBarResult= process_frame(frame,hitBars)
             # 打印 detailedResult 和 hitBarResult
-            print("detailedResult:", detailedResult)
+            # print("detailedResult:", detailedResult)
             print("hitBarResult:", hitBarResult)
 
 
@@ -913,7 +913,9 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
     """
     后台任务：单个摄像头持续读取帧，并将最新的帧保存到全局字典中
     """
+    await asyncio.sleep(5)  # 等待 YOLO 模型加载（根据实际情况调整时间）
     global latest_frames
+    latest_frames = {}
     db = next(get_db())
     camera_url = get_camera_url(db, camera_id)
     if not camera_url:
@@ -929,7 +931,6 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
         # 捕获后台任务其他未处理异常
         print(f"后台任务中摄像头 {camera_id} 发生异常：{e}")
         traceback.print_exc()
-        latest_frames[camera_id] = f"后台任务异常: {e}"
 
 
 # **FastAPI 端点**
