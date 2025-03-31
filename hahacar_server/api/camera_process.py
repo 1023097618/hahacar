@@ -152,52 +152,67 @@ def fetch_frame(source_url: str, cap=None):
     """
     current_time = time.time()
 
-    if source_url.startswith("http") and not source_url.endswith("video.mjpg"):
-        # **HTTP 轮询模式**
-        try:
-            response = requests.get(source_url)
-            if response.status_code != 200:
-                print(f"无法获取 HTTP 摄像头快照: {response.status_code}")
-                return None, current_time
-
-            image_array = np.frombuffer(response.content, dtype=np.uint8)
-            frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-            if frame is None:
-                print("无法解码 HTTP 快照")
-
-            return frame, current_time
-        except Exception as e:
-            print(f"获取 HTTP 帧失败: {e}")
-            return None, current_time
-
-    elif source_url.startswith("rtsp"):
-        # **RTSP 直播模式**
-        if cap is None or not cap.isOpened():
-            print("RTSP 视频流未打开")
-            return None, current_time
-
-        success, frame = cap.read()
-        if not success:
-            print("RTSP 直播流丢帧，等待重试...")
-            return None, current_time
-
-        return frame, current_time
-
-    # MJPG 流模式
-    elif source_url.endswith("video.mjpg"):
-        # 如果 cap 对象不存在或未打开，则新建一个
+    # **本地视频模式**
+    if source_url.endswith((".mp4", ".avi", ".mov")):
         if cap is None or not cap.isOpened():
             cap = cv2.VideoCapture(source_url)
             if not cap.isOpened():
-                print("无法打开 MJPG 流")
+                print("❌ 无法打开本地视频文件")
                 return None, current_time
 
         success, frame = cap.read()
         if not success:
-            print("MJPG 读取失败")
+            print("❌ 读取本地视频帧失败")
             return None, current_time
 
         return frame, current_time
+
+    # elif source_url.startswith("http") and not source_url.endswith("video.mjpg"):
+    #     # **HTTP 轮询模式**
+    #     try:
+    #         response = requests.get(source_url)
+    #         if response.status_code != 200:
+    #             print(f"无法获取 HTTP 摄像头快照: {response.status_code}")
+    #             return None, current_time
+    #
+    #         image_array = np.frombuffer(response.content, dtype=np.uint8)
+    #         frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    #         if frame is None:
+    #             print("无法解码 HTTP 快照")
+    #
+    #         return frame, current_time
+    #     except Exception as e:
+    #         print(f"获取 HTTP 帧失败: {e}")
+    #         return None, current_time
+    #
+    # elif source_url.startswith("rtsp"):
+    #     # **RTSP 直播模式**
+    #     if cap is None or not cap.isOpened():
+    #         print("RTSP 视频流未打开")
+    #         return None, current_time
+    #
+    #     success, frame = cap.read()
+    #     if not success:
+    #         print("RTSP 直播流丢帧，等待重试...")
+    #         return None, current_time
+    #
+    #     return frame, current_time
+    #
+    # # MJPG 流模式
+    # elif source_url.endswith("video.mjpg"):
+    #     # 如果 cap 对象不存在或未打开，则新建一个
+    #     if cap is None or not cap.isOpened():
+    #         cap = cv2.VideoCapture(source_url)
+    #         if not cap.isOpened():
+    #             print("无法打开 MJPG 流")
+    #             return None, current_time
+    #
+    #     success, frame = cap.read()
+    #     if not success:
+    #         print("MJPG 读取失败")
+    #         return None, current_time
+    #
+    #     return frame, current_time
 
     else:
         print("❌ 不支持的摄像头协议")
@@ -642,7 +657,7 @@ def process_vehicle_reservation_warning(
     """
 
     # **加载预约车辆信息**
-    reservation_file = "./data/vehicle_reservations.txt"
+    reservation_file = "./static/vehicle_reservations.txt"
     vehicle_reservations = {}
 
     try:
