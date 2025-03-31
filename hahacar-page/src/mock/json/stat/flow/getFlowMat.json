@@ -1,0 +1,47 @@
+{
+    "code": "200",
+    "msg": "Success",
+    "data": {
+      "flowmat": [
+        [
+          ["0", "0"],
+          ["15.3", "11.8"],
+          ["9.7", "8.2"]
+        ],
+        [
+          ["13.0", "12.0"],
+          ["0", "0"],
+          ["10.5", "9.3"]
+        ],
+        [
+          ["11.2", "10.8"],
+          ["14.7", "13.4"],
+          ["0", "0"]
+        ]
+      ],
+      "cameraLines": [
+        {
+          "cameraLineName": "检测线1",
+          "cameraLineId": "CL1"
+        },
+        {
+          "cameraLineName": "检测线2",
+          "cameraLineId": "CL2"
+        },
+        {
+          "cameraLineName": "检测线3",
+          "cameraLineId": "CL3"
+        }
+      ],
+      "labels": [
+        {
+          "labelName": "小型车",
+          "labelId": "L1"
+        },
+        {
+          "labelName": "大型车",
+          "labelId": "L2"
+        }
+      ]
+    }
+  }

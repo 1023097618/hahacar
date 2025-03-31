@@ -1,6 +1,7 @@
 <template>
   <div class="data-view-container">
-    <div class="charts-grid">
+    <!-- 上面两张图表 -->
+    <div class="top-row">
       <!-- 车辆类型分布 -->
       <div class="chart-panel">
         <div class="panel-header">
@@ -37,6 +38,21 @@
           </div>
         </div>
         <div ref="flowChart" class="chart-box"></div>
+      </div>
+    </div>
+
+    <!-- 下面三张图表 -->
+    <div class="bottom-row">
+      <!-- 和弦图：表示十字路口车流量（带模糊效果） -->
+      <div class="chart-panel">
+        <div class="panel-header">
+          <div class="header-right">
+            <el-button type="text" class="detail-btn" @click="handleViewDetail('chord')">
+              查看详细
+            </el-button>
+          </div>
+        </div>
+        <div ref="chordChart" class="chart-box"></div>
       </div>
 
       <!-- 车辆拥挤度 -->
@@ -82,6 +98,7 @@
 
 <script>
 import * as echarts from 'echarts'
+import * as d3 from 'd3'
 import { searchCategoryNum } from '@/api/stat/category/category.js'
 import { searchFlowNum } from '@/api/stat/flow/flow.js'
 import { searchHoldNum } from '@/api/stat/hold/hold.js'
@@ -112,27 +129,33 @@ export default {
     }
   },
   mounted() {
-    // 组件挂载后请求数据
+    // 组件挂载后请求数据及初始化图表
     this.getCategoryData()
     this.getFlowData()
     this.getHoldData()
     this.getAlertData()
+    // 初始化和弦图（使用 D3-chord 绘制）
+    this.$nextTick(() => {
+      this.updateChordChart()
+    })
   },
   methods: {
     // 点击“查看详细”后调用的方法
     handleViewDetail(type) {
-      if(type==="category"){
+      if (type === "category") {
         this.$router.push("/categoryDetail")
-      }else if(type==="alert"){
+      } else if (type === "alert") {
         this.$router.push("/alertDetail")
-      }else if(type==="hold"){
+      } else if (type === "hold") {
         this.$router.push("/holdDetail")
-      }else if(type==="flow"){
+      } else if (type === "flow") {
         this.$router.push("/flowDetail")
+      } else if (type === "chord") {
+        this.$router.push("/chordDetail")
       }
     },
 
-    // 1. 获取车辆类型分布
+    // 1. 获取车辆类型分布数据
     async getCategoryData() {
       try {
         const params = {}
@@ -155,7 +178,7 @@ export default {
       }
     },
 
-    // 2. 获取车流量
+    // 2. 获取车流量数据
     async getFlowData() {
       try {
         const params = {}
@@ -180,7 +203,7 @@ export default {
       }
     },
 
-    // 3. 获取车辆拥挤度
+    // 3. 获取车辆拥挤度数据
     async getHoldData() {
       try {
         const params = {}
@@ -203,7 +226,7 @@ export default {
       }
     },
 
-    // 4. 获取预警信息数量
+    // 4. 获取预警信息数据
     async getAlertData() {
       try {
         const params = {}
@@ -226,8 +249,7 @@ export default {
       }
     },
 
-    // 更新图表函数
-
+    // 更新车辆类型分布图（ECharts）
     updateCategoryChart() {
       if (!this.$refs.categoryChart) return
       if (!this.categoryChart) {
@@ -257,6 +279,7 @@ export default {
       this.categoryChart.setOption(option)
     },
 
+    // 更新车流量图（ECharts）
     updateFlowChart() {
       if (!this.$refs.flowChart) return
       if (!this.flowChart) {
@@ -280,6 +303,7 @@ export default {
       this.flowChart.setOption(option)
     },
 
+    // 更新车辆拥挤度图（ECharts）
     updateHoldChart() {
       if (!this.$refs.holdChart) return
       if (!this.holdChart) {
@@ -303,6 +327,7 @@ export default {
       this.holdChart.setOption(option)
     },
 
+    // 更新预警信息数量图（ECharts）
     updateAlertChart() {
       if (!this.$refs.alertChart) return
       if (!this.alertChart) {
@@ -324,7 +349,108 @@ export default {
         }]
       }
       this.alertChart.setOption(option)
-    }
+    },
+
+    // 更新和弦图（使用 D3-chord 绘制）
+updateChordChart() {
+  if (!this.$refs.chordChart) return;
+  // 清空容器
+  d3.select(this.$refs.chordChart).selectAll("*").remove();
+
+  // 获取容器尺寸
+  const width = this.$refs.chordChart.clientWidth || 400;
+  const height = this.$refs.chordChart.clientHeight || 400;
+  const outerRadius = Math.min(width, height) * 0.5 - 40;
+  const innerRadius = outerRadius - 30;
+
+  // 创建 SVG 容器
+  const svgContainer = d3.select(this.$refs.chordChart)
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // 定义模糊滤镜，仅应用于和弦图部分
+  const defs = svgContainer.append("defs");
+  const filter = defs.append("filter")
+    .attr("id", "blurFilter");
+  filter.append("feGaussianBlur")
+    .attr("in", "SourceGraphic")
+    .attr("stdDeviation", 4);
+
+  // 添加标题文本（不应用滤镜）
+  svgContainer.append("text")
+    .attr("x", width / 2)
+    .attr("y", 20)
+    .attr("text-anchor", "middle")
+    .style("fill", "rgb(70,70,70)")
+    .style("font-size", "18px")
+    .style("font-family", "sans-serif")
+    .style("font-weight", "bold")
+    .text("十字路口车流量和弦图（单向流）");
+
+  // 创建一个 g 元素用于绘制和弦图
+  const g = svgContainer.append("g")
+  .attr("filter", "url(#blurFilter)")
+    .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+  // 原始数据矩阵：表示四个方向之间的流量
+  const matrix = [
+    [0, 50, 200, 20],
+    [40, 0, 60, 30],
+    [20, 70, 0, 80],
+    [30, 40, 90, 0]
+  ];
+
+  // 使用 d3.chordDirected 生成单向流的和弦数据
+  const chordGenerator = d3.chordDirected()
+    .padAngle(0.05)
+    .sortSubgroups(d3.descending);
+  const chords = chordGenerator(matrix);
+
+  // 定义颜色映射（4个分组）
+  const color = d3.scaleOrdinal()
+    .domain(d3.range(matrix.length))
+    .range(["#FF5733", "#33FF57", "#3357FF", "#FF33A1"]);
+
+  // 弧线生成器
+  const arcGenerator = d3.arc()
+    .innerRadius(innerRadius)
+    .outerRadius(outerRadius);
+
+  // 绘制分组弧线
+  const group = g.append("g")
+    .selectAll("g")
+    .data(chords.groups)
+    .enter().append("g");
+
+  group.append("path")
+    .style("fill", d => color(d.index))
+    .style("stroke", d => d3.rgb(color(d.index)).darker())
+    .attr("d", arcGenerator);
+
+  // 添加分组标签
+  const labels = ["North", "East", "South", "West"];
+  group.append("text")
+    .each(function(d) { d.angle = (d.startAngle + d.endAngle) / 2; })
+    .attr("dy", ".35em")
+    .attr("transform", function(d) {
+      return "rotate(" + (d.angle * 180 / Math.PI - 90) + ")"
+        + " translate(" + (outerRadius + 10) + ")"
+        + (d.angle > Math.PI ? " rotate(180)" : "");
+    })
+    .attr("text-anchor", d => d.angle > Math.PI ? "end" : "start")
+    .text((d, i) => labels[i]);
+
+  // 绘制和弦（弦带），应用模糊滤镜
+  g.append("g")
+    .attr("fill-opacity", 0.7)
+    .selectAll("path")
+    .data(chords)
+    .enter().append("path")
+    .attr("d", d3.ribbon().radius(innerRadius))
+    .style("fill", d => color(d.source.index))
+    .style("stroke", d => d3.rgb(color(d.source.index)).darker());
+}
   }
 }
 </script>
@@ -334,13 +460,20 @@ export default {
   padding: 16px;
 }
 
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+/* 上面两行、下面三行 */
+.top-row,
+.bottom-row {
+  display: flex;
   gap: 24px;
 }
 
+.bottom-row {
+  margin-top: 24px;
+}
+
+/* 每个图表面板 */
 .chart-panel {
+  flex: 1;
   border: 1px solid #eee;
   padding: 16px;
   height: 400px;
@@ -357,14 +490,14 @@ export default {
   margin-bottom: 8px;
 }
 
-/* 右侧区域，垂直排列问号图标和按钮 */
+/* 右侧区域，垂直排列 */
 .header-right {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* 问号图标容器 */
+/* 问号图标 */
 .info-icon {
   width: 24px;
   height: 24px;
@@ -387,10 +520,10 @@ export default {
   font-size: 12px;
 }
 
-/* 图表容器，自适应剩余空间 */
+/* 图表容器 */
 .chart-box {
   flex: 1;
   width: 100%;
-  height: 0;
+  height: 100%;
 }
 </style>
