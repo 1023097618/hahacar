@@ -34,6 +34,7 @@
   .el-menu-item{
     color: var(--sideBarTextColor);
     background-color: var(--sideBarColor);
+    font-size: 18px;
   }
 
   .el-menu-item.is-active{

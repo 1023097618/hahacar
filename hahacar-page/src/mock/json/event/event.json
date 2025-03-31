@@ -1,0 +1,12 @@
+{
+    "code": "200",
+    "msg": "获取成功",
+    "data": {
+        "events": [
+            {
+                "eventName": "道路结冰",
+                "eventId": "1"
+            }
+        ]
+    }
+}
