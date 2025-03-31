@@ -22,16 +22,20 @@
               <el-option label="异常事故预警" value="5"></el-option>
             </el-select>
           </el-form-item>
-
           <!-- 当规则类型为1：车辆类别预警时 -->
           <div v-if="rule.ruleValue === '1'">
             <el-form-item label="选择标签">
-              <el-select v-model="rule.labelId" multiple placeholder="请选择标签" style="width: 300px;">
-                <el-option v-for="item in labels" :key="item.labelId" :label="item.labelName" :value="item.labelId">
-                </el-option>
+              <el-select v-model="rule.label.labelId" multiple placeholder="请选择标签" style="width: 300px;">
+                <el-option v-for="item in labels" :key="item.labelId" :label="item.labelName" :value="item.labelId"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="选择检测线">
+              <el-select v-model="rule.label.cameraLineId" placeholder="请选择检测线" style="width: 300px;">
+                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName" :value="line.cameraLineId"></el-option>
               </el-select>
             </el-form-item>
           </div>
+
 
           <!-- 当规则类型为2：车辆拥堵预警时 -->
           <div v-if="rule.ruleValue === '2'">
@@ -199,7 +203,10 @@
       addRule() {
         this.rules.push({
           ruleValue: '1',
-          labelId: []
+          label: {
+            labelId: [],
+            cameraLineId: ''
+          }
         })
       },
       // 删除指定规则
@@ -261,6 +268,12 @@
       handleRuleTypeChange(rule) {
         // 如果选择车辆类别预警，删除VehicleHold和VehicleFlow
         if (rule.ruleValue === '1') {
+          if (!rule.label) {
+            this.$set(rule, 'label', { labelId: [], cameraLineId: '' });
+          }
+          if (rule.labelId !== undefined) {
+            delete rule.labelId;
+          }
           if (rule.VehicleHold) {
             delete rule.VehicleHold;
           }
@@ -328,7 +341,7 @@
           if (rule.VehicleHold) { delete rule.VehicleHold; }
           if (rule.VehicleFlow) { delete rule.VehicleFlow; }
           if (rule.VehicleReserve !== undefined) { delete rule.VehicleReserve; }
-          if (rule.labelId !== undefined) { delete rule.labelId; }
+          if (rule.label !== undefined) { delete rule.label; }
         }
       },
       // 返回上一级

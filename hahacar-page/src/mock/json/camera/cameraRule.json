@@ -3,7 +3,13 @@
     "msg": "查询成功",
     "data": {
       "cameraRules": [
-        {"ruleValue": "1", "labelId": ["1", "2"]},
+        {
+          "ruleValue": "1",
+          "label": {
+            "labelId": ["1", "2"],
+            "cameraLineId": "line001"
+          }
+        },
         {"ruleValue": "2", "VehicleHold": {"maxVihicleHoldNum": "1.5", "maxContinuousTimePeriod": 30, "minVihicleHoldNum": "1.0", "minContinuousTimePeriod": 10, "LabelsEqual": [{"labelId": "1", "labelHoldNum": "1"}]}},
         {"ruleValue": "3", "VehicleFlow": {"maxVihicleFlowNum": "2.0", "maxContinuousTimePeriod": 60, "minVihicleFlowNum": "1.5", "minContinuousTimePeriod": 20, "LabelsEqual": [{"labelId": "2", "labelEqualNum": "1.5"}], "cameraStartLine": {"cameraLineId": "line001", "isAll": false}, "cameraEndLine": {"cameraLineId": "line002", "isAll": true}}},
         {"ruleValue": "4", "VehicleReserve": true},
