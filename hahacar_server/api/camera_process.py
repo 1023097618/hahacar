@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 import cv2
-import time
+import time as t;
 
 import numpy as np
 import requests
@@ -150,7 +150,7 @@ def fetch_frame(source_url: str, cap=None):
     - frame (np.array or None): 处理后的帧，失败返回 None
     - current_time (float): 帧捕获时间戳
     """
-    current_time = time.time()
+    current_time = t.time()
 
     # # **本地视频模式**
     # if source_url.endswith((".mp4", ".avi", ".mov")):
@@ -250,7 +250,7 @@ def parse_camera_rules(camera_rules: list) -> dict:
       - labels_equal_hold_ids: dict from rule 2
       - labels_equal_flow_ids: dict from rule 3
       - maxVehicleHoldNum, minVehicleHoldNum, maxVehicleFlowNum, minVehicleFlowNum
-      - maxContinuousTimePeriod, minContinuousTimePeriod
+      - maxContinuoustimePeriod, minContinuoustimePeriod
       - rule_first_camera_line_id (用于车辆类型预警)
       - camera_start_line_id, camera_end_line_id (用于车流量预警)
     """
@@ -262,8 +262,8 @@ def parse_camera_rules(camera_rules: list) -> dict:
         "minVehicleHoldNum": 0,
         "maxVehicleFlowNum": 0,
         "minVehicleFlowNum": 0,
-        "maxContinuousTimePeriod": 0,
-        "minContinuousTimePeriod": 0,
+        "maxContinuoustimePeriod": 0,
+        "minContinuoustimePeriod": 0,
         "rule_first_camera_line_id": "",
         "camera_start_line_id": "",
         "camera_end_line_id": "",
@@ -283,8 +283,8 @@ def parse_camera_rules(camera_rules: list) -> dict:
             result["labels_equal_hold_ids"] = {item["labelId"]: item["labelHoldNum"] for item in data}
             result["maxVehicleHoldNum"] = float(vehicle_hold.get("maxVehicleHoldNum", 0))
             result["minVehicleHoldNum"] = float(vehicle_hold.get("minVehicleHoldNum", 0))
-            result["maxContinuousTimePeriod"] = int(vehicle_hold.get("maxContinuousTimePeriod", 0))
-            result["minContinuousTimePeriod"] = int(vehicle_hold.get("minContinuousTimePeriod", 0))
+            result["maxContinuoustimePeriod"] = int(vehicle_hold.get("maxContinuoustimePeriod", 0))
+            result["minContinuoustimePeriod"] = int(vehicle_hold.get("minContinuoustimePeriod", 0))
         elif rule_value == "3":
             vehicle_flow = rule.get("VehicleFlow", {})
             data = vehicle_flow.get("LabelsEqual", [])
@@ -372,7 +372,7 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
         vehicle_equivalent = labels_equal_flow_names.get(vehicle_type, 1)
 
         # 如果你只想统计 "从 start_line_id -> end_line_id" 这条路线的当量：
-        if s_line == start_line_id and e_line == end_line_id:
+        if s_line == start_line_id and e_line == end_line_id:                           # 这里的id是hitbar解析出来的id，需要和cameralineid对应上再存--------------
             total_flow_equivalent += vehicle_equivalent
             # 保存车辆信息(无方向)
             saveCarThroughFixedRoute(
@@ -400,7 +400,7 @@ def calculate_label_counts(hitBarResult: list, label_map: dict) -> dict:
     label_counts = {name: 0 for name in label_map.values()}
     for hb in hitBarResult:
         accumulator = hb.get("Accumulator", {})
-        for label_id, count in accumulator.items():
+        for label_id, count in accumulator.items():                                     #在这里加上对车辆经过某条检测线的保存
             if label_id in label_map:
                 label_counts[label_map[label_id]] += count
     return label_counts
@@ -462,7 +462,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         time_window = 10
         traffic_data = []  # 存储 (time, hold_volume, flow_volume)
         label_map = get_label_mapping(db)
-        start_time = time.time()
+        start_time = t.time();
 
         # 预警状态变量
         active_alerts = {}
@@ -484,7 +484,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         clearThreshold = 3  # 连续 N 个 time_window 未检测到该车辆则结束预警---------这个？？？？
 
         vehicle_history = {}  # 格式：{ vehicle_no: [ { "time": timestamp, "line": line_name, "label": label }, ... ] }
-        history_last_checked = time.time()
+        history_last_checked = t.time();
 
         camera_line_response = get_camera_line(db, camera_id)
         lines = []
@@ -513,17 +513,17 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # 将阻塞的 fetch_frame 调用放入线程中执行
             frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
             if frame is None:
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.1);
                 continue
 
             # ————这里获取时间
-            current_time = time.time()
+            current_time = t.time();
 
             # 根据获取的检测线数据构造 hitBars 对象
             if not hitBars:
                 hitBars = build_hitBars(frame, lines)
 
-            processed, detailedResult ,hitBarResult= process_frame(frame,hitBars)
+            processed, detailedResult ,hitBarResult = process_frame(frame,hitBars);
             # 打印 detailedResult 和 hitBarResult
             print("detailedResult:", detailedResult)
             print("hitBarResult:", hitBarResult)
@@ -601,8 +601,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                         current_time,
                         rules["maxVehicleFlowNum"],
                         rules["minVehicleFlowNum"],
-                        rules["maxContinuousTimePeriod"],
-                        rules["minContinuousTimePeriod"],
+                        rules["maxContinuoustimePeriod"],
+                        rules["minContinuoustimePeriod"],
                         time_window,
                         flow_warning_count,
                         flow_clear_count,
@@ -663,8 +663,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                         current_time,
                         rules["maxVehicleFlowNum"],
                         rules["minVehicleFlowNum"],
-                        rules["maxContinuousTimePeriod"],
-                        rules["minContinuousTimePeriod"],
+                        rules["maxContinuoustimePeriod"],
+                        rules["minContinuoustimePeriod"],
                         time_window,
                         flow_warning_count,
                         flow_clear_count,
@@ -682,8 +682,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                         current_time,
                         rules["maxVehicleHoldNum"],
                         rules["minVehicleHoldNum"],
-                        rules["maxContinuousTimePeriod"],
-                        rules["minContinuousTimePeriod"],
+                        rules["maxContinuoustimePeriod"],
+                        rules["minContinuoustimePeriod"],
                         time_window,
                         hold_warning_count,
                         hold_clear_count,
@@ -723,7 +723,6 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
     """
     后台任务：单个摄像头持续读取帧，并将最新的帧保存到全局字典中
     """
-    await asyncio.sleep(5)  # 等待 YOLO 模型加载（根据实际情况调整时间）
     db = next(get_db())
     global latest_frames
     latest_frames = {}
