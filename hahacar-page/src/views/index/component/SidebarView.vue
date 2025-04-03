@@ -9,7 +9,7 @@
               class="custom-icon"
               :style="{ backgroundImage: 'url(' + route.meta.icon + ')' }"
             ></i> -->
-            <i :class="['icon', route.meta.icon]"></i>
+            <i :class="['custom-icon', route.meta.icon]"></i>
             <span>{{route.meta.title}}</span>
           </template>
           <MenuItem :routes="route.children"></MenuItem>
@@ -19,7 +19,7 @@
           class="custom-icon"
           :style="{ backgroundImage: 'url(' + route.meta.icon + ')' }"
         ></i> -->
-        <i :class="['icon', route.meta.icon]"></i>
+        <i :class="['custom-icon', route.meta.icon]"></i>
           <span slot="title">{{route.meta.title}}</span>
         </el-menu-item>
       </template>

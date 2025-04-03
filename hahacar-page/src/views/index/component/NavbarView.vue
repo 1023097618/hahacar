@@ -2,7 +2,7 @@
   <div class="navbar" >
     <el-header style="display: flex; justify-content:space-between">
       <div style="display: flex; align-items: center;">
-        <img src="@/assets/logoNoText.png" alt="Logo" style="height: 60px;">
+        <img src="@/assets/logoNoText.png" alt="Logo" style="height: 45px;">
         <span style="margin-left: 10px; font-size: 18px; color: #FFF;">星瞳智行预警系统</span>
       </div>
       <el-select :value="styleValue" placeholder="请选择" @change="selectStyle" select="mini">
