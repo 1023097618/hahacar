@@ -26,6 +26,7 @@ from services.camera_service import get_camera_url, get_camera_name_by_id
 from services.car_through_route_service import saveCarThroughFixedRoute
 from services.labels_service import getLabels
 from services.user_service import is_admin
+from services.warning_service import *
 from util.detector import Detector
 from fastapi.responses import JSONResponse, FileResponse
 from api.socket_manager import sio
@@ -54,7 +55,6 @@ INFO_DIR = os.path.abspath("./static/camera/info/")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SAVE_DIR, exist_ok=True)
 os.makedirs(INFO_DIR, exist_ok=True)
-
 
 
 #获取label_id 和 label_name 的映射关系
@@ -152,67 +152,73 @@ def fetch_frame(source_url: str, cap=None):
     """
     current_time = time.time()
 
-    # **本地视频模式**
-    if source_url.endswith((".mp4", ".avi", ".mov")):
-        if cap is None or not cap.isOpened():
-            cap = cv2.VideoCapture(source_url)
-            if not cap.isOpened():
-                print("❌ 无法打开本地视频文件")
+    # # **本地视频模式**
+    # if source_url.endswith((".mp4", ".avi", ".mov")):
+    #     if cap is None or not cap.isOpened():
+    #         cap = cv2.VideoCapture(source_url)
+    #         if not cap.isOpened():
+    #             print("❌ 无法打开本地视频文件")
+    #             return None, current_time
+    #
+    #     success, frame = cap.read()
+    #     if not success:
+    #         print("❌ 读取本地视频帧失败")
+    #         return None, current_time
+    #
+    #     return frame, current_time
+
+    if source_url.startswith("http") and not source_url.endswith("video.mjpg"):
+        # **HTTP 轮询模式**
+        try:
+            response = requests.get(source_url)
+            if response.status_code != 200:
+                print(f"无法获取 HTTP 摄像头快照: {response.status_code}")
                 return None, current_time
+
+            image_array = np.frombuffer(response.content, dtype=np.uint8)
+            frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            if frame is None:
+                print("无法解码 HTTP 快照")
+
+            return frame, current_time
+        except Exception as e:
+            print(f"获取 HTTP 帧失败: {e}")
+            return None, current_time
+
+    elif source_url.startswith("rtsp"):
+        # **RTSP 直播模式**
+        if cap is None or not cap.isOpened():
+            print("RTSP 视频流未打开")
+            return None, current_time
 
         success, frame = cap.read()
         if not success:
-            print("❌ 读取本地视频帧失败")
+            print("RTSP 直播流丢帧，等待重试...")
             return None, current_time
 
         return frame, current_time
 
-    # elif source_url.startswith("http") and not source_url.endswith("video.mjpg"):
-    #     # **HTTP 轮询模式**
-    #     try:
-    #         response = requests.get(source_url)
-    #         if response.status_code != 200:
-    #             print(f"无法获取 HTTP 摄像头快照: {response.status_code}")
-    #             return None, current_time
-    #
-    #         image_array = np.frombuffer(response.content, dtype=np.uint8)
-    #         frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-    #         if frame is None:
-    #             print("无法解码 HTTP 快照")
-    #
-    #         return frame, current_time
-    #     except Exception as e:
-    #         print(f"获取 HTTP 帧失败: {e}")
-    #         return None, current_time
-    #
-    # elif source_url.startswith("rtsp"):
-    #     # **RTSP 直播模式**
-    #     if cap is None or not cap.isOpened():
-    #         print("RTSP 视频流未打开")
-    #         return None, current_time
-    #
-    #     success, frame = cap.read()
-    #     if not success:
-    #         print("RTSP 直播流丢帧，等待重试...")
-    #         return None, current_time
-    #
-    #     return frame, current_time
-    #
-    # # MJPG 流模式
-    # elif source_url.endswith("video.mjpg"):
-    #     # 如果 cap 对象不存在或未打开，则新建一个
-    #     if cap is None or not cap.isOpened():
-    #         cap = cv2.VideoCapture(source_url)
-    #         if not cap.isOpened():
-    #             print("无法打开 MJPG 流")
-    #             return None, current_time
-    #
-    #     success, frame = cap.read()
-    #     if not success:
-    #         print("MJPG 读取失败")
-    #         return None, current_time
-    #
-    #     return frame, current_time
+    # MJPG 流模式
+    elif source_url.endswith("video.mjpg"):
+        # 如果 cap 对象不存在或未打开，则新建一个
+        if cap is None or not cap.isOpened():
+            cap = cv2.VideoCapture(source_url)
+            if not cap.isOpened():
+                print("无法打开 MJPG 流")
+                return None, current_time
+
+        success, frame = cap.read()
+        if not success:
+            print("MJPG 读取失败")
+            return None, current_time
+
+        return frame, current_time
+
+    elif source_url.endswith(".mp4"):
+        if cap is None or not cap.isOpened:
+            cap = cv2.VideoCapture(source_url);
+        success, frame = cap.read();
+
 
     else:
         print("❌ 不支持的摄像头协议")
@@ -450,329 +456,6 @@ def aggregate_label_counts(traffic_data: list, label_map: dict) -> dict:
             aggregated[label] += count
     return aggregated
 
-def process_traffic_flow_warning(
-    target_flow: float,
-    current_time: float,
-    maxVehicleFlowNum: float,
-    minVehicleFlowNum: float,
-    maxContinuousTimePeriod: float,
-    minContinuousTimePeriod: float,
-    time_window: float,
-    flow_warning_count: int,
-    flow_clear_count: int,
-    active_alerts: dict,
-    warning_state: str,
-    frame,
-    db,
-    camera_id: str,
-    camera_name: str
-):
-    """
-    处理 **车流量** 预警逻辑。
-    - 计算 target_flow 是否超出设定的最大/最小阈值。
-    - 触发或解除 **车流量** 相关的预警。
-
-    **params**
-    - target_flow: 当前检测线的车流当量
-    - maxVehicleFlowNum / minVehicleFlowNum: 车流量上/下限
-    - maxContinuousTimePeriod / minContinuousTimePeriod: 触发/解除预警的时间窗口
-    """
-    # **更新流量预警计数**
-    if target_flow >= maxVehicleFlowNum:
-        flow_warning_count += 1
-    else:
-        flow_warning_count = 0
-
-    if target_flow <= minVehicleFlowNum:
-        flow_clear_count += 1
-    else:
-        flow_clear_count = 0
-
-    warning_start_time = None
-    warning_end_time = None
-
-    # **触发流量预警**
-    if flow_warning_count >= (maxContinuousTimePeriod // time_window):
-        rule_type = "3"
-        rule_remark = "车流量预警"
-
-        # 如果该类型预警还未记录，则新增预警
-        if rule_type not in active_alerts:
-            warning_state = "正在发生"
-            warning_start_time = current_time
-            new_alert_id = str(uuid.uuid4())
-            alert_image = f"{new_alert_id}.jpg"
-            cv2.imwrite(f"/alerts/on/{alert_image}", frame)
-
-            saveAlert(new_alert_id, camera_id, camera_name, 1, warning_start_time, None, None, alert_image,
-                      rule_type, rule_remark)
-
-            sio.emit("updateHappeningAlert", {
-                "alertId": new_alert_id,
-                "cameraId": camera_id,
-                "cameraName": camera_name
-            })
-
-            active_alerts[rule_type] = {
-                "alert_id": new_alert_id,
-                "warning_start_time": warning_start_time,
-                "alert_image": alert_image,
-                "rule_remark": rule_remark
-            }
-
-    # **解除流量预警**
-    if flow_clear_count >= (minContinuousTimePeriod // time_window):
-        if warning_state == "正在发生":
-            warning_state = "已经发生"
-            warning_end_time = current_time
-
-            for rule_type, alert_info in active_alerts.items():
-                alert_id = alert_info["alert_id"]
-                ws = alert_info["warning_start_time"]
-                ai = alert_info["alert_image"]
-                rr = alert_info["rule_remark"]
-
-                saveAlert(alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
-
-            active_alerts.clear()
-
-    return flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
-
-
-def process_vehicle_congestion_warning(
-    avg_hold_volume: float,
-    current_time: float,
-    maxVehicleHoldNum: float,
-    minVehicleHoldNum: float,
-    maxContinuousTimePeriod: float,
-    minContinuousTimePeriod: float,
-    time_window: float,
-    hold_warning_count: int,
-    hold_clear_count: int,
-    active_alerts: dict,
-    warning_state: str,
-    frame,
-    db,
-    camera_id: str,
-    camera_name: str
-):
-    """
-    处理 **车辆拥挤度** 预警逻辑。
-    - 计算 avg_hold_volume 是否超出设定的最大/最小阈值。
-    - 触发或解除 **车辆拥挤** 相关的预警。
-
-    **params**
-    - avg_hold_volume: 该时间窗口内摄像头检测范围的车辆数量
-    - maxVehicleHoldNum / minVehicleHoldNum: 拥挤度的上/下限
-    """
-    # **更新拥挤度预警计数**
-    if avg_hold_volume >= maxVehicleHoldNum:
-        hold_warning_count += 1
-    else:
-        hold_warning_count = 0
-
-    if avg_hold_volume <= minVehicleHoldNum:
-        hold_clear_count += 1
-    else:
-        hold_clear_count = 0
-
-    warning_start_time = None
-    warning_end_time = None
-
-    # **触发车辆拥挤度预警**
-    if hold_warning_count >= (maxContinuousTimePeriod // time_window):
-        rule_type = "2"
-        rule_remark = "车辆拥挤度预警"
-
-        # 如果该类型预警还未记录，则新增预警
-        if rule_type not in active_alerts:
-            warning_state = "正在发生"
-            warning_start_time = current_time
-            new_alert_id = str(uuid.uuid4())
-            alert_image = f"{new_alert_id}.jpg"
-            cv2.imwrite(f"/alerts/on/{alert_image}", frame)
-
-            saveAlert(new_alert_id, camera_id, camera_name, 1, warning_start_time, None, None, alert_image,
-                      rule_type, rule_remark)
-
-            sio.emit("updateHappeningAlert", {
-                "alertId": new_alert_id,
-                "cameraId": camera_id,
-                "cameraName": camera_name
-            })
-
-            active_alerts[rule_type] = {
-                "alert_id": new_alert_id,
-                "warning_start_time": warning_start_time,
-                "alert_image": alert_image,
-                "rule_remark": rule_remark
-            }
-
-    # **解除拥挤度预警**
-    if hold_clear_count >= (minContinuousTimePeriod // time_window):
-        if warning_state == "正在发生":
-            warning_state = "已经发生"
-            warning_end_time = current_time
-
-            for rule_type, alert_info in active_alerts.items():
-                alert_id = alert_info["alert_id"]
-                ws = alert_info["warning_start_time"]
-                ai = alert_info["alert_image"]
-                rr = alert_info["rule_remark"]
-
-                saveAlert(alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
-
-            active_alerts.clear()
-
-    return hold_warning_count, hold_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
-
-
-def process_vehicle_reservation_warning(
-    detected_vehicles: dict,
-    vehicle_history: dict,
-    current_time: float,
-    frame,
-    db,
-    camera_id: str,
-    camera_name: str
-):
-    """
-    **description**
-    处理车辆预约预警：
-    - 读取预约车辆信息（TXT 文件）
-    - 仅检查 **当前帧中检测到的车辆** 是否符合预约路线
-    - 如果车辆未按照预约路线行进，则触发预警
-
-    **params**
-    - detected_vehicles (dict): 仅包含当前帧检测到的车辆 {车牌号: 当前检测线}
-    - vehicle_history (dict): 车辆历史行进记录 { 车牌号: 最近检测线 }
-    - current_time (float): 当前时间戳
-    - frame (np.ndarray): 当前帧图像
-    - db: 数据库连接
-    - camera_id (str): 摄像头 ID
-    - camera_name (str): 摄像头名称
-
-    **returns**
-    - 是否触发了预警 (bool)
-    """
-
-    # **加载预约车辆信息**
-    reservation_file = "./static/vehicle_reservations.txt"
-    vehicle_reservations = {}
-
-    try:
-        with open(reservation_file, "r") as f:
-            for line in f:
-                parts = line.strip().split(",")
-                if len(parts) < 4:
-                    continue
-
-                vehicle_no, start_time, end_time, route_str = parts
-                vehicle_reservations[vehicle_no] = {
-                    "start_time": float(start_time),
-                    "end_time": float(end_time),
-                    "expected_route": route_str.split("->")  # 预约的行进路线（检测线 ID 顺序）
-                }
-    except Exception as e:
-        print(f"❌ 读取预约车辆数据失败: {e}")
-        return False
-
-    # **遍历当前帧的检测车辆**
-    for vehicle_no, line_id in detected_vehicles.items():
-        if vehicle_no in vehicle_reservations:
-            reservation = vehicle_reservations[vehicle_no]
-
-            # **1️⃣ 检查预约时间**
-            if not (reservation["start_time"] <= current_time <= reservation["end_time"]):
-                continue  # 时间不符合，跳过
-
-            # **2️⃣ 记录车辆最近的检测线**
-            previous_line = vehicle_history.get(vehicle_no, None)  # 获取该车上一帧的检测线
-            vehicle_history[vehicle_no] = line_id  # 更新车辆的最新检测线
-
-            # **3️⃣ 判断是否按照预约路线行进**
-            expected_route = reservation["expected_route"]
-
-            if previous_line and previous_line != line_id:  # 车辆从 previous_line 移动到了 line_id
-                if line_id not in expected_route:
-                    # **触发预约违规预警**
-                    alert_id = str(uuid.uuid4())
-                    alert_image = f"{alert_id}.jpg"
-                    cv2.imwrite(f"/alerts/on/{alert_image}", frame)
-
-                    rule_type = "4"
-                    rule_remark = f"🚨 预约车辆违规 - 车牌: {vehicle_no}, 行进至未授权线路 {line_id} (上次检测线: {previous_line})"
-
-                    # **保存预警到数据库**
-                    saveAlert(alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
-
-                    # **发送 WebSocket 预警**
-                    sio.emit("updateHappeningAlert", {
-                        "alertId": alert_id,
-                        "cameraId": camera_id,
-                        "cameraName": camera_name,
-                    })
-
-                    print(f"🚨 预约车辆 {vehicle_no} 违规！从 {previous_line} 进入未预约检测线 {line_id}")
-
-                    return True  # 预警已触发
-
-    return False  # 未触发预警
-
-
-
-
-def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str, camera_name: str):
-    """
-    **description**
-    处理事故检测逻辑：当 detailedResult 返回 accidentBoxes 和 accidentConf 时，触发事故预警。
-
-    **params**
-    - detailedResult (dict): YOLO 检测结果，包含 accidentBoxes 和 accidentConf
-    - frame (np.ndarray): 当前帧图像
-    - current_time (float): 当前时间戳
-    - db: 数据库连接
-    - camera_id (str): 摄像头 ID
-    - camera_name (str): 摄像头名称
-
-    **returns**
-    - 触发事故预警并保存到数据库，同时通过 Socket.IO 发送到前端
-    """
-    accident_boxes = detailedResult.get("accidentBoxes", [])
-    accident_conf = detailedResult.get("accidentConf", [])
-
-    if accident_boxes and accident_conf:
-        # 事故发生，生成唯一 ID
-        alert_id = str(uuid.uuid4())
-        alert_image = f"{alert_id}.jpg"
-        cv2.imwrite(f"/alerts/on/accident/{alert_image}", frame)
-
-        # 获取最高事故置信度
-        max_accident_confidence = max(accident_conf)
-
-        # 事故预警详情
-        rule_type = "5"
-        rule_remark = f"⚠️ 事故预警 - 最高置信度: {max_accident_confidence:.2f}"
-
-        # 保存事故预警到数据库
-        saveAlert(alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
-
-        # 通过 Socket.IO 发送事故预警到前端
-        sio.emit("updateHappeningAlert", {
-            "alertId": alert_id,
-            "cameraId": camera_id,
-            "cameraName": camera_name,
-            # "alertType": "事故检测",
-            # "alertConfidence": max_accident_confidence,
-            # "timestamp": current_time
-        })
-
-        print(f"🚨 事故预警触发！最高置信度: {max_accident_confidence:.2f}")
-
-        return True  # 预警已触发
-
-    return False  # 未触发预警
-
 
 
 #HTTP请求的方式
@@ -808,7 +491,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 print("RTSP 摄像头无法连接")
                 return
 
-        interval = 0.5 if source_url.startswith("http") else 0.03  # **HTTP 轮询间隔 / RTSP 直播流帧率**
+        interval = 0.5 if source_url.startswith("http") and not source_url.endswith("video.mjpg") else 0.03  # **HTTP 轮询间隔 / RTSP 直播流帧率**
         db = next(get_db())
         camera_name = get_camera_name_by_id(db,camera_id)
         time_window = 10
@@ -877,7 +560,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             processed, detailedResult ,hitBarResult= process_frame(frame,hitBars)
             # 打印 detailedResult 和 hitBarResult
-            # print("detailedResult:", detailedResult)
+            print("detailedResult:", detailedResult)
             print("hitBarResult:", hitBarResult)
 
             # 获取camera_rule的数据
@@ -979,7 +662,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # **判断是否起始线 == 终止线且不是主检测线**
             if rules["camera_start_line_id"] == rules["camera_end_line_id"] and rules["camera_start_line_id"] != "0":
                 target_line_id = rules["camera_start_line_id"]  # 使用该检测线
-                print(f"⚠️ 车流量预警：起止线相同，使用检测线 {target_line_id}")
+                print(f"车流量：起止线相同，使用检测线 {target_line_id}")
             else:
                 target_line_id = "0"
             target_flow = flow_for_line.get(target_line_id, 0)
@@ -1051,6 +734,11 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 start_time = current_time
 
 
+            # #在这里添加处理后的image
+            # if processed is not None:
+            #     latest_frames[camera_id] = processed
+
+
             ret, buffer = await asyncio.to_thread(cv2.imencode, '.jpg', processed)
             if not ret:
                 continue
@@ -1071,9 +759,9 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
     后台任务：单个摄像头持续读取帧，并将最新的帧保存到全局字典中
     """
     await asyncio.sleep(5)  # 等待 YOLO 模型加载（根据实际情况调整时间）
+    db = next(get_db())
     global latest_frames
     latest_frames = {}
-    db = next(get_db())
     while True:
         camera_url = get_camera_url(db, camera_id)
         if not camera_url:
@@ -1082,8 +770,7 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
 
         try:
             async for frame in generate_frames(camera_url, camera_id, liveStreamType):
-                # 如果 generate_frames 内部出现错误，latest_frames[camera_id] 已被更新为错误信息
-                # 否则，持续更新最新帧
+                # 持续更新最新帧
                 latest_frames[camera_id] = frame
         except Exception as e:
             # 捕获后台任务其他未处理异常

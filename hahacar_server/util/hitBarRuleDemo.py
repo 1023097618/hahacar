@@ -13,7 +13,7 @@ hb2 = hitBar(name="hitBar2", imgSize=(0, 320), startPoint=(620, 200), endPoint=(
              monitor=["person", "car", "bus", "truck"], width=30.0, maxLength=50, visualize=True);
 hb1._monitor(["truck"]);
 
-video = cv2.VideoCapture("./videos/clip1.mp4");
+video = cv2.VideoCapture("./videos/accdemo.mp4");
 fps = video.get(cv2.CAP_PROP_FPS);
 while True:
     ret, frame = video.read();
@@ -21,7 +21,7 @@ while True:
         img, detailedResult, hitBarResults = detector.detect(frame,
                                                              addingConf=False,
                                                              hitBars=[hb1, hb2],
-                                                             verbosity=2);
+                                                             verbosity=0);
         # 打印 detailedResult 和 hitBarResult
         print("hitBarResult:", hitBarResults, "\n\n\n")
 
