@@ -138,9 +138,9 @@ def getCameraRule(db: Session, cameraId: str):
                 "minContinuousTimePeriod": rule.min_continuous_time_period if rule.min_continuous_time_period else 0,
                 "LabelsEqual": LabelsEqual,
                 "cameraStartLine": {"cameraLineId": rule.camera_start_line_id,
-                                    "isAll": False} if rule.camera_start_line_id else None,
+                                    "isAll": False},
                 "cameraEndLine": {"cameraLineId": rule.camera_end_line_id,
-                                  "isAll": True} if rule.camera_end_line_id else None
+                                  "isAll": True}
             }
 
 

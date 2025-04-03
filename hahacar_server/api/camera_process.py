@@ -402,51 +402,7 @@ def update_lineWiseTrafficData(flow_for_line: dict, lineWiseTrafficData: dict):
         lineWiseTrafficData.setdefault(line_name, []).append(flow)
 
 
-def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_id: str, car_category_names: list, frame, db, camera_id: str, camera_name: str, vehicle_warning_state: dict, vehicle_alert_start_time: dict, vehicle_clear_count: dict, clearThreshold: int,alert_image):
-    """
-    根据规则中指定的检测线（rule_first_camera_line_id），判断该检测线上检测到的车辆类型是否存在于 car_category_names 中，
-    如果存在则触发车辆类型预警；如果后续检测不到，则更新解除计数。
-    """
-    target_hitbar = None
-    for hb in hitBarResult:
-        if hb.get("name") == rule_first_camera_line_id:
-            target_hitbar = hb
-            break
-    if target_hitbar:
-        accumulator = target_hitbar.get("Accumulator", {})
-        detected_vehicle_types = list(accumulator.keys())
-        detected = [vt for vt in detected_vehicle_types if vt in car_category_names]
-        if detected:
-            for vehicle in detected:
-                if vehicle not in vehicle_warning_state:
-                    new_alert_id = str(uuid.uuid4())
-                    alert_image = f"{new_alert_id}.jpg"
-                    cv2.imwrite(f"/alerts/on/{alert_image}", frame)
-                    rule_type = "1"
-                    rule_remark = f"检测到违规车辆: {vehicle}"
-                    saveAlert(new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
-                              rule_type, rule_remark)
-                    sio.emit("updateHappeningAlert", {
-                        "alertId": new_alert_id,
-                        "cameraId": camera_id,
-                        "cameraName": camera_name
-                    })
-                    vehicle_warning_state[vehicle] = new_alert_id
-                    vehicle_alert_start_time[vehicle] = datetime.now()
-                    vehicle_clear_count[vehicle] = 0
-        else:   #但其实没有设计，这个先放在这里
-            # 如果未检测到，更新解除计数
-            for vehicle in list(vehicle_warning_state.keys()):
-                vehicle_clear_count[vehicle] += 1
-                if vehicle_clear_count[vehicle] >= clearThreshold:
-                    alert_id = vehicle_warning_state[vehicle]
-                    alert_end_time = time.time()
-                    saveAlert(alert_id, camera_id, camera_name, 2, vehicle_alert_start_time[vehicle],
-                              alert_end_time, None, alert_image, "1", f"{vehicle} 车辆消失，预警结束")
-                    del vehicle_warning_state[vehicle]
-                    del vehicle_alert_start_time[vehicle]
-                    del vehicle_clear_count[vehicle]
-                    print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
+
 
 def aggregate_label_counts(traffic_data: list, label_map: dict) -> dict:
     """对 traffic_data 中记录的 label_counts 进行累计"""
