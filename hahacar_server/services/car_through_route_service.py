@@ -3,7 +3,7 @@ from datetime import datetime
 from models.CarThroughRoute import CarThroughRoute
 
 
-def saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, start_line, end_line, current_time, direction):
+def saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, start_line, end_line, current_time, camera_id):
     """
     保存通过起止线车辆的相关信息
     参数:
@@ -24,11 +24,11 @@ def saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, start_line, end_line,
         start_line=start_line,
         end_line=end_line,
         detection_time=detection_time,
-        direction=direction
+        camera_id = camera_id
     )
 
     db.add(car_route)
     db.commit()
     db.refresh(car_route)
     print(
-        f"已保存车辆 {vehicle_no} 的通行信息：类型 {vehicle_type}, 起线 {start_line}, 止线 {end_line}, 时间 {detection_time}, 方向 {direction}")
+        f"已保存车辆 {vehicle_no} 的通行信息：类型 {vehicle_type}, 起线 {start_line}, 止线 {end_line}, 时间 {detection_time}")

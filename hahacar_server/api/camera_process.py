@@ -330,7 +330,7 @@ def update_vehicle_history(vehicle_history: dict, hitBarResult: list, current_ti
             vehicle_history[vehicle_no].append(record)
 
 
-def process_vehicle_history(vehicle_history: dict, current_time: float, start_line_id: str, end_line_id: str,labels_equal_flow_ids, db):
+def process_vehicle_history(vehicle_history: dict, current_time: float, start_line_id: str, end_line_id: str,labels_equal_flow_ids, camera_id:str, db):
     """
     处理 vehicle_history 中的记录，筛选同时包含起始和终止检测线的车辆，
     根据记录计算车辆行驶方向及类型，并调用 saveCarThroughFixedRoute 保存数据，
@@ -371,12 +371,21 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
         vehicle_type = sorted_records[0]["label"]
         vehicle_equivalent = labels_equal_flow_names.get(vehicle_type, 1)
 
-        # 累加该车辆的当量
-        if direction == "正向":
-                total_flow_equivalent += vehicle_equivalent
-
-        saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, s_line, e_line, current_time, direction)
-        print(f"保存车辆信息: {vehicle_type} {vehicle_no}，方向: {direction}")
+        # 如果你只想统计 "从 start_line_id -> end_line_id" 这条路线的当量：
+        if s_line == start_line_id and e_line == end_line_id:
+            total_flow_equivalent += vehicle_equivalent
+            # 保存车辆信息(无方向)
+            saveCarThroughFixedRoute(
+                db,
+                vehicle_no=vehicle_no,
+                vehicle_type=vehicle_type,
+                start_line=s_line,  # 实际车辆经过的起线
+                end_line=e_line,  # 实际车辆经过的终线
+                current_time=current_time,
+                camera_id = camera_id,
+                # 下面省略 direction 等字段
+            )
+            print(f"已检测到车辆: {vehicle_type}-{vehicle_no}, 路线: {s_line}->{e_line}")
         # **标记该车辆为已处理**
         processed_vehicles.append(vehicle_no)
 
@@ -581,7 +590,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 if current_time - history_last_checked >= 60:
                     #计算60s内的所有车辆当量
                     total_flow_equivalent = process_vehicle_history(vehicle_history, current_time, rules["camera_start_line_id"],
-                                            rules["camera_end_line_id"],rules["labels_equal_flow_ids"], db)
+                                            rules["camera_end_line_id"],rules["labels_equal_flow_ids"], camera_id,db)
 
                     history_last_checked = current_time
 
