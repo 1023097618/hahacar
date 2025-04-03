@@ -18,6 +18,7 @@ Mock.mock(baseurl+"/stat/alert/searchAlertNum",'get',require('./json/stat/alert/
 Mock.mock(baseurl+"/stat/category/searchCategoryNum",'get',require('./json/stat/category/category.json'))
 Mock.mock(baseurl+"/stat/flow/searchFlowNum",'get',require('./json/stat/flow/flow.json'))
 Mock.mock(baseurl+"/stat/hold/searchHoldNum",'get',require('./json/stat/hold/hold.json'))
+Mock.mock(baseurl+"/stat/flow/getFlowMat?cameraId=1",'get',require('./json/stat/flow/getFlowMat.json'))
 
 Mock.mock(baseurl+"/alert/getAlerts?pageNum=1&pageSize=0&alertType[]=1&alertType[]=2",'get',require('./json/alert/alert.json'))
 Mock.mock(baseurl+"/alert/getAlerts?pageNum=1&pageSize=20",'get',require('./json/alert/alert.json'))

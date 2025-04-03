@@ -11,7 +11,7 @@ import VueECharts from 'vue-echarts'
 import '@/assets/icomoon/style.css'
 
 //伪造后端请求(调试用)
-// import './mock'
+import './mock'
 Vue.use(ElementUI)
 Vue.prototype.$socket=socket
 Vue.component('v-chart', VueECharts)

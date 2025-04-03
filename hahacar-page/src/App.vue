@@ -86,6 +86,8 @@ h2,h3{
   --inputBg: #2b2b3a;
   --tooltipBg: #2b2b3a;
 }
+
+
 /* #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
