@@ -27,8 +27,8 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
         if rule_update.rule_value == '1':
            if rule_update.label:
                update_data = {
-                   "label_ids": json.dumps(rule_update.label.labelId),  # 存储为 JSON 字符串              #这个有没有label？？
-                   "camera_line_id": rule_update.label.label_line_id  # 直接存储字符串
+                   "label_ids": json.dumps(rule_update.label.label_ids),  # 存储为 JSON 字符串              #这个有没有label？？
+                   "label_line_id": rule_update.label.label_line_id  # 直接存储字符串
                }
                db.query(CameraRule).filter(CameraRule.camera_id == cameraId,CameraRule.rule_value == '1').update(update_data)
                db.commit()
@@ -72,8 +72,7 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                 db.commit()
             else:
                 return {"code": "400", "msg": "VehicleFlow is None", "data": {}}
-        else:
-            return {"code": "400", "msg": "ruleValue is None or not in '1','2','3'", "data": {}}
+
 
         # 新增：处理 VehicleReserve 与 eventDetect（无论 rule_value 为何，都可传输这两个可选字段）
         update_extra = {}
