@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Text
 
-from sqlalchemy import Column, String, Integer, JSON, Float, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, JSON, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
 from dependencies.database import Base
@@ -13,6 +13,13 @@ class CameraRule(Base):
     camera_id = Column(String, ForeignKey("camera.id"),index=True)
     rule_value = Column(String)  # 1: 车类别, 2: 车拥堵, 3: 车流量
     label_ids = Column(JSON, nullable=True)  # 仅 rule_value=1 时适用,包含labelID
+
+    # ** 新增 **
+    label_line_id = Column(String, nullable=True)
+    vehicle_reserve = Column(Boolean, nullable=True)
+    event_detect = Column(Boolean, nullable=True)
+
+
     max_vehicle_hold_num = Column(Float, nullable=True)  # 仅 rule_value=2 时适用
     min_vehicle_hold_num = Column(Float, nullable=True)  # 仅 rule_value=2 时适用
     max_continuous_time_period = Column(Integer, nullable=True)  # 适用于 2 和 3

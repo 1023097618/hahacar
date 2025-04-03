@@ -43,6 +43,37 @@ def getCameraLine(db: Session, cameraId: str,token:str):
     }
 
 
+def get_camera_line(db: Session, cameraId: str):
+    cameraLines = db.query(CameraLine).filter(CameraLine.camera_id == cameraId).all()
+    if not cameraLines:
+        return {"code": "200",
+                "msg": "cameraLine is None",
+                "data": {}}
+
+    camera_lines_data = [
+        {
+            "cameraLineName": line.line_name,
+            "cameraLineStartX": line.start_x,
+            "cameraLineStartY": line.start_y,
+            "cameraLineEndX": line.end_x,
+            "cameraLineEndY": line.end_y,
+            "pointCloseToLine": line.point_close_to_line,
+            "isMainLine": line.is_main_line,
+            "cameraLineId": line.camera_line_id,
+        }
+        for line in cameraLines
+    ]
+
+    return {
+        "code": "200",
+        "msg": "success",
+        "data": {
+            "cameraLines": camera_lines_data,
+            "isDefault": not any(line["isMainLine"] for line in camera_lines_data)
+        }
+    }
+
+
 #这里由于没有给出cameralineid，是根据cameralinename进行更新的，所以要求前端返回的cameralinename不同
 def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
     cameraId = cameraLines.camera_id

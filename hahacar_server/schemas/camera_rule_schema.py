@@ -6,6 +6,12 @@ from sqlalchemy import JSON
 from models.camera_line import CameraLine
 
 
+class LabelRule(BaseModel):
+    label_ids: List[str] = Field(..., alias="labelId",description="车辆类型规则：车辆类型id列表")
+    label_line_id: str = Field(...,alias="cameraLineId",  description="指定用于车辆类型预警的检测线ID")
+    class Config:
+        allow_population_by_field_name = True
+
 class LabelsEqualHold(BaseModel):
     """
     ***descripition**
@@ -64,9 +70,11 @@ class CameraRuleUpdate(BaseModel):
     更新摄像头规则请求模型
     """
     rule_value: str = Field(..., alias="ruleValue", description="规则值，1表示车类型；2表示车拥堵情况；3表示车流量")   #Fileld(...)表示必填项
-    labelId: Optional[List[str]] #= Field(None, alias="rule_value", description="标签ID，当且仅当规则值是1必填，数值为从/api/label/getLabels中获取到的数据")
+    label: Optional[LabelRule] #= Field(None, description="仅当规则值为1时必填，包含车辆类型id列表及预警检测线ID")
     VehicleHold: Optional[VehicleHold]      # Field(None, description="车拥堵情况，如果规则值是2，则必填。当连续maxContinuousTimePeriod秒的帧检测出来的交通当量都大于等于maxVihicleHoldNum辆的时候开始预警，将预警状态置为'正在发生'，此时，如果检测到交通当量小于等于minVihicleHoldNum且持续了minContinuousTimePeriod秒时，将预警状态置为‘已经发生’")
     VehicleFlow: Optional[VehicleFlow]      #= Field(None, description="车流流量，如果规则值是3，则必填.需要注意的是vehicleType为2计算的是一帧里面存有的车，但是vehicleType为3时需要计算的是画面中一秒里面经过的交通当量，这两个是不一样的，最简单的例子就是停车场，停车场里面每辆车都是静止的，那么每一帧里面可能都有10个交通当量，但是可能没有交通当量在一秒里面经过。预警的规则也和上方的是一样的")
+    VehicleReserve: Optional[bool] #= Field(None, description="是否开启针对预约车辆的检测，仅当vehicleType为4时传输")
+    eventDetect: Optional[bool] #= Field(None, description="是否开启事故预警，仅当vehicleType为5时传输")
 
     class Config:
         orm_mode = True

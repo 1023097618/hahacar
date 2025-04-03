@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import func, text
@@ -11,6 +12,44 @@ from schemas.camera_detect_schema import *
     ***存储车辆类别、车流量、车拥挤度***
     暂时设定10s求平均保存一次
 """
+
+
+def save_to_camera_detect_info(db:Session, camera_id, avg_hold_volume, avg_flow_volume, aggregated_label_counts,timestamp):
+    """
+    **description** 将计算出的交通当量存入数据库
+
+    **params**
+    - db (Session): 数据库会话
+    - camera_id (str): 摄像头 ID
+    - avg_hold_volume (float): 10 秒内的平均拥堵量
+    - avg_flow_volume (float): 10 秒内的平均车流量
+    - vehicle_counts (dict): 10 秒内每种车辆类型的累计数量
+    - timestamp (float): 时间戳
+
+    **returns** 无
+    """
+    new_record = camera_detect_info(
+        camera_detect_info_id=str(uuid.uuid4()),
+        camera_id=camera_id,
+        detected_hold_time = datetime.utcfromtimestamp(timestamp),
+        detected_hold_num=avg_hold_volume,
+
+        detected_flow_num=avg_flow_volume,
+        detected_flow_time = datetime.utcfromtimestamp(timestamp),
+
+        detected_cars_labels=aggregated_label_counts,
+
+        #检测线还有——————————————————-------
+
+        created_at= datetime.utcnow()
+    )
+    db.add(new_record)
+    db.commit()
+    print(
+        f"[✅] 交通数据已存入数据库: 摄像头 {camera_id}, 拥堵: {avg_hold_volume}, 车流: {avg_flow_volume}, 车辆计数: {aggregated_label_counts}, 时间: {timestamp}")
+
+
+
 def save_vehicle_labels(db:Session,request: VehicleLabelSaveRequest):
     new_data = camera_detect_info(
         camera_id=request.cameraId,

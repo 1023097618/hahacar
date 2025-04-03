@@ -1,3 +1,6 @@
+import asyncio
+import threading
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,7 +8,7 @@ from api.socket_manager import sio
 from api.user import router as user_router
 from api.photo_process import router as photo_router
 from api.video_process import router as video_router
-from api.camera_process import router as camera_process_router
+from api.camera_process import router as camera_process_router, generate_frames, background_camera_task
 from api.camera import router as camera_router
 from api.camera_rule import router as camera_rule_router
 from api.camera_detect_info import router as camera_detect_info
@@ -14,6 +17,9 @@ from api.camera_line import router as camera_line
 from api.label import router as label
 
 import socketio
+
+from dependencies.database import get_db
+from services.camera_service import get_all_camera_ids
 
 # 创建 ASGI 应用
 socket_app = socketio.ASGIApp(sio)
@@ -49,3 +55,11 @@ app.include_router(label)
 @app.get("/")
 def read_root():
     return {"message": "Hello, FastAPI!"}
+
+@app.on_event("startup")
+async def startup_event():
+    db = next(get_db())
+    camera_ids = get_all_camera_ids(db)  # 获取所有摄像头ID列表
+    # 为每个摄像头创建独立的后台任务
+    for camera_id in camera_ids:
+        asyncio.create_task(background_camera_task(camera_id))

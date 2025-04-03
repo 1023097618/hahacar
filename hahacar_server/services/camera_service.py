@@ -133,3 +133,15 @@ def get_camera_url(db:Session, camera_id:str):
         return None
     return camera.cameraURL
 
+def get_all_camera_ids(db: Session):
+    # 返回一个 ID 组成的 list，而不是 SQLAlchemy Row
+    return [row[0] for row in db.query(Camera.id).all()]
+
+
+
+def get_camera_name_by_id(db:Session,camera_id:str):
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        print("camera not found")
+        return None
+    return camera.cameraName
