@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 
 from models.camera_line import CameraLine
 from models.camera_detect_info import camera_detect_info
+from models.CarThroughRoute import CarThroughRoute
+from models.camera_rule import CameraRule
+from models.vehicle_labels import VehicleLabel
 from schemas.camera_detect_schema import *
 
 """
@@ -126,6 +129,100 @@ def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
                          in results]
 
     return {"code": "200", "msg": "success", "data": {"flows": formatted_results}}
+
+def get_traffic_flow_mat(db: Session, request: GetTrafficFlowMatRequest):
+    # Step 1: Retrieve detection lines for the given cameraId
+    camera_lines = db.query(CameraLine).filter(CameraLine.camera_id == request.cameraId).all()
+    if not camera_lines:
+        return {"code": "404", "msg": "No camera lines found for given cameraId", "data": {}}
+    # Sort the detection lines (here by their id, adjust as needed)
+    camera_lines = sorted(camera_lines, key=lambda cl: cl.camera_line_id)
+
+    # Step 2: Retrieve vehicle labels in order
+    labels = db.query(VehicleLabel).order_by(VehicleLabel.label_id).all()
+
+    # Determine dimensions for the matrix
+    num_lines = len(camera_lines)
+    num_labels = len(labels)
+
+    # Step 3: Initialize the flow matrix (3D list) with zeros (using float for further processing)
+    flowmat = [[[0.0 for _ in range(num_labels)] for _ in range(num_lines)] for _ in range(num_lines)]
+
+    # Build lookup dictionaries for index mapping
+    line_index = {cl.camera_line_id: idx for idx, cl in enumerate(camera_lines)}
+    label_index = {label.label_id: idx for idx, label in enumerate(labels)}
+
+    # Step 4: Query vehicle flow records (CarThroughRoute) with time filters only
+    query = db.query(CarThroughRoute)
+
+    if request.timeFrom:
+        time_from = datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S")
+        query = query.filter(CarThroughRoute.detection_time >= time_from)
+    if request.timeTo:
+        time_to = datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S")
+        query = query.filter(CarThroughRoute.detection_time <= time_to)
+
+    car_routes = query.all()
+
+    # Step 4.1: Query CameraRule for vehicle flow (rule_value "3") for the given camera
+    camera_rule = db.query(CameraRule).filter(
+        CameraRule.camera_id == request.cameraId,
+        CameraRule.rule_value == "3"
+    ).first()
+
+    # Build the multiplier mapping from labels_equal_flow_ids
+    multiplier_mapping = {}
+    if camera_rule and camera_rule.labels_equal_flow_ids:
+        try:
+            # If stored as string, parse it as JSON; otherwise assume it's already a JSON object
+            if isinstance(camera_rule.labels_equal_flow_ids, str):
+                labels_flow = json.loads(camera_rule.labels_equal_flow_ids)
+            else:
+                labels_flow = camera_rule.labels_equal_flow_ids
+            for item in labels_flow:
+                multiplier_mapping[item['labelId']] = float(item['labelEqualNum'])
+        except Exception as e:
+            # In case of error, fallback to no multipliers (i.e. default to 1.0)
+            multiplier_mapping = {}
+
+    # Step 5: Accumulate weighted counts in the matrix based on each record's start_line, end_line, and vehicle_type
+    for route in car_routes:
+        # Ensure the start_line, end_line, and vehicle_type exist in our lookup dictionaries
+        if (route.start_line in line_index and
+            route.end_line in line_index and
+            route.vehicle_type in label_index):
+
+            i = line_index[route.start_line]   # index for start_line
+            j = line_index[route.end_line]       # index for end_line
+            k = label_index[route.vehicle_type]  # index for vehicle type (label)
+
+            # Use multiplier if available; otherwise default to 1.0
+            multiplier = multiplier_mapping.get(route.vehicle_type, 1.0)
+            flowmat[i][j][k] += multiplier
+
+    # Step 6: Format the matrix values to strings with one decimal place
+    flowmat_str = [[[f"{flowmat[i][j][k]:.1f}" for k in range(num_labels)]
+                     for j in range(num_lines)]
+                     for i in range(num_lines)]
+
+    # Prepare the camera lines and labels in the desired output format
+    camera_lines_res = [{"cameraLineName": cl.line_name, "cameraLineId": cl.camera_line_id}
+                          for cl in camera_lines]
+    labels_res = [{"labelName": label.label_name, "labelId": label.label_id} for label in labels]
+
+    # Return the response structure as described in the API documentation
+    return {
+        "code": "200",
+        "msg": "Success",
+        "data": {
+            "flowmat": flowmat_str,
+            "cameraLines": camera_lines_res,
+            "labels": labels_res
+        }
+    }
+
+
+
 
 def get_traffic_hold(db: Session,request: GetTrafficHoldRequest):
     query = db.query(
