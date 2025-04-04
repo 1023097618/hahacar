@@ -10,7 +10,7 @@ PARENT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
 DB_PATH = os.path.join(PARENT_DIR, "data", "db.sqlite3")
 
 # 创建数据库引擎（使用 SQLite）
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=True)
+engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
 
 # 创建 ORM 基类
 Base = declarative_base()

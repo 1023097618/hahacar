@@ -7,7 +7,7 @@ from api.socket_manager import sio
 from services.alerts_service import saveAlert
 
 
-def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_id: str, car_category_names: list, frame, db, camera_id: str, camera_name: str, vehicle_warning_state: dict, vehicle_alert_start_time: dict, vehicle_clear_count: dict, clearThreshold: int,alert_image):
+async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_id: str, car_category_names: list, frame, db, camera_id: str, camera_name: str, vehicle_warning_state: dict, vehicle_alert_start_time: dict, vehicle_clear_count: dict, clearThreshold: int,alert_image):
     """
     根据规则中指定的检测线（rule_first_camera_line_id），判断该检测线上检测到的车辆类型是否存在于 car_category_names 中，
     如果存在则触发车辆类型预警；如果后续检测不到，则更新解除计数。
@@ -29,9 +29,9 @@ def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_
                     cv2.imwrite(f"/alerts/on/{alert_image}", frame)
                     rule_type = "1"
                     rule_remark = f"检测到违规车辆: {vehicle}"
-                    saveAlert(new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
+                    saveAlert(db, new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
                               rule_type, rule_remark)
-                    sio.emit("updateHappeningAlert", {
+                    await sio.emit("updateHappeningAlert", {
                         "alertId": new_alert_id,
                         "cameraId": camera_id,
                         "cameraName": camera_name
@@ -46,14 +46,14 @@ def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_
                 if vehicle_clear_count[vehicle] >= clearThreshold:
                     alert_id = vehicle_warning_state[vehicle]
                     alert_end_time = time.time()
-                    saveAlert(alert_id, camera_id, camera_name, 2, vehicle_alert_start_time[vehicle],
+                    saveAlert(db, alert_id, camera_id, camera_name, 2, vehicle_alert_start_time[vehicle],
                               alert_end_time, None, alert_image, "1", f"{vehicle} 车辆消失，预警结束")
                     del vehicle_warning_state[vehicle]
                     del vehicle_alert_start_time[vehicle]
                     del vehicle_clear_count[vehicle]
                     print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
 
-def process_traffic_flow_warning(
+async def process_traffic_flow_warning(
     target_flow: float,
     current_time: float,
     maxVehicleFlowNum: float,
@@ -102,8 +102,9 @@ def process_traffic_flow_warning(
         # 如果该类型预警还未记录，则新增预警
         if rule_type not in active_alerts:
             warning_state = "正在发生"
-            warning_start_time = current_time
-            new_alert_id = str(uuid.uuid4())
+            warning_start_time = datetime.fromtimestamp(current_time)
+            new_alert_id = str(uuid.uuid4());
+            print(type(warning_start_time))
             alert_image = f"{new_alert_id}.jpg"
             cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
@@ -119,7 +120,7 @@ def process_traffic_flow_warning(
                       rule_type, 
                       rule_remark)
 
-            sio.emit("updateHappeningAlert", {
+            await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
                 "cameraId": camera_id,
                 "cameraName": camera_name
@@ -144,14 +145,23 @@ def process_traffic_flow_warning(
                 ai = alert_info["alert_image"]
                 rr = alert_info["rule_remark"]
 
-                saveAlert(alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
+                saveAlert(db,
+                          alert_id, 
+                          camera_id, 
+                          camera_name, 
+                          2, ws, 
+                          warning_end_time, 
+                          None, 
+                          ai, 
+                          rule_type, 
+                          rr)
 
             active_alerts.clear()
 
     return flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
 
 
-def process_vehicle_congestion_warning(
+async def process_vehicle_congestion_warning(
     avg_hold_volume: float,
     current_time: float,
     maxVehicleHoldNum: float,
@@ -204,10 +214,19 @@ def process_vehicle_congestion_warning(
             alert_image = f"{new_alert_id}.jpg"
             cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
-            saveAlert(new_alert_id, camera_id, camera_name, 1, warning_start_time, None, None, alert_image,
-                      rule_type, rule_remark)
+            saveAlert(db, 
+                      new_alert_id, 
+                      camera_id, 
+                      camera_name, 
+                      1, 
+                      warning_start_time, 
+                      None, 
+                      None, 
+                      alert_image,
+                      rule_type, 
+                      rule_remark)
 
-            sio.emit("updateHappeningAlert", {
+            await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
                 "cameraId": camera_id,
                 "cameraName": camera_name
@@ -232,14 +251,14 @@ def process_vehicle_congestion_warning(
                 ai = alert_info["alert_image"]
                 rr = alert_info["rule_remark"]
 
-                saveAlert(alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
+                saveAlert(db, alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
 
             active_alerts.clear()
 
     return hold_warning_count, hold_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
 
 
-def process_vehicle_reservation_warning(
+async def process_vehicle_reservation_warning(
     detected_vehicles: dict,
     vehicle_history: dict,
     current_time: float,
@@ -316,10 +335,10 @@ def process_vehicle_reservation_warning(
                     rule_remark = f"🚨 预约车辆违规 - 车牌: {vehicle_no}, 行进至未授权线路 {line_id} (上次检测线: {previous_line})"
 
                     # **保存预警到数据库**
-                    saveAlert(alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
+                    saveAlert(db, alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
 
                     # **发送 WebSocket 预警**
-                    sio.emit("updateHappeningAlert", {
+                    await sio.emit("updateHappeningAlert", {
                         "alertId": alert_id,
                         "cameraId": camera_id,
                         "cameraName": camera_name,
@@ -334,7 +353,7 @@ def process_vehicle_reservation_warning(
 
 
 
-def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str, camera_name: str):
+async def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str, camera_name: str):
     """
     **description**
     处理事故检测逻辑：当 detailedResult 返回 accidentBoxes 和 accidentConf 时，触发事故预警。
@@ -367,10 +386,10 @@ def process_accident_warning(detailedResult: dict, frame, current_time: float, d
         rule_remark = f"⚠️ 事故预警 - 最高置信度: {max_accident_confidence:.2f}"
 
         # 保存事故预警到数据库
-        saveAlert(alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
+        saveAlert(db, alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
 
         # 通过 Socket.IO 发送事故预警到前端
-        sio.emit("updateHappeningAlert", {
+        await sio.emit("updateHappeningAlert", {
             "alertId": alert_id,
             "cameraId": camera_id,
             "cameraName": camera_name,

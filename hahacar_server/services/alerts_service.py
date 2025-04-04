@@ -8,22 +8,31 @@ from schemas.alert_schema import *
 
 def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert_type: int,alert_start_time, alert_end_time, alert_processed_time, alert_image, rule_type: str, rule_remark: str):
     # 查询是否已有该预警
-    existing_alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    existing_alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
 
     if existing_alert:
         # **更新预警信息**
         if alert_type == 2:  # "已经发生"
             existing_alert.alert_type = 2
-            existing_alert.alert_end_time = alert_end_time
+            existing_alert.alert_end_time = datetime.fromtimestamp(alert_end_time)
 
         elif alert_type == 3:  # "已处理"
             existing_alert.alert_type = 3
-            existing_alert.alert_processed_time = alert_processed_time
+            existing_alert.alert_processed_time = datetime.fromtimestamp(alert_processed_time)
+        
+        alert_num = existing_alert.alert_num + 1 if bool(existing_alert.alert_num) else 1;
 
         db.commit()
         print(f"[更新] 预警 {alert_id} 更新为类型 {alert_type}")
 
     else:
+        alert_num = 1;
+        if isinstance(alert_start_time, type(1.876876576565)):
+            alert_start_time = datetime.fromtimestamp(alert_start_time);
+        if not isinstance(alert_end_time, type(alert_start_time)) and alert_end_time is not None:
+            alert_end_time = datetime.fromtimestamp(alert_end_time);
+        if not isinstance(alert_processed_time, type(alert_start_time)) and alert_processed_time is not None:
+            alert_processed_time = datetime.fromtimestamp(alert_processed_time);
         # **新增预警信息**
         new_alert = Alert(
             alert_id=alert_id,
@@ -35,7 +44,8 @@ def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert
             alert_processed_time=alert_processed_time,
             alert_image=alert_image,
             rule_type=rule_type,
-            rule_remark=rule_remark
+            rule_remark=rule_remark,
+            alert_num=alert_num
         )
         db.add(new_alert)
         db.commit()

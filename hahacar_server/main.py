@@ -3,6 +3,8 @@ import threading
 import uvicorn;
 from contextlib import asynccontextmanager
 
+import logging;
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
@@ -21,6 +23,8 @@ from api.label import router as label
 
 from dependencies.database import get_db
 from services.camera_service import get_all_camera_ids
+
+# logging.getLogger("sqlalchemy").setLevel(logging.ERROR);
 
 # 定义 lifespan 上下文管理器，用于应用启动和关闭的逻辑
 @asynccontextmanager

@@ -540,8 +540,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             processed, detailedResult ,hitBarResult = process_frame(frame,hitBars, camera_id);
             # 打印 detailedResult 和 hitBarResult
-            print("detailedResult:", detailedResult)
-            print("hitBarResult:", hitBarResult)
+            # print("detailedResult:", detailedResult)
+            # print("hitBarResult:", hitBarResult)
 
             # 获取camera_rule的数据
             camera_rule_response = getCameraRule(db,camera_id)
@@ -555,7 +555,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             # 假设规则中开启了事故检测 eventDetect
             if rules.get("eventDetect", False):
-                accident_detected = process_accident_warning(
+                accident_detected = await process_accident_warning(
                     detailedResult=detailedResult,
                     frame=frame,
                     current_time=current_time,
@@ -659,7 +659,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             # 车辆类型预警：根据规则中指定的检测线进行判断
             car_category_names = [label_map.get(cid) for cid in rules["car_category"] if cid in label_map]
-            process_vehicle_type_pre_warning(hitBarResult, rules["rule_first_camera_line_id"], car_category_names,
+            await process_vehicle_type_pre_warning(hitBarResult, rules["rule_first_camera_line_id"], car_category_names,
                                              frame, db, camera_id, camera_name, vehicle_warning_state,
                                              vehicle_alert_start_time, vehicle_clear_count, clearThreshold,frame)           #————————————这里没有设计完整
 
@@ -673,7 +673,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
                     # 预警计数更新
                     # 🚗 车流量预警（基于 target_flow）
-                    flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = process_traffic_flow_warning(
+                    flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = await process_traffic_flow_warning(
                         target_flow,
                         current_time,
                         rules["maxVehicleFlowNum"],
@@ -692,7 +692,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                     )
 
                     # 🚙 车辆拥挤度预警（基于 avg_hold_volume）
-                    hold_warning_count, hold_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = process_vehicle_congestion_warning(
+                    hold_warning_count, hold_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = await process_vehicle_congestion_warning(
                         avg_hold_volume,
                         current_time,
                         rules["maxVehicleHoldNum"],

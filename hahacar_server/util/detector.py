@@ -147,8 +147,10 @@ class Detector:
         - `outImg`: The resultant image (with bounding boxes, labels, etc. if enabled).
         - `detailedResult`: A dict containing detection data (counts, boxes, labels, confidence, etc.).
         """
-        if verbosity == 2:
+        if verbosity >= 2:
             logging.getLogger("ultralytics").setLevel(logging.WARNING);
+        else:
+            logging.getLogger("ultralytics").setLevel(logging.INFO);
         
         if pallete is None:
             # 构建BGR调色板
