@@ -37,11 +37,13 @@ router = APIRouter(prefix="/api")
 # 服务器地址
 URL = "http://localhost:8081"
 
-# 加载 YOLO 模型
-detector = Detector("util/weights/yolo12s.pt")
+MODEL_FOR_DETECTOR = "util/weights/yolo12s.pt";
+
+global detectors
+detectors = {};
 
 # 全局字典，用于存储每个摄像头最新处理后的MJPEG格式帧数据，键为摄像头ID
-latest_frame = {}
+latest_frame = {};
 
 # RTSP 摄像头地址
 # RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.101:10554/udp/av0_0"
@@ -120,7 +122,7 @@ def calculate_traffic_volume_flow(hitbarResult: list,labels_equal_flow_ids: dict
 
 
 # **帧处理函数**
-def process_frame(frame,hitbars):
+def process_frame(frame,hitbars, camera_id: str):
     """
     **description**
     yolo模型处理
@@ -132,13 +134,15 @@ def process_frame(frame,hitbars):
     - np.ndarray: 处理后的帧
     """
     # 运行YOLOv8检测
+    detector = detectors.get("camera_id", Detector(MODEL_FOR_DETECTOR));
     processedImg, detailedResult,hitBarResult = detector.detect(frame,
                                                    addingBoxes=True,
                                                    addingLabel=True,
                                                    addingConf=False,
                                                    verbosity=2,
                                                     hitBars=hitbars);
-    return processedImg,detailedResult,hitBarResult
+    detectors["camera_id"] = detector;
+    return processedImg,detailedResult,hitBarResult;
 
 def fetch_frame(source_url: str, cap=None):
     """
@@ -534,7 +538,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             if not hitBars:
                 hitBars = build_hitBars(frame, lines)
 
-            processed, detailedResult ,hitBarResult = process_frame(frame,hitBars);
+            processed, detailedResult ,hitBarResult = process_frame(frame,hitBars, camera_id);
             # 打印 detailedResult 和 hitBarResult
             print("detailedResult:", detailedResult)
             print("hitBarResult:", hitBarResult)
@@ -801,8 +805,6 @@ async def proxy_video_feed(
     #     print(f"正在拉取 RTSP 直播流: {camera_url}")
     #
     #     return StreamingResponse(generate_frames(camera_url,cameraId), media_type="multipart/x-mixed-replace; boundary=frame")
-
-
 # **Socket.IO 端点：发送 YOLOv8 检测结果**
 @sio.event
 async def video_feed(sid):
@@ -826,4 +828,3 @@ async def video_feed(sid):
 
     except Exception as e:
         print(f"Socket.IO 连接断开: {e}")
-
