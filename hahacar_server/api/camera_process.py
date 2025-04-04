@@ -134,7 +134,7 @@ def process_frame(frame,hitbars, camera_id: str):
     - np.ndarray: 处理后的帧
     """
     # 运行YOLOv8检测
-    detector = detectors.get("camera_id", Detector(MODEL_FOR_DETECTOR));
+    detector = detectors.get(camera_id, Detector(MODEL_FOR_DETECTOR));
     processedImg, detailedResult,hitBarResult = detector.detect(frame,
                                                    addingBoxes=True,
                                                    addingLabel=True,
