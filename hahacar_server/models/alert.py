@@ -9,6 +9,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(String, primary_key=True, index=True)
+    alert_id = Column(String, primary_key=True)
     camera_id = Column(String, index=True)
     camera_name = Column(String, nullable=False)
     alert_type = Column(Integer, nullable=False)  # 1: 进行中, 2: 已发生, 3: 已结束

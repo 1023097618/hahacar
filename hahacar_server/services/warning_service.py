@@ -107,8 +107,17 @@ def process_traffic_flow_warning(
             alert_image = f"{new_alert_id}.jpg"
             cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
-            saveAlert(new_alert_id, camera_id, camera_name, 1, warning_start_time, None, None, alert_image,
-                      rule_type, rule_remark)
+            saveAlert(db,
+                      new_alert_id, 
+                      camera_id, 
+                      camera_name, 
+                      1, 
+                      warning_start_time, 
+                      None, 
+                      None, 
+                      alert_image,
+                      rule_type, 
+                      rule_remark)
 
             sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
