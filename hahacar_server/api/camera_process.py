@@ -368,7 +368,7 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
             direction = "未知"
 
         # 计算该车辆的当量
-        vehicle_type = sorted_records[0]["label"]
+        vehicle_type = sorted_records[0]["label"]                                   #这个需要从get_label_mapping，存储对应的id，
         vehicle_equivalent = labels_equal_flow_names.get(vehicle_type, 1)
 
         # 如果你只想统计 "从 start_line_id -> end_line_id" 这条路线的当量：

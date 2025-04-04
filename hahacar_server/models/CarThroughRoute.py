@@ -6,6 +6,7 @@ Base = declarative_base()
 class CarThroughRoute(Base):
     __tablename__ = "carthroughroute"  # 或者 "CarThroughRoute"，与上面 CREATE TABLE 保持一致
 
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     vehicle_no = Column(String, nullable=False)
     vehicle_type = Column(String, nullable=False)
