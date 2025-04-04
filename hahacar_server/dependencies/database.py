@@ -29,6 +29,6 @@ def get_db():
     """
     db = SessionLocal()
     try:
-        yield db  # 生成会话
+        return db  # 生成会话
     finally:
         db.close()  # 关闭会话

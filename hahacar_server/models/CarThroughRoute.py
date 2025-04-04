@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 class CarThroughRoute(Base):
-    __tablename__ = "carthroughroute"  # 或者 "CarThroughRoute"，与上面 CREATE TABLE 保持一致
+    __tablename__ = "car_through_route"  # 或者 "CarThroughRoute"，与上面 CREATE TABLE 保持一致
 
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)

@@ -29,6 +29,11 @@ class GetTrafficFlowRequest(BaseModel):
     cameraLineIdEnd: Optional[str]
     cameraLineId: Optional[str]
 
+class GetTrafficFlowMatRequest(BaseModel):
+    timeFrom: Optional[str]
+    timeTo: Optional[str]
+    cameraId: Optional[str]
+
 class GetTrafficHoldRequest(BaseModel):
     timeFrom: Optional[str]
     timeTo: Optional[str]

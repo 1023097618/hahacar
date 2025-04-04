@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from api.camera import authenticate_admin
 from core.security import verify_jwt_token
-from dependencies.database import get_db
+from dependencies.database import get_db;
 from services.alerts_service import saveAlert
 from services.camera_detect_info_service import save_to_camera_detect_info
 from services.camera_line_service import get_camera_line
@@ -70,15 +70,20 @@ def get_label_mapping(db: Session) -> dict:
     # labels_equal_flow_ids = Column(JSON, nullable=True) # 仅 rule_value=3 时适用,包含labelId以及labelFlowNum的json字符串,代表本labelId可以视为多少个交通当量
 def calculate_traffic_volume_hold(detailedResult: dict, labels_equal_hold_ids: dict) -> dict:
     hold_volume = 0
-    db = next(get_db())
+    db = get_db();
     label_mapping = get_label_mapping(db)
     # 转换 labels_equal_flow_ids，将 labelId 替换为 labelName
     labels_equal_hold_names = {
         label_mapping.get(labelId, labelId): value  # 如果 labelId 不在映射中，则保留原值
         for labelId, value in labels_equal_hold_ids.items()
     }
+    inverted_mapping = {
+            value: label_mapping.get(labelId, labelId)
+            for labelId, value in labels_equal_hold_ids.items()
+        }
 
     for label, count in detailedResult.get("count", {}).items():
+        label = inverted_mapping.get(label, label)
         if label in labels_equal_hold_names:                              #这里好像对不上一个是id，一个是labelname————————
             hold_volume += count * int(labels_equal_hold_names[label])
 
@@ -93,7 +98,7 @@ def calculate_traffic_volume_flow(hitbarResult: list,labels_equal_flow_ids: dict
         返回字典，键为检测线的名称，值为该检测线的 flow 当量
         """
     flow_for_line = {}
-    db = next(get_db())
+    db = get_db();
     label_mapping = get_label_mapping(db)
     # 将 labels_equal_flow_ids 中的 labelId 替换为 labelName，若找不到则保留原值
     labels_equal_flow_names = {
@@ -177,6 +182,7 @@ def fetch_frame(source_url: str, cap=None):
 
             image_array = np.frombuffer(response.content, dtype=np.uint8)
             frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            current_time = t.time();
             if frame is None:
                 print("无法解码 HTTP 快照")
 
@@ -208,6 +214,7 @@ def fetch_frame(source_url: str, cap=None):
                 return None, current_time
 
         success, frame = cap.read()
+        current_time = t.time();
         if not success:
             print("MJPG 读取失败")
             return None, current_time
@@ -218,6 +225,11 @@ def fetch_frame(source_url: str, cap=None):
         if cap is None or not cap.isOpened:
             cap = cv2.VideoCapture(source_url);
         success, frame = cap.read();
+        if success:
+            return frame, current_time;
+        else:
+            print("MP4 读取失败");
+            return None, current_time;
 
 
     else:
@@ -457,7 +469,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 return
 
         interval = 0.5 if source_url.startswith("http") and not source_url.endswith("video.mjpg") else 0.03  # **HTTP 轮询间隔 / RTSP 直播流帧率**
-        db = next(get_db())
+        db = get_db();
         camera_name = get_camera_name_by_id(db,camera_id)
         time_window = 10
         traffic_data = []  # 存储 (time, hold_volume, flow_volume)
@@ -488,7 +500,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         camera_line_response = get_camera_line(db, camera_id)
         lines = []
-        if camera_line_response["code"] == "200" and camera_line_response["data"].get("cameraLines"):
+        if camera_line_response["code"] == "200" and camera_line_response["data"].get("cameraLines", []):
             lines = camera_line_response["data"]["cameraLines"]
         else:
             print("该摄像头没有检测线")
@@ -511,13 +523,12 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         while True:
             # 将阻塞的 fetch_frame 调用放入线程中执行
-            frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
+            # frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
+            frame, current_time = fetch_frame(source_url, cap);
             if frame is None:
                 await asyncio.sleep(0.1);
                 continue
 
-            # ————这里获取时间
-            current_time = t.time();
 
             # 根据获取的检测线数据构造 hitBars 对象
             if not hitBars:
@@ -712,7 +723,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-            await asyncio.sleep(interval)  # 控制快照采集速率
+            # await asyncio.sleep(interval)  # 控制快照采集速率
 
     except Exception as e:
         print(f"摄像头连接失败：{e}")
@@ -723,7 +734,7 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
     """
     后台任务：单个摄像头持续读取帧，并将最新的帧保存到全局字典中
     """
-    db = next(get_db())
+    db = get_db();
     global latest_frames
     latest_frames = {}
     while True:

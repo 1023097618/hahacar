@@ -64,6 +64,20 @@ def searchFlowNum(
     )
     return get_traffic_flow(db, request)
 
+@router.get("/flow/getFlowMat")
+def getFlowMat(
+    timeFrom: Optional[str] = Query(None, description="开始时间"),
+    timeTo: Optional[str] = Query(None, description="结束时间"),
+    cameraId: Optional[str] = Query(None, description="摄像头 ID"),
+    db: Session = Depends(get_db)
+):
+    request=GetTrafficFlowMatRequest(
+        timeFrom=timeFrom,
+        timeTo=timeTo,
+        cameraId=cameraId
+    )
+    return get_traffic_flow_mat(db,request)
+
 """
     ***存储车辆类别、车流量、车拥挤度***
 """

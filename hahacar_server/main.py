@@ -26,7 +26,7 @@ from services.camera_service import get_all_camera_ids
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时执行的逻辑
-    db = next(get_db())
+    db = get_db()
     camera_ids = get_all_camera_ids(db)  # 获取所有摄像头ID列表
     # 为每个摄像头创建独立的后台任务
     for camera_id in camera_ids:
