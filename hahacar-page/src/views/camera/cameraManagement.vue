@@ -170,7 +170,8 @@ export default {
       this.dataForm = Object.assign({},{
         cameraId:row.cameraId,
         cameraName:row.cameraName,
-        cameraLocation:row.cameraLocation
+        cameraLocation:row.cameraLocation,
+        cameraURL:row.cameraURL
       })
       // 如果 cameraLocation 不是数组，则拆分成数组
       if (!Array.isArray(this.dataForm.cameraLocation)) {
