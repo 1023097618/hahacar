@@ -23,7 +23,7 @@ from services.camera_detect_info_service import save_to_camera_detect_info
 from services.camera_line_service import get_camera_line
 from services.camera_rule_service import getCameraRule
 from services.camera_service import get_camera_url, get_camera_name_by_id
-from services.car_through_route_service import saveCarThroughFixedRoute
+from services.car_through_route_service import saveCarThroughFixedRoute, get_all_car_no
 from services.labels_service import getLabels
 from services.user_service import is_admin
 from services.warning_service import *
@@ -77,7 +77,7 @@ def calculate_traffic_volume_hold(detailedResult: dict, labels_equal_hold_ids: d
     # 转换 labels_equal_flow_ids，将 labelId 替换为 labelName
     labels_equal_hold_names = {
         label_mapping.get(labelId, labelId): value  # 如果 labelId 不在映射中，则保留原值
-        for labelId, value in labels_equal_hold_ids.items()
+        for labelId, value in labels_equal_hold_ids.items()     #{‘car':12,'truck':12}
     }
 
     for label, count in detailedResult.get("count", {}).items():
@@ -243,7 +243,7 @@ def build_hitBars(frame, lines: list):
     for i, line in enumerate(lines):
         startPoint = (round(float(line["cameraLineStartX"])*frame_w), round(float(line["cameraLineStartY"])*frame_h))
         endPoint = (round(float(line["cameraLineEndX"])*frame_w), round(float(line["cameraLineEndY"])*frame_h))
-        # 主检测线 name 设为 "0"，其它依次为 "1", "2", ...
+        # 主检测线 name 设为 "0"，其它依次为 "1", "2", ...nonono
         name = line.get("cameraLineId")             #----这里传进去的线名字改成id吧，后面需要用到主检测线的时候再去line里查询line.get("isMainLine"
         hb = hitBar(
             imgSize=(frame_h, frame_w),
@@ -379,11 +379,11 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
             direction = "未知"
 
         # 计算该车辆的当量
-        vehicle_type = sorted_records[0]["label"]                                   #这个需要从get_label_mapping，存储对应的id，
+        vehicle_type = sorted_records[0]["label"]                                   #这个需要从get_label_mapping，存储对应的id，------
         vehicle_equivalent = labels_equal_flow_names.get(vehicle_type, 1)
 
         # 如果你只想统计 "从 start_line_id -> end_line_id" 这条路线的当量：
-        if s_line == start_line_id and e_line == end_line_id:                           # 这里的id是hitbar解析出来的id，需要和cameralineid对应上再存--------------
+        if s_line == start_line_id and e_line == end_line_id:                           # 这里的id是hitbar解析出来的id，需要和cameralineid对应上再存--------------已通过构建的hitbarline为lineid解决
             total_flow_equivalent += vehicle_equivalent
             # 保存车辆信息(无方向)
             saveCarThroughFixedRoute(
@@ -411,7 +411,7 @@ def calculate_label_counts(hitBarResult: list, label_map: dict) -> dict:
     label_counts = {name: 0 for name in label_map.values()}
     for hb in hitBarResult:
         accumulator = hb.get("Accumulator", {})
-        for label_id, count in accumulator.items():                                     #在这里加上对车辆经过某条检测线的保存
+        for label_id, count in accumulator.items():                                     #在这里加上对车辆经过某条检测线的保存--不在这里加
             if label_id in label_map:
                 label_counts[label_map[label_id]] += count
     return label_counts
@@ -432,6 +432,21 @@ def aggregate_label_counts(traffic_data: list, label_map: dict) -> dict:
             aggregated[label] += count
     return aggregated
 
+
+def save_car_through_line(hitBarResult: list, current_time: float, camera_id: str, label_map: dict, db):
+    reverse_label_map = {v: k for k, v in label_map.items()}
+    for hb in hitBarResult:
+        hitDetails = hb.get("hitDetails", {})
+        line_name =hb.get("name", "unknown")
+        accumulator = hb.get("Accumulator", {})
+        for vehicle_no, vehicle_type_name in accumulator.items():
+            vehicle_nos = get_all_car_no(db, vehicle_no)
+            vehicle_type_id = reverse_label_map.get(vehicle_type_name)
+            if vehicle_type_id:    #这里做一个判断，加入这个vehicle_no已经存在在数据库中了，那么line_id作为end_line存储
+                if vehicle_nos:
+                    saveCarThroughFixedRoute(db, vehicle_no=vehicle_no, vehicle_type=vehicle_type_id, start_line=None, end_line=line_name, current_time=current_time, camera_id=camera_id)
+                else:
+                    saveCarThroughFixedRoute(db, vehicle_no=vehicle_no, vehicle_type=vehicle_type_id, start_line=line_name, end_line=None, current_time=current_time, camera_id=camera_id)
 
 
 #HTTP请求的方式

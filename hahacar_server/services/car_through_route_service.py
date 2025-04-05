@@ -32,3 +32,7 @@ def saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, start_line, end_line,
     db.refresh(car_route)
     print(
         f"已保存车辆 {vehicle_no} 的通行信息：类型 {vehicle_type}, 起线 {start_line}, 止线 {end_line}, 时间 {detection_time}")
+
+def get_all_car_no(db,vehicle_no):
+    all_car_no = db.query(CarThroughRoute.vehicle_no).filter(CarThroughRoute.vehicle_no == vehicle_no).distinct().all()
+    return all_car_no
