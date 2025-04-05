@@ -34,7 +34,8 @@ async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera
                     await sio.emit("updateHappeningAlert", {
                         "alertId": new_alert_id,
                         "cameraId": camera_id,
-                        "cameraName": camera_name
+                        "cameraName": camera_name,
+                        "ruleRemark": rule_remark
                     })
                     vehicle_warning_state[vehicle] = new_alert_id
                     vehicle_alert_start_time[vehicle] = datetime.now()
@@ -123,7 +124,8 @@ async def process_traffic_flow_warning(
             await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
                 "cameraId": camera_id,
-                "cameraName": camera_name
+                "cameraName": camera_name,
+                "ruleRemark": rule_remark
             })
 
             active_alerts[rule_type] = {
@@ -229,7 +231,8 @@ async def process_vehicle_congestion_warning(
             await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
                 "cameraId": camera_id,
-                "cameraName": camera_name
+                "cameraName": camera_name,
+                "ruleRemark": rule_remark
             })
 
             active_alerts[rule_type] = {
@@ -342,6 +345,7 @@ async def process_vehicle_reservation_warning(
                         "alertId": alert_id,
                         "cameraId": camera_id,
                         "cameraName": camera_name,
+                        "ruleRemark": rule_remark
                     })
 
                     print(f"🚨 预约车辆 {vehicle_no} 违规！从 {previous_line} 进入未预约检测线 {line_id}")
@@ -393,6 +397,7 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
             "alertId": alert_id,
             "cameraId": camera_id,
             "cameraName": camera_name,
+            "ruleRemark": rule_remark
             # "alertType": "事故检测",
             # "alertConfidence": max_accident_confidence,
             # "timestamp": current_time
