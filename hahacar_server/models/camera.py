@@ -24,3 +24,6 @@ class Camera(Base):
 
     #反向关系：一个摄像头可以有多个规则
     rules = relationship("CameraRule", back_populates="camera")
+
+    # 反向关系：一个摄像头可以关联多个用户（通过映射表）
+    user_cameras = relationship("UserCamera", back_populates="camera")

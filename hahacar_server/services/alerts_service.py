@@ -4,6 +4,8 @@ from urllib.parse import unquote
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from api.socket_manager import sio
+from dependencies.database import SessionLocal
 from models.alert import Alert
 from schemas.alert_schema import *
 
@@ -228,3 +230,32 @@ def getAlertNum(db:Session,request: GetAlertCountRequest):
             "alerts": grouped_alerts
         }
     }
+
+@sio.event
+async def connect_alerts(sid, environ,auth):
+    print(f"[socket] Client connected:发送所有预警状态 {sid}")
+
+    # 1) 新建数据库会话
+    db = SessionLocal()
+
+    try:
+        # 查询当前状态为“正在发生”的预警
+        happening_alerts = db.query(Alert).filter(Alert.alert_status == 1).all()
+
+        alert_data = []
+        for alert in happening_alerts:
+            alert_data.append({
+                "alertId": alert.alert_id,
+                "cameraId": alert.camera_id,
+                "cameraName": alert.camera_name,
+                # "ruleType": alert.rule_type,
+                # "alertTime": alert.alert_time.strftime("%Y-%m-%d %H:%M:%S") if alert.alert_time else "",
+                "ruleRemark": alert.remark,
+                # "imageUrl": f"/alerts/{alert.alert_img}" if alert.alert_img else ""
+            })
+
+        # 发送初始化事件（只发给这个sid）
+        await sio.emit("updateHappeningAlert", alert_data)
+        print(f"[Socket.IO] 已向 {sid} 推送初始化预警，共{len(alert_data)}条")
+    except Exception as e:
+        print(f"初始化推送异常: {e}")

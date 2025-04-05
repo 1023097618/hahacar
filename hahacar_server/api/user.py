@@ -1,9 +1,11 @@
 import os
 import sys
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Body
+from sqlalchemy.orm import Session
 
 from core.security import create_jwt_token
+from dependencies.database import get_db
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from schemas.user_schema import *
@@ -196,3 +198,94 @@ def update_user_style_api(
         return {"code": "401", "msg": "Token 无效或用户不存在", "data": ""}
 
     return {"code": "200", "msg": "样式更新成功", "data": {}}
+
+
+@router.post("/user/updateUsers", response_model=UpdateUserResponse)
+def update_user(
+        req: UpdateUserRequest,
+        X_HAHACAR_TOKEN: str = Header(..., alias="X-HAHACAR-TOKEN"),
+        db: Session = Depends(get_db)
+):
+    payload = verify_jwt_token(X_HAHACAR_TOKEN)
+    if not payload or not payload.get("is_admin"):
+        return verify_jwt_token(X_HAHACAR_TOKEN)
+
+    try:
+        updated_user = update_user_service(
+            username=req.username,
+            real_name=req.realName,
+            user_remark=req.userRemark,
+            user_id=req.userId,
+            privilege=req.privilege,
+            db=db
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"code": "200", "msg": "User updated successfully", "data": updated_user}
+
+
+@router.get("/user/getUserCameraPrivilege", response_model=GetUserCameraPrivilegeResponse)
+def get_user_camera_privilege(
+        userId: str = Query(..., description="用户ID"),
+        X_HAHACAR_TOKEN: str = Header(..., alias="X-HAHACAR-TOKEN"),
+        db: Session = Depends(get_db)
+):
+    payload = verify_jwt_token(X_HAHACAR_TOKEN)
+    if not payload or not payload.get("is_admin"):
+        return verify_jwt_token(X_HAHACAR_TOKEN)
+
+    try:
+        user_id_int = int(userId)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid userId format")
+
+    cameras = get_user_camera_privilege_service(user_id_int, db)
+    return {
+        "code": "200",
+        "data": {"cameras": cameras},
+        "msg": "User camera privileges retrieved successfully"
+    }
+
+
+@router.post("/user/addUser", response_model=AddUserResponse)
+def add_user(
+        req: AddUserRequest,
+        X_HAHACAR_TOKEN: str = Header(..., alias="X-HAHACAR-TOKEN"),
+        db: Session = Depends(get_db)
+):
+    payload = verify_jwt_token(X_HAHACAR_TOKEN)
+    if not payload or not payload.get("is_admin"):
+        return verify_jwt_token(X_HAHACAR_TOKEN)
+
+    try:
+        new_user = add_user_service(
+            username=req.username,
+            real_name=req.realName,
+            user_remark=req.userRemark,
+            privilege=req.privilege,
+            db=db
+        )
+    except Exception as e:
+        print(f"Error adding user: {e}")  # 日志输出详细异常信息
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"code": "200", "msg": "User added successfully", "data": new_user}
+
+
+@router.delete("/user/deleteUsers", response_model=DeleteUserResponse)
+def delete_user(
+    req: DeleteUserRequest = Body(..., example={"userId": "string"}),
+    X_HAHACAR_TOKEN: str = Header(..., alias="X-HAHACAR-TOKEN"),
+    db: Session = Depends(get_db)
+):
+    payload = verify_jwt_token(X_HAHACAR_TOKEN)
+    if not payload or not payload.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Only admin can delete users")
+
+    try:
+        delete_user_service(user_id=req.userId, db=db)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return DeleteUserResponse(code="200", msg="User deleted successfully", data={})

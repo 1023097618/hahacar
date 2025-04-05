@@ -1,9 +1,10 @@
 #sqlalchemy是一个Python SQL工具包和ORM框架，用于数据库访问
-import datetime
+from datetime import datetime, timezone
 import enum
 import os
 import sys
 from sqlalchemy import Column, Integer, String, Boolean, Enum, DateTime
+from sqlalchemy.orm import relationship
 
 # 获取项目根目录
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -33,7 +34,7 @@ class User(Base):
     """
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=True)
     password_hash = Column(String, nullable=False)
@@ -42,4 +43,8 @@ class User(Base):
     first_login = Column(Boolean, default=True)
     real_name = Column(String, default="")
     style = Column(Enum("1", "2", "3", name="style_enum"), default="1")  # 限定枚举值
-    created_at = Column(DateTime, default=lambda: datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    user_remark = Column(String, default="")  # 新增字段：用户备注
+
+    # 反向关系：一个用户可以关联多个摄像头
+    user_cameras = relationship("UserCamera", back_populates="user")

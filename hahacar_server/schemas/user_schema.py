@@ -1,6 +1,6 @@
 #SQLAlchemy 的 ORM 模型 适用于数据库，但不能直接用于 API 请求/响应
 #定义Pydantic模型，用于请求和响应的数据格式的数据传输
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr, Field
@@ -129,3 +129,46 @@ class Exception(BaseModel):
     data: Optional[Any]  # `data` 可以是任何数据类型，例如 UserResponse
 
 
+class UpdateUserRequest(BaseModel):
+    username: str
+    realName: str
+    userRemark: str
+    userId: str
+    privilege: int
+
+class UpdateUserResponse(BaseModel):
+    code: str
+    msg: str
+    data: dict
+
+class CameraInfo(BaseModel):
+    cameraId: str
+    cameraName: str
+
+class CameraData(BaseModel):
+    cameras: List[CameraInfo]
+
+class GetUserCameraPrivilegeResponse(BaseModel):
+    code: str
+    data: CameraData
+    msg: str
+
+
+class AddUserRequest(BaseModel):
+    username: str
+    realName: str
+    userRemark: str
+    privilege: int
+
+class AddUserResponse(BaseModel):
+    code: str
+    msg: str
+    data: dict
+
+class DeleteUserRequest(BaseModel):
+    userId: str
+
+class DeleteUserResponse(BaseModel):
+    code: str
+    msg: str
+    data: dict
