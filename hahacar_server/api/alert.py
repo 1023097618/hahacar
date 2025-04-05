@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Header
 from sqlalchemy.orm import Session
 
 from core.security import verify_jwt_token
@@ -38,15 +38,14 @@ def get_alerts_api(
 
 
 @router.post("/alert/processAlert")
-def process_alert_api(request:ProcessAlertRequest,token:str,db:Session=Depends(get_db)):
-    payload = verify_jwt_token(token)
+def process_alert_api(alertId: str,
+                      x_hahacar_token: str = Header(..., alias="X-Hahacar-Token"),
+                        db:Session=Depends(get_db)):
+    payload = verify_jwt_token(x_hahacar_token)
     if not payload or not payload.get("is_admin"):
-        return verify_jwt_token(token)
-    return processAlert(db, request)
+        return verify_jwt_token(x_hahacar_token)
+    return processAlert(db, alertId)
 
-"""
-    **时间精度问题导致输入准确的世家按无法返回该时间上的数据**
-"""
 
 @router.get("/stat/alert/searchAlertNum")
 def get_alert_count_api(db:Session=Depends(get_db),timeFrom: Optional[str] = Query(None),

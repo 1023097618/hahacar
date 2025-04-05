@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from models.alert import Alert
 from schemas.alert_schema import *
 
-
+domain = "http://localhost:8081"
 
 def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert_type: int,alert_start_time, alert_end_time, alert_processed_time, alert_image, rule_type: str, rule_remark: str):
     # 查询是否已有该预警
@@ -62,20 +62,55 @@ def getAlerts(db:Session, request:GetAlertsRequest):
     if request.cameraId:
         query = query.filter(Alert.camera_id == request.cameraId)
     if request.alertStartTimeFrom:
+        # 对时间参数进行解码（如果前端传递的是 URL 编码的字符串）
+        decoded_start = unquote(request.alertStartTimeFrom)
         query = query.filter(
-            Alert.alert_start_time >= datetime.strptime(request.alertStartTimeFrom, "%Y-%m-%d %H:%M:%S"))
+            Alert.alert_start_time >= datetime.strptime(decoded_start, "%Y-%m-%d %H:%M:%S"))
     if request.alertStartTimeTo:
-        query = query.filter(Alert.alert_start_time <= datetime.strptime(request.alertStartTimeTo, "%Y-%m-%d %H:%M:%S"))
+        decoded_end = unquote(request.alertStartTimeTo)
+        query = query.filter(Alert.alert_start_time <= datetime.strptime(decoded_end, "%Y-%m-%d %H:%M:%S"))
     if request.alertId:
-        query = query.filter(Alert.id == request.alertId)
+        query = query.filter(Alert.alert_id == request.alertId)
 
-    alerts = query.offset((int(request.pageNum) - 1) * int(request.pageSize)).limit(int(request.pageSize)).all()
+    # 查询总数量（用于分页显示）
+    total_count = query.count()
 
-    return {"code": "200", "msg": "success", "data": {"alerts": alerts}}
+    # 分页查询
+    alerts_paginated = query.offset((int(request.pageNum) - 1) * int(request.pageSize)) \
+        .limit(int(request.pageSize)) \
+        .all()
+
+    alerts_list = []
+    for alert in alerts_paginated:
+        if alert is None:
+            continue
+        alerts_list.append({
+            "alertId": str(alert.alert_id),
+            "cameraId": str(alert.camera_id),
+            "cameraName": alert.camera_name if alert.camera_name else "",
+            "alertType": str(alert.alert_type),  # 1: 正在发生, 2: 已经发生, 3: 已经结束
+            "alertStartTime": alert.alert_start_time.strftime("%Y-%m-%d %H:%M:%S") if alert.alert_start_time else "",
+            "alertEndTime": alert.alert_end_time.strftime("%Y-%m-%d %H:%M:%S") if alert.alert_end_time else None,
+            "alertProcessedTime": alert.alert_processed_time.strftime(
+                "%Y-%m-%d %H:%M:%S") if alert.alert_processed_time else None,
+            "alertImage": f"{domain}/static/alerts/on/{alert.alert_image}" if alert.alert_image else "",           #构造图片的可访问路径
+            "ruleType": alert.rule_type if alert.rule_type else "",
+            "ruleRemark": alert.rule_remark if alert.rule_remark else ""
+        })
+
+    return {
+        "code": "200",
+        "msg": "success",
+        "data": {
+            "alerts": alerts_list,
+            "alertNum": str(total_count)
+        }
+    }
+
 
 #处理一条预警，将状态设为“已结束”
-def processAlert(db:Session, request: ProcessAlertRequest):
-    alert = db.query(Alert).filter(Alert.id == request.alertId).first()
+def processAlert(db:Session, alertId:str):
+    alert = db.query(Alert).filter(Alert.alert_id == alertId).first()
     if not alert:
         return {"code": "400", "msg": "alert not found", "data": {}}
     if alert.alert_type == '3':

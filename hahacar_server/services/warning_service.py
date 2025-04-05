@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import datetime, time
 
@@ -5,6 +6,13 @@ import cv2
 
 from api.socket_manager import sio
 from services.alerts_service import saveAlert
+from fastapi.staticfiles import StaticFiles
+
+
+# 获取当前工作目录，并构造保存路径，当前目录/alerts/on
+base_dir = os.getcwd()
+save_dir = os.path.join(base_dir, "alerts", "on")
+os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
 
 
 async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_id: str, car_category_names: list, frame, db, camera_id: str, camera_name: str, vehicle_warning_state: dict, vehicle_alert_start_time: dict, vehicle_clear_count: dict, clearThreshold: int,alert_image):
@@ -26,7 +34,13 @@ async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera
                 if vehicle not in vehicle_warning_state:
                     new_alert_id = str(uuid.uuid4())
                     alert_image = f"{new_alert_id}.jpg"
-                    cv2.imwrite(f"/alerts/on/{alert_image}", frame)
+                    save_path = os.path.join(save_dir, alert_image)
+                    print(f"图片保存地址：{save_path}")
+                    success = cv2.imwrite(save_path, frame)
+                    if not success:
+                        # 保存失败的处理逻辑
+                        print("图片保存失败！")
+                    # cv2.imwrite(f"/alerts/on/{alert_image}", frame)
                     rule_type = "1"
                     rule_remark = f"检测到违规车辆: {vehicle}"
                     saveAlert(db, new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
@@ -107,7 +121,13 @@ async def process_traffic_flow_warning(
             new_alert_id = str(uuid.uuid4());
             print(type(warning_start_time))
             alert_image = f"{new_alert_id}.jpg"
-            cv2.imwrite(f"/alerts/on/{alert_image}", frame)
+            save_path = os.path.join(save_dir, alert_image)
+            print(f"图片保存地址：{save_path}")
+            success = cv2.imwrite(save_path, frame)
+            if not success:
+                # 保存失败的处理逻辑
+                print("图片保存失败！")
+            # cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
             saveAlert(db,
                       new_alert_id, 
@@ -214,7 +234,13 @@ async def process_vehicle_congestion_warning(
             warning_start_time = current_time
             new_alert_id = str(uuid.uuid4())
             alert_image = f"{new_alert_id}.jpg"
-            cv2.imwrite(f"/alerts/on/{alert_image}", frame)
+            save_path = os.path.join(save_dir, alert_image)
+            print(f"图片保存地址：{save_path}")
+            success = cv2.imwrite(save_path, frame)
+            if not success:
+                # 保存失败的处理逻辑
+                print("图片保存失败！")
+            # cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
             saveAlert(db, 
                       new_alert_id, 
@@ -332,7 +358,13 @@ async def process_vehicle_reservation_warning(
                     # **触发预约违规预警**
                     alert_id = str(uuid.uuid4())
                     alert_image = f"{alert_id}.jpg"
-                    cv2.imwrite(f"/alerts/on/{alert_image}", frame)
+                    save_path = os.path.join(save_dir, alert_image)
+                    print(f"图片保存地址：{save_path}")
+                    success = cv2.imwrite(save_path, frame)
+                    if not success:
+                        # 保存失败的处理逻辑
+                        print("图片保存失败！")
+                    # cv2.imwrite(f"/alerts/on/{alert_image}", frame)
 
                     rule_type = "4"
                     rule_remark = f"🚨 预约车辆违规 - 车牌: {vehicle_no}, 行进至未授权线路 {line_id} (上次检测线: {previous_line})"
@@ -380,7 +412,13 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
         # 事故发生，生成唯一 ID
         alert_id = str(uuid.uuid4())
         alert_image = f"{alert_id}.jpg"
-        cv2.imwrite(f"/alerts/on/accident/{alert_image}", frame)
+        save_path = os.path.join(save_dir, alert_image)
+        print(f"图片保存地址：{save_path}")
+        success = cv2.imwrite(save_path, frame)
+        if not success:
+            # 保存失败的处理逻辑
+            print("图片保存失败！")
+        # cv2.imwrite(f"/alerts/on/accident/{alert_image}", frame)
 
         # 获取最高事故置信度
         max_accident_confidence = max(accident_conf)

@@ -59,6 +59,7 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 os.makedirs(INFO_DIR, exist_ok=True)
 
 
+
 #获取label_id 和 label_name 的映射关系
 def get_label_mapping(db: Session) -> dict:
     labelsResponse = getLabels(db)

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import threading
 import uvicorn;
 from contextlib import asynccontextmanager
@@ -21,8 +22,12 @@ from api.alert import router as alert
 from api.camera_line import router as camera_line
 from api.label import router as label
 
-from dependencies.database import get_db
+from dependencies.database import get_db, SessionLocal
 from services.camera_service import get_all_camera_ids
+from fastapi.staticfiles import StaticFiles
+
+from services.camera_status_service import refresh_camera_status
+
 
 # logging.getLogger("sqlalchemy").setLevel(logging.ERROR);
 
@@ -35,12 +40,35 @@ async def lifespan(app: FastAPI):
     # 为每个摄像头创建独立的后台任务
     for camera_id in camera_ids:
         asyncio.create_task(background_camera_task(camera_id))
-    
+
+    # 2) 定义一个定时协程，用来周期性刷新 camera_status
+    stop_refresh = False
+
+    async def periodic_refresh():
+        while not stop_refresh:
+            # 每 60 秒执行一次
+            await asyncio.sleep(60)
+
+            # 在刷新前打开/关闭一个会话
+            with SessionLocal() as dbsession:
+                # 调用 refresh_camera_status：对比数据库最新状态与当前 camera_status
+                refresh_camera_status(dbsession)
+
+    # 启动周期任务
+    task = asyncio.create_task(periodic_refresh())
     # 启动逻辑完成后，yield 让应用进入运行状态
     yield
 
     # 可在此添加关闭时的清理工作（如果需要）
     # 例如：关闭数据库连接、停止后台任务等
+    # 应用关闭时
+    stop_refresh = True
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
 
 # 挂载 socket.io 到 ASGI 应用
 socket_app = socketio.ASGIApp(sio)
@@ -56,6 +84,14 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有 HTTP 方法
     allow_headers=["*"],  # 允许所有请求头
 )
+
+# 获取当前工作目录，并构造保存路径，当前目录/alerts/on
+base_dir = os.getcwd()
+save_dir = os.path.join(base_dir, "alerts", "on")
+# os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
+
+# 将本地的 save_dir 映射为 URL 路径 /static/alerts/on
+app.mount("/static/alerts/on", StaticFiles(directory=save_dir), name="alerts_on")
 
 # 挂载 socket.io 路由
 app.mount("/socket.io", socket_app)
