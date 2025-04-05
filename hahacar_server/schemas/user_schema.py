@@ -172,3 +172,13 @@ class DeleteUserResponse(BaseModel):
     code: str
     msg: str
     data: dict
+
+
+class UpdateUserCameraPrivilegeRequest(BaseModel):
+    userId: str
+    cameras: List[str]
+
+class UpdateUserCameraPrivilegeResponse(BaseModel):
+    code: str
+    msg: str
+    data: dict

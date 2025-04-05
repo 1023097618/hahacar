@@ -289,3 +289,25 @@ def delete_user(
         raise HTTPException(status_code=400, detail=str(e))
 
     return DeleteUserResponse(code="200", msg="User deleted successfully", data={})
+
+
+@router.post("/user/updateUserCameraPrivilege", response_model=UpdateUserCameraPrivilegeResponse)
+def update_user_camera_privilege(
+        req: UpdateUserCameraPrivilegeRequest,
+        X_HAHACAR_TOKEN: str = Header(..., alias="X-HAHACAR-TOKEN"),
+        db: Session = Depends(get_db)
+):
+    payload = verify_jwt_token(X_HAHACAR_TOKEN)
+    if not payload or not payload.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Only admin can update user camera privileges")
+
+    try:
+        update_user_camera_privilege_service(user_id=req.userId, cameras=req.cameras, db=db)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return UpdateUserCameraPrivilegeResponse(
+        code="200",
+        msg="User camera privileges updated successfully",
+        data={}
+    )

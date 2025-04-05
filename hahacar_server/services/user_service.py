@@ -5,10 +5,12 @@
 import os
 import sys
 from http.client import HTTPException
+from typing import List
 
 from fastapi import Header
 from sqlalchemy.orm import Session
 
+from models.camera import Camera
 from models.user_camera import UserCamera
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -244,4 +246,33 @@ def delete_user_service(user_id: str, db: Session):
         raise Exception("User not found")
 
     db.delete(user)
+    db.commit()
+
+
+def update_user_camera_privilege_service(user_id: str, cameras: List[str], db: Session):
+    # 将 user_id 转换为整数，假定 User.id 为整数类型
+    try:
+        user_id_int = int(user_id)
+    except ValueError:
+        raise Exception("Invalid userId format")
+
+    # 检查用户是否存在
+    user = db.query(User).filter(User.id == user_id_int).first()
+    if not user:
+        raise Exception("User not found")
+
+    # 校验传入的每个摄像头 id 是否存在
+    for camera_id in cameras:
+        cam = db.query(Camera).filter(Camera.id == camera_id).first()
+        if not cam:
+            raise Exception(f"Camera id {camera_id} does not exist")
+
+    # 删除该用户原有的摄像头权限记录
+    db.query(UserCamera).filter(UserCamera.user_id == user_id_int).delete()
+
+    # 插入新的摄像头权限记录
+    for camera_id in cameras:
+        new_record = UserCamera(user_id=user_id_int, camera_id=camera_id)
+        db.add(new_record)
+
     db.commit()
