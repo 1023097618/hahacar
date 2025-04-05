@@ -67,7 +67,8 @@ def get_cameras(db: Session, token: str, pageNum: int, pageSize: int, cameraName
                 "cameraId": cam.id,
                 # "cameraLiveStreamPreviewURL": cam.cameraURL,
                 "cameraLocation": cam.cameraLocation.split(","),
-                "cameraName": cam.cameraName
+                "cameraName": cam.cameraName,
+                "cameraURL":cam.cameraURL
             }
             for cam in cameras
         ],
