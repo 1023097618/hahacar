@@ -18,11 +18,13 @@ from sqlalchemy.orm import Session
 from api.camera import authenticate_admin
 from core.security import verify_jwt_token
 from dependencies.database import get_db;
+from models.alert import Alert
 from services.alerts_service import saveAlert
 from services.camera_detect_info_service import save_to_camera_detect_info
 from services.camera_line_service import get_camera_line
 from services.camera_rule_service import getCameraRule
 from services.camera_service import get_camera_url, get_camera_name_by_id
+from services.camera_status_service import update_camera_status
 from services.car_through_route_service import saveCarThroughFixedRoute, get_all_car_no
 from services.labels_service import getLabels
 from services.user_service import is_admin
@@ -536,14 +538,42 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         clearAccidentThreshold = 3  # N 个时间窗口内未检测到事故才解除报警
         accident_threshold = 0.8  # 事故置信度阈值（可调整）
 
+        # 定义全局数据结构
+        last_success_time = {}  # {camera_id: timestamp_of_last_success}
+        fail_count = {}  # {camera_id: 0}
+
+        MAX_FAIL_COUNT = 5
+        OFFLINE_THRESHOLD_SECS = 20
+
+        old_online_state = False
+
         while True:
             # 将阻塞的 fetch_frame 调用放入线程中执行
             frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
+
+            # 2) 判断是否有进行中的预警(如 alert_type='1')
+            ongoing_alert = db.query(Alert).filter(
+                Alert.camera_id == camera_id,
+                Alert.alert_type == '1'
+            ).first()
+            has_alert = True if ongoing_alert else False
+
             # frame, current_time = fetch_frame(source_url, cap);
             if frame is None:
+                fail_count[camera_id] += 1
+                if fail_count[camera_id] >= MAX_FAIL_COUNT:
+                    # offline
+                    if old_online_state:  # 如果之前是online
+                        old_online_state = False
+                        await update_camera_status(camera_id, new_online=False, new_alert=has_alert)
                 await asyncio.sleep(0.1);
                 continue
 
+            fail_count[camera_id] = 0
+            last_success_time[camera_id] = current_time
+            if not old_online_state:  # 如果之前是offline
+                old_online_state = True
+                await update_camera_status(camera_id, new_online=True, new_alert=has_alert)
 
             # 根据获取的检测线数据构造 hitBars 对象
             if not hitBars:

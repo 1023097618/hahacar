@@ -39,7 +39,7 @@ def get_alerts_api(
 
 @router.post("/alert/processAlert")
 def process_alert_api(alertId: str,
-                      x_hahacar_token: str = Header(..., alias="X-Hahacar-Token"),
+                      x_hahacar_token: str = Header(..., alias="X-HAHACAR-TOKEN"),
                         db:Session=Depends(get_db)):
     payload = verify_jwt_token(x_hahacar_token)
     if not payload or not payload.get("is_admin"):

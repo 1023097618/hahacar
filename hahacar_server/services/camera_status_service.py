@@ -20,7 +20,7 @@ def build_camera_status(db: Session) -> dict:
     camera_status = {}
 
     # 1) 查询所有摄像头
-    cameras = db.query(Camera).all()
+    cameras = db.query(Camera).distinct().all()
 
     for cam in cameras:
         camera_id = cam.id
@@ -35,7 +35,7 @@ def build_camera_status(db: Session) -> dict:
 
         # 3) 填充到 camera_status 字典
         camera_status[camera_id] = {
-            "online": cam.online,   # 来自摄像头表
+            "online": False,   # 默认不上线
             "alert": has_alert      # 是否有进行中预警
         }
 
@@ -66,7 +66,8 @@ async def connect(sid, environ):
         })
 
     await sio.emit("cameraSituation", camera_list, room=sid)
-def update_camera_status(camera_id: str, new_online: bool, new_alert: bool):
+
+async def update_camera_status(camera_id: str, new_online: bool, new_alert: bool):
     """
     当摄像头状态发生变更时调用：
     - 更新 camera_status
@@ -83,7 +84,7 @@ def update_camera_status(camera_id: str, new_online: bool, new_alert: bool):
         "alert": new_alert
     }
     # 给所有已连接的客户端发送状态变更
-    sio.emit("cameraSituation", payload)
+    await sio.emit("cameraSituation", payload)
     # 或:
     # sio.emit("cameraStatusChanged", payload, broadcast=True)
     # (两者效果相同，都广播给所有房间/客户端)
@@ -107,7 +108,7 @@ def refresh_camera_status(db: Session):
 
         # 3) 比对
         old_status = camera_status.get(camera_id, {"online": None, "alert": None})
-        new_online = cam.online
+        new_online = old_status["online"]
         new_alert = has_alert
 
         # 如果有变化，就更新并推送
