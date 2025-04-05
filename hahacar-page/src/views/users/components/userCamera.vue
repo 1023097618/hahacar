@@ -178,7 +178,7 @@ export default {
       })
         .then(response => {
           // 根据接口返回的 code 判断成功与否
-          if (response && response.data.code === 'string') {
+          if (response && response.data.code === '200') {
             this.$message.success('更新摄像头权限成功');
             this.closeDialog();
           } else {
