@@ -79,13 +79,8 @@ def calculate_traffic_volume_hold(detailedResult: dict, labels_equal_hold_ids: d
         label_mapping.get(labelId, labelId): value  # 如果 labelId 不在映射中，则保留原值
         for labelId, value in labels_equal_hold_ids.items()
     }
-    inverted_mapping = {
-            value: label_mapping.get(labelId, labelId)
-            for labelId, value in labels_equal_hold_ids.items()
-        }
 
     for label, count in detailedResult.get("count", {}).items():
-        label = inverted_mapping.get(label, label)
         if label in labels_equal_hold_names:                              #这里好像对不上一个是id，一个是labelname————————
             hold_volume += count * int(labels_equal_hold_names[label])
 
