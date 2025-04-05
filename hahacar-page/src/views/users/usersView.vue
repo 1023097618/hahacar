@@ -210,11 +210,11 @@ export default {
     handleUpdate(row) {
       // 将选中行数据复制到表单
       this.dataForm = Object.assign({}, {
-        userId: row.userId,
-        username: row.username,
-        realName: row.realName,
-        privilege: row.privilege,
-        userRemark: row.userRemark
+        userId: row.userId || '',
+        username: row.username || '',
+        realName: row.realName || '',
+        privilege: row.privilege || '',
+        userRemark: row.userRemark || ''
       })
       this.dialogStatus = 'update'
       this.dialogFormVisible = true
