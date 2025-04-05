@@ -7,10 +7,18 @@
         <!-- 右侧预警信息滚动区域 -->
         <el-col :span="8" style="height: 100%;">
             <div class="alert-container">
-                <div v-for="(alert, index) in alertMessages" :key="index" class="alert-message">
-                    <!-- 使用 fasticon 显示预警图标 -->
+                <div
+                    v-for="(alert, index) in alertMessages"
+                    :key="index"
+                    class="alert-message"
+                    @click="goToAlert(alert.alertId)"
+                >
+
                     <i class="fas fa-exclamation-triangle"></i>
-                    <span>{{ alert.cameraName }} (预警ID：{{ alert.alertId }})</span>
+                    <div class="alert-info">
+                        <p class="alert-camera">{{ alert.cameraName }}</p>
+                        <p class="alert-rule">{{ alert.ruleRemark }}</p>
+                    </div>
                 </div>
             </div>
         </el-col>
@@ -155,6 +163,9 @@
                     .catch((error) => {
                         console.error('地图加载出错:', error)
                     })
+            },
+            goToAlert(alertId) {
+                this.$router.push({ path: '/alertList', query: { alertId } });
             }
         }
     }
@@ -167,11 +178,35 @@
         overflow-y: auto;
         padding: 10px;
         border-left: 1px solid #ebeef5;
+        background-color: #f9f9f9;
     }
-
     .alert-message {
         margin-bottom: 10px;
+        padding: 10px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         display: flex;
         align-items: center;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    .alert-message:hover {
+        background-color: #f0f0f0;
+    }
+    .alert-message i {
+        font-size: 20px;
+        color: #e74c3c;
+        margin-right: 10px;
+    }
+    .alert-info p {
+        margin: 0;
+        line-height: 1.4;
+    }
+    .alert-camera {
+        font-weight: bold;
+    }
+    .alert-rule {
+        color: #555;
     }
 </style>

@@ -175,7 +175,10 @@ export default {
     }
   },
   created() {
-    // 如果路由参数中存在 alertType，则赋值给 listQuery
+    // 如果路由参数中存在 alertType或者alertId，则赋值给 listQuery
+    if (this.$route.query.alertId) {
+        this.listQuery.alertId = this.$route.query.alertId
+    }
     if (this.$route.query.alertType) {
       this.listQuery.alertType = Array.isArray(this.$route.query.alertType)
         ? this.$route.query.alertType

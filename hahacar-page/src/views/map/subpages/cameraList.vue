@@ -3,10 +3,15 @@
   
       <!-- 摄像头列表 -->
       <div class="camera-grid">
-        <div class="camera-item" v-for="camera in cameras" :key="camera.cameraId">
+        <div class="camera-item" v-for="(camera, index) in paddedCameras" :key="index">
           <!-- HTTP JPEG STREAM 的摄像头画面 -->
-          <img :src="GetCameraLiveURL(camera.cameraId,'preview')" :alt="camera.cameraName" class="camera-feed" @click.stop.prevent="OpenDetail(camera)"/>
-          <div class="camera-name">{{ camera.cameraName }}</div>
+          <div v-if="camera">
+            <img :src="GetCameraLiveURL(camera.cameraId,'preview')" :alt="camera.cameraName" class="camera-feed" @click.stop.prevent="OpenDetail(camera)"/>
+            <div class="camera-name">{{ camera.cameraName }}</div>
+          </div>
+          <div v-else class="empty-slot">
+            暂无摄像头
+          </div>
         </div>
       </div>
   
@@ -58,7 +63,14 @@
       },
       token(){
         return this.$store.getters.token
-      }
+      },
+      paddedCameras() {
+        const arr = this.cameras.slice(); // 拷贝数组
+        while (arr.length < this.pageSize) {
+          arr.push(null);
+        }
+        return arr;
+      },
     },
     methods: {
       goBack() {
@@ -106,77 +118,82 @@
   </script>
   
   <style scoped>
-  .camera-page {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-  }
-  
-
-  
-
-  
-
-
-  
-  /* 摄像头列表网格 */
-  .camera-grid {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    padding: 20px;
-    gap: 20px;
-    overflow-y: auto;
-  }
-  
-  .camera-item {
-    background: var(--sideBarColor);
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: calc(33.33% - 20px); /* 每行 3 个 */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .camera-feed {
-    width: 100%;
-    /* 如果需要固定画面尺寸，可以设置 height: 200px; object-fit: cover; */
-  }
-  
-  .camera-name {
-    padding: 10px;
-    font-size: 14px;
-    text-align: center;
-  }
-  
-  /* 分页样式 */
-  .pagination {
-    height: 50px;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-top: 1px solid #ddd;
-  }
-  
-  .pagination button {
-    margin: 0 10px;
-    padding: 5px 10px;
-    cursor: pointer;
-  }
-  
-  .page-number {
-    margin: 0 5px;
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 3px;
-  }
-  
-  .page-number.active {
-    background-color: #081737;
-    color: #fff;
-  }
-  </style>
+    .camera-page {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    /* 摄像头列表网格 */
+    .camera-grid {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      padding: 20px;
+      gap: 20px;
+      overflow-y: auto;
+    }
+    
+    .camera-item {
+      /* 保持2列布局 */
+      width: calc(50% - 20px);
+      background: var(--sideBarColor);
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    /* 摄像头预览图片 */
+    .camera-feed {
+      width: 100%;
+      height: 250px; /* 固定高度 */
+      object-fit: cover;
+    }
+    
+    /* 摄像头名称 */
+    .camera-name {
+      padding: 10px;
+      font-size: 14px;
+      text-align: center;
+    }
+    
+    /* 空白占位项 */
+    .empty-slot {
+      width: 100%;
+      height: 250px;
+      background: #f0f0f0; /* 占位背景色 */
+    }
+    
+    /* 分页样式 */
+    .pagination {
+      height: 50px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-top: 1px solid #ddd;
+    }
+    
+    .pagination button {
+      margin: 0 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    
+    .page-number {
+      margin: 0 5px;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 3px;
+    }
+    
+    .page-number.active {
+      background-color: #081737;
+      color: #fff;
+    }
+    </style>
+    
   
