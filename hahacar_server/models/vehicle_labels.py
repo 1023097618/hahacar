@@ -7,4 +7,4 @@ class VehicleLabel(Base):
 
     label_id = Column(String, primary_key=True, index=True)
     label_name = Column(String, unique=True)
-    label_equal = Column(String)
+    default_equal = Column(String)

@@ -1,3 +1,5 @@
+from urllib.parse import unquote
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -85,26 +87,36 @@ def processAlert(db:Session, request: ProcessAlertRequest):
 #获取预警信息数量
 
 """
-    **这里返回的alert_time和timefrom以及timeto的关系不很清楚
+    **这里返回的alert_time和ti清mefrom以及timeto的关系不很楚
 """
 def getAlertNum(db:Session,request: GetAlertCountRequest):
     # **计算 AlertTime 逻辑**
-    if request.timeFrom:
-        alert_time = request.timeFrom  # 如果提供了 timeFrom，则直接使用
+    if request.timeFrom:                #这里用起始时间吗？------
+        decoded_time_from = unquote(request.timeFrom)
+        alert_time = decoded_time_from  # 返回时用解码后的时间
     else:
-        alert_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 否则取当前时间
+        alert_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 否则取当前时间？------
 
-    query = db.query(func.count(Alert.id).label("alert_count"))  # 计算 Alert 表中的数量
+    query = db.query(func.count(Alert.alert_id).label("alert_count"))  # 计算 Alert 表中的数量
 
     if request.cameraId:
         query = query.filter(Alert.camera_id == request.cameraId)
     if request.timeFrom:
         query = query.filter(
-            Alert.alert_start_time >= datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S"))
+            Alert.alert_start_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
     if request.timeTo:
-        query = query.filter(Alert.alert_end_time <= datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S"))
+        time_to_str = unquote(request.timeTo)
+        query = query.filter(Alert.alert_end_time <= datetime.strptime(time_to_str, "%Y-%m-%d %H:%M:%S"))
 
     alert_num = query.scalar()
 
 
-    return {"code": "200", "msg": "success", "data": {"AlertTime": alert_time,"AlertNum": str(alert_num)}}
+    return {
+        "code": "200",
+        "msg": "success",
+        "data": {
+                "alerts":[{
+                    "AlertTime": alert_time, "AlertNum": str(alert_num)
+                }]
+        }
+    }

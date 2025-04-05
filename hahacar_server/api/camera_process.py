@@ -485,7 +485,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         interval = 0.5 if source_url.startswith("http") and not source_url.endswith("video.mjpg") else 0.03  # **HTTP 轮询间隔 / RTSP 直播流帧率**
         db = get_db();
         camera_name = get_camera_name_by_id(db,camera_id)
-        time_window = 10
+        time_window = 60
         traffic_data = []  # 存储 (time, hold_volume, flow_volume)
         label_map = get_label_mapping(db)
         start_time = t.time();
@@ -537,8 +537,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         while True:
             # 将阻塞的 fetch_frame 调用放入线程中执行
-            # frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
-            frame, current_time = fetch_frame(source_url, cap);
+            frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
+            # frame, current_time = fetch_frame(source_url, cap);
             if frame is None:
                 await asyncio.sleep(0.1);
                 continue

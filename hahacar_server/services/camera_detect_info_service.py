@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from urllib.parse import unquote
 
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -108,9 +109,11 @@ def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
     )
 
     if request.timeFrom:
-        query = query.filter(camera_detect_info.detected_flow_time >= datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_from = unquote(request.timeFrom)
+        query = query.filter(camera_detect_info.detected_flow_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
     if request.timeTo:
-        query = query.filter(camera_detect_info.detected_flow_time <= datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_to = unquote(request.timeTo)
+        query = query.filter(camera_detect_info.detected_flow_time <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
     if request.cameraId:
         query = query.filter(camera_detect_info.camera_id == request.cameraId)
     if request.cameraLineId:
@@ -231,9 +234,11 @@ def get_traffic_hold(db: Session,request: GetTrafficHoldRequest):
     )
 
     if request.timeFrom:
-        query = query.filter(camera_detect_info.detected_hold_time >= datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_from = unquote(request.timeFrom)
+        query = query.filter(camera_detect_info.detected_hold_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
     if request.timeTo:
-        query = query.filter(camera_detect_info.detected_hold_time <= datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_to = unquote(request.timeTo)
+        query = query.filter(camera_detect_info.detected_hold_time <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
     if request.cameraId:
         query = query.filter(camera_detect_info.camera_id == request.cameraId)
 
@@ -250,9 +255,11 @@ def get_traffic_hold(db: Session,request: GetTrafficHoldRequest):
 def get_vehicle_labels(db: Session,request: GetVehicleLabelRequest):
     query = db.query(camera_detect_info.detected_cars_labels).filter(camera_detect_info.detected_cars_labels !=None)
     if request.timeFrom:
-        query = query.filter(camera_detect_info.created_at >= datetime.strptime(request.timeFrom, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_from = unquote(request.timeFrom)
+        query = query.filter(camera_detect_info.created_at >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
     if request.timeTo:
-        query = query.filter(camera_detect_info.created_at <= datetime.strptime(request.timeTo, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_to = unquote(request.timeTo)
+        query = query.filter(camera_detect_info.created_at <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
     if request.cameraId:
         query = query.filter(camera_detect_info.camera_id == request.cameraId)
 
