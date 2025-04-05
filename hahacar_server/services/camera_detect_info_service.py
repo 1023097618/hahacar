@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import unquote
 
 from sqlalchemy import func, text
@@ -54,38 +54,54 @@ def save_to_camera_detect_info(db:Session, camera_id, avg_hold_volume, avg_flow_
 
 
 
-def save_vehicle_labels(db:Session,request: VehicleLabelSaveRequest):
-    new_data = camera_detect_info(
-        camera_id=request.cameraId,
-        #detected_cars_label是包含labelName和labelNum的用于记录一段时间内所有车的类别和不同类别车的数量的json数据
-        detected_cars_labels=request.detected_cars_labels,
-        created_at=datetime.utcnow()
-    )
-    db.add(new_data)
-    db.commit()
-    return {"code": "200", "msg": "save success", "data": {}}
+# def save_vehicle_labels(db:Session,request: VehicleLabelSaveRequest):
+#     new_data = camera_detect_info(
+#         camera_id=request.cameraId,
+#         #detected_cars_label是包含labelName和labelNum的用于记录一段时间内所有车的类别和不同类别车的数量的json数据
+#         detected_cars_labels=request.detected_cars_labels,
+#         created_at=datetime.utcnow()
+#     )
+#     db.add(new_data)
+#     db.commit()
+#     return {"code": "200", "msg": "save success", "data": {}}
+#
+# def save_traffic_hold(db:Session, request: TrafficHoldSaveRequest):
+#     new_data = camera_detect_info(
+#         camera_id=request.cameraId,
+#         detected_hold_num=request.holdNum,
+#         detected_hold_time=datetime.utcnow(),
+#         created_at=datetime.utcnow()
+#     )
+#     db.add(new_data)
+#     db.commit()
+#     return {"code": "200", "msg": "save success", "data": {}}
+#
+# def save_traffic_flow(db:Session,request: TrafficFlowSaveRequest):
+#     new_data = camera_detect_info(
+#         camera_id=request.cameraId,
+#         detected_flow_num=request.flowNum,
+#         detected_flow_time=datetime.utcnow(),
+#         created_at=datetime.utcnow()
+#     )
+#     db.add(new_data)
+#     db.commit()
+#     return {"code": "200", "msg": "save success", "data": {}}
 
-def save_traffic_hold(db:Session, request: TrafficHoldSaveRequest):
-    new_data = camera_detect_info(
-        camera_id=request.cameraId,
-        detected_hold_num=request.holdNum,
-        detected_hold_time=datetime.utcnow(),
-        created_at=datetime.utcnow()
-    )
-    db.add(new_data)
-    db.commit()
-    return {"code": "200", "msg": "save success", "data": {}}
-
-def save_traffic_flow(db:Session,request: TrafficFlowSaveRequest):
-    new_data = camera_detect_info(
-        camera_id=request.cameraId,
-        detected_flow_num=request.flowNum,
-        detected_flow_time=datetime.utcnow(),
-        created_at=datetime.utcnow()
-    )
-    db.add(new_data)
-    db.commit()
-    return {"code": "200", "msg": "save success", "data": {}}
+def parse_db_datetime(dt_value):
+    """
+    如果 dt_value 为字符串，尝试按预期格式解析。
+    如果已经是 datetime 对象，直接返回。
+    """
+    if isinstance(dt_value, datetime):
+        return dt_value
+    if isinstance(dt_value, str):
+        try:
+            # 如果字符串是 ISO 格式，可以直接解析
+            return datetime.fromisoformat(dt_value)
+        except ValueError:
+            # 如果不是 ISO 格式，尝试使用指定格式解析
+            return datetime.strptime(dt_value, "%b %d, %Y, %I:%M:%S %p")
+    return None
 
 
 """
@@ -97,12 +113,7 @@ def save_traffic_flow(db:Session,request: TrafficFlowSaveRequest):
 
 
 def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
-    # **如果 cameraLineId、cameraLineIdStart、cameraLineIdEnd 未提供，则查找 is_main_line=True 的检测线**
-    # if not request.cameraLineId and not request.cameraLineIdStart and not request.cameraLineIdEnd:
-    #     main_line = db.query(CameraLine.camera_line_id).filter(CameraLine.is_main_line == True).first()
-    #     if main_line:
-    #         request.cameraLineId = main_line[0]  # 获取 `camera_line_id`
-
+    # **如果 cameraLineId、cameraLineIdStart、cameraLineIdEnd 未提供，则不对检测线做限制**
     query = db.query(
         func.strftime('%Y-%m-%d %H:00:00', camera_detect_info.detected_flow_time.label("flowTime")),
         func.avg(camera_detect_info.detected_flow_num.label("flowNum"))
@@ -110,10 +121,12 @@ def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
 
     if request.timeFrom:
         decoded_time_from = unquote(request.timeFrom)
-        query = query.filter(camera_detect_info.detected_flow_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
+        query = query.filter(
+            camera_detect_info.detected_flow_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
     if request.timeTo:
         decoded_time_to = unquote(request.timeTo)
-        query = query.filter(camera_detect_info.detected_flow_time <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
+        query = query.filter(
+            camera_detect_info.detected_flow_time <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
     if request.cameraId:
         query = query.filter(camera_detect_info.camera_id == request.cameraId)
     if request.cameraLineId:
@@ -128,8 +141,19 @@ def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
 
     results = query.all()
 
-    formatted_results = [{"flowTime": record[0], "flowNum": str(record[1] if record[1] is not None else "0")} for record
-                         in results]
+    formatted_results = []
+    for record in results:
+        flow_time = record[0]
+        # 如果没有数据则视为 0
+        avg_flow = record[1] if record[1] is not None else 0
+        # 将平均流量转换为 int（这里采用四舍五入）
+        avg_flow_int = int(round(avg_flow))
+        if avg_flow_int == 0:
+            continue
+        formatted_results.append({
+            "flowTime": flow_time,
+            "flowNum": avg_flow_int
+        })
 
     return {"code": "200", "msg": "success", "data": {"flows": formatted_results}}
 

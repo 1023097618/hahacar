@@ -156,7 +156,7 @@ def fetch_frame(source_url: str, cap=None):
     """
     current_time = t.time()
 
-    # # **本地视频模式**
+    # **本地视频模式**
     # if source_url.endswith((".mp4", ".avi", ".mov")):
     #     if cap is None or not cap.isOpened():
     #         cap = cv2.VideoCapture(source_url)
