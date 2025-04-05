@@ -379,30 +379,24 @@ def process_vehicle_history(vehicle_history: dict, current_time: float, start_li
             direction = "未知"
 
         # 计算该车辆的当量
-        vehicle_type_name = sorted_records[0]["label"]                                   #这个需要从get_label_mapping，存储对应的id，----已实现
-        # 根据 label_mapping 反查对应的 labelId
-        vehicle_type_id = None
-        for key, value in label_mapping.items():
-            if value == vehicle_type_name:
-                vehicle_type_id = key
-                break
+        vehicle_type = sorted_records[0]["label"]                                   #这个需要从get_label_mapping，存储对应的id，
+        vehicle_equivalent = labels_equal_flow_names.get(vehicle_type, 1)
 
-        vehicle_equivalent = labels_equal_flow_names.get(vehicle_type_id, 1)
-
-        # 只统计 "从 start_line_id -> end_line_id" 这条路线的当量：
+        # 如果你只想统计 "从 start_line_id -> end_line_id" 这条路线的当量：
         if s_line == start_line_id and e_line == end_line_id:                           # 这里的id是hitbar解析出来的id，需要和cameralineid对应上再存--------------
             total_flow_equivalent += vehicle_equivalent
             # 保存车辆信息(无方向)
             saveCarThroughFixedRoute(
                 db,
                 vehicle_no=vehicle_no,
-                vehicle_type=vehicle_type_id,
+                vehicle_type=vehicle_type,
                 start_line=s_line,  # 实际车辆经过的起线
                 end_line=e_line,  # 实际车辆经过的终线
                 current_time=current_time,
                 camera_id = camera_id,
+                # 下面省略 direction 等字段
             )
-            print(f"已检测到车辆: {vehicle_type_name}-{vehicle_no}, 路线: {s_line}->{e_line}")
+            print(f"已检测到车辆: {vehicle_type}-{vehicle_no}, 路线: {s_line}->{e_line}")
         # **标记该车辆为已处理**
         processed_vehicles.append(vehicle_no)
 
@@ -509,13 +503,6 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             lines = camera_line_response["data"]["cameraLines"]
         else:
             print("该摄像头没有检测线")
-
-        # 获取主检测线
-        main_line_id = None
-        for i, line in enumerate(lines):
-            if line["isMainLine"]:
-                main_line_id = line["lineId"]
-                break
 
         hitBars = []
 
@@ -641,18 +628,18 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # 这里应该少了一个处理逻辑——————当起止线都存在并相等且不是主检测线的时候的车流量预警的判断——————————这个时候的targetlineid应该为起线或者止线------已解决
 
 
-            # 默认设置：若起始/终止线为空，则设为主检测线 main_line_id
+            # 默认设置：若起始/终止线为空，则设为主检测线 "0"
             if not rules["camera_start_line_id"]:
-                rules["camera_start_line_id"] = main_line_id
+                rules["camera_start_line_id"] = "0"
             if not rules["camera_end_line_id"]:
-                rules["camera_end_line_id"] = main_line_id
+                rules["camera_end_line_id"] = "0"
 
             # **判断是否起始线 == 终止线且不是主检测线**
             if rules["camera_start_line_id"] == rules["camera_end_line_id"] and rules["camera_start_line_id"] != "0":
                 target_line_id = rules["camera_start_line_id"]  # 使用该检测线
                 print(f"车流量：起止线相同，使用检测线 {target_line_id}")
             else:
-                target_line_id = main_line_id
+                target_line_id = "0"
             target_flow = flow_for_line.get(target_line_id, 0)
             print(f"目标检测线/主检测线 {target_line_id} 的 Flow 当量：", target_flow)
 
