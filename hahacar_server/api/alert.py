@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Header
+from fastapi import APIRouter, Depends, Query, Header, Body
 from sqlalchemy.orm import Session
 
 from core.security import verify_jwt_token
@@ -38,13 +38,13 @@ def get_alerts_api(
 
 
 @router.post("/alert/processAlert")
-def process_alert_api(alertId: str,
+def process_alert_api( request: ProcessAlertRequest,
                       x_hahacar_token: str = Header(..., alias="X-HAHACAR-TOKEN"),
                         db:Session=Depends(get_db)):
     payload = verify_jwt_token(x_hahacar_token)
     if not payload or not payload.get("is_admin"):
         return verify_jwt_token(x_hahacar_token)
-    return processAlert(db, alertId)
+    return processAlert(db, request.alertId)
 
 
 @router.get("/stat/alert/searchAlertNum")

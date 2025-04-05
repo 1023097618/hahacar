@@ -42,7 +42,7 @@ def build_camera_status(db: Session) -> dict:
     return camera_status
 
 @sio.event
-async def connect(sid, environ):
+async def connect(sid, environ, auth):
     """
     当客户端新连接时，发送所有摄像头的初始状态到此客户端。
     """
