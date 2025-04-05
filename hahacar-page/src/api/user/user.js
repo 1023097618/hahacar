@@ -28,7 +28,7 @@ export function deleteUser(data){
     return request({
         url:'/user/deleteUsers',
         data,
-        method:'post'
+        method:'delete'
     })
 }
 
