@@ -39,13 +39,14 @@ router = APIRouter(prefix="/api")
 # 服务器地址
 URL = "http://localhost:8081"
 
-MODEL_FOR_DETECTOR = "util/weights/yolo12s.pt";
+MODEL_FOR_DETECTOR = "util/weights/yolov8n.pt";
 
 global detectors
 detectors = {};
 
 # 全局字典，用于存储每个摄像头最新处理后的MJPEG格式帧数据，键为摄像头ID
-latest_frame = {};
+global latest_frames
+latest_frames = {}
 
 # RTSP 摄像头地址
 # RTSP_URL = "rtsp://admin:zhishidiannaoka1@192.168.1.101:10554/udp/av0_0"
@@ -132,14 +133,14 @@ def process_frame(frame,hitbars, camera_id: str):
     - np.ndarray: 处理后的帧
     """
     # 运行YOLOv8检测
-    detector = detectors.get(camera_id, Detector(MODEL_FOR_DETECTOR));
+    detector = detectors.get(camera_id, Detector(MODEL_FOR_DETECTOR))
     processedImg, detailedResult,hitBarResult = detector.detect(frame,
                                                    addingBoxes=True,
                                                    addingLabel=True,
                                                    addingConf=False,
                                                    verbosity=2,
-                                                    hitBars=hitbars);
-    detectors["camera_id"] = detector;
+                                                    hitBars=hitbars)
+    detectors[camera_id] = detector;
     return processedImg,detailedResult,hitBarResult;
 
 def fetch_frame(source_url: str, cap=None):
@@ -160,21 +161,21 @@ def fetch_frame(source_url: str, cap=None):
     current_time = t.time()
 
     # **本地视频模式**
-    # if source_url.endswith((".mp4", ".avi", ".mov")):
-    #     if cap is None or not cap.isOpened():
-    #         cap = cv2.VideoCapture(source_url)
-    #         if not cap.isOpened():
-    #             print("❌ 无法打开本地视频文件")
-    #             return None, current_time
-    #
-    #     success, frame = cap.read()
-    #     if not success:
-    #         print("❌ 读取本地视频帧失败")
-    #         return None, current_time
-    #
-    #     return frame, current_time
+    if source_url.endswith((".mp4", ".avi", ".mov")):
+        if cap is None or not cap.isOpened():
+            cap = cv2.VideoCapture(source_url)
+            if not cap.isOpened():
+                print("❌ 无法打开本地视频文件")
+                return None, current_time
 
-    if source_url.startswith("http") and not source_url.endswith("video.mjpg"):
+        success, frame = cap.read()
+        if not success:
+            print("❌ 读取本地视频帧失败")
+            return None, current_time
+
+        return frame, current_time,cap
+
+    elif source_url.startswith("http") and not source_url.endswith("video.mjpg"):
         # **HTTP 轮询模式**
         try:
             response = requests.get(source_url)
@@ -188,23 +189,23 @@ def fetch_frame(source_url: str, cap=None):
             if frame is None:
                 print("无法解码 HTTP 快照")
 
-            return frame, current_time
+            return frame, current_time,cap
         except Exception as e:
             print(f"获取 HTTP 帧失败: {e}")
-            return None, current_time
+            return None, current_time,cap
 
     elif source_url.startswith("rtsp"):
         # **RTSP 直播模式**
         if cap is None or not cap.isOpened():
             print("RTSP 视频流未打开")
-            return None, current_time
+            return None, current_time,cap
 
         success, frame = cap.read()
         if not success:
             print("RTSP 直播流丢帧，等待重试...")
-            return None, current_time
+            return None, current_time,cap
 
-        return frame, current_time
+        return frame, current_time,cap
 
     # MJPG 流模式
     elif source_url.endswith("video.mjpg"):
@@ -213,30 +214,19 @@ def fetch_frame(source_url: str, cap=None):
             cap = cv2.VideoCapture(source_url)
             if not cap.isOpened():
                 print("无法打开 MJPG 流")
-                return None, current_time
+                return None, current_time,cap
 
         success, frame = cap.read()
         current_time = t.time();
         if not success:
             print("MJPG 读取失败")
-            return None, current_time
+            return None, current_time,cap
 
-        return frame, current_time
-
-    elif source_url.endswith(".mp4"):
-        if cap is None or not cap.isOpened:
-            cap = cv2.VideoCapture(source_url);
-        success, frame = cap.read();
-        if success:
-            return frame, current_time;
-        else:
-            print("MP4 读取失败");
-            return None, current_time;
-
+        return frame, current_time,cap
 
     else:
         print("❌ 不支持的摄像头协议")
-        return None, current_time
+        return None, current_time,cap
 
 
 def build_hitBars(frame, lines: list):
@@ -452,6 +442,39 @@ def save_car_through_line(hitBarResult: list, current_time: float, camera_id: st
                     saveCarThroughFixedRoute(db, vehicle_no=vehicle_no, vehicle_type=vehicle_type_id, start_line=line_name, end_line=None, current_time=current_time, camera_id=camera_id)
 
 
+async def frame_producer(source_url: str, cap, frame_queue: asyncio.Queue):
+    """
+    持续采集摄像头帧，并放入队列中。
+    """
+    while True:
+        frame, current_time,cap= await asyncio.to_thread(fetch_frame, source_url, cap)
+        if frame is not None:
+            try:
+                frame_queue.put_nowait((frame, current_time))
+            except asyncio.QueueFull:
+                # 队列满了，丢弃当前帧，以保证实时性
+                print("队列已满，丢弃当前帧")
+        # 根据摄像头帧率适当设置采集间隔
+        await asyncio.sleep(0.03)
+
+async def frame_consumer(camera_id: str, hitBars, frame_queue: asyncio.Queue, time_window: int = 10):
+    """
+    在给定的时间窗口内从队列中取出帧并处理。
+    """
+    start_time = t.time()
+    processed_frames = []
+    while t.time() - start_time < time_window:
+        try:
+            # 尝试从队列中取出帧，等待时间可根据需要调整
+            frame, current_time = await asyncio.wait_for(frame_queue.get(), timeout=0.1)
+            processed, detailedResult, hitBarResult = process_frame(frame, hitBars, camera_id)
+            processed_frames.append((processed, detailedResult, hitBarResult, current_time))
+        except asyncio.TimeoutError:
+            # 队列为空时，继续等待
+            continue
+    return processed_frames
+
+
 #HTTP请求的方式
 async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = None):
     """
@@ -547,9 +570,33 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         old_online_state = False
 
+        # 初始化队列和启动生产者任务
+        frame_queue = asyncio.Queue(maxsize=500)
+        producer_task = asyncio.create_task(frame_producer(source_url, cap, frame_queue))
+
+        window_start = t.time()
+        save_path = "E:/study_stuff/2025_first/frameTest/"
+
         while True:
+            # # 在10秒窗口内消费并处理帧
+            # processed_frames = await frame_consumer(camera_id, hitBars, frame_queue, time_window=10)
+            # print(f"在10秒窗口内处理了 {len(processed_frames)} 帧")
+
             # 将阻塞的 fetch_frame 调用放入线程中执行
-            frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
+            # frame, current_time = await asyncio.to_thread(fetch_frame, source_url, cap)
+
+            #从队列中获取帧处理
+            try:
+                frame, current_time = await asyncio.wait_for(frame_queue.get(), timeout=0.1)
+            except asyncio.TimeoutError:
+                # 如果在0.1秒内没有新帧，跳过本次循环
+                continue
+
+            filename = f"{camera_id}_{current_time}.jpg"
+            file_path = os.path.join(save_path,filename)
+            success = cv2.imwrite(file_path, frame)
+            if not success:
+                print("保存帧失败")
 
             # 2) 判断是否有进行中的预警(如 alert_type='1')
             ongoing_alert = db.query(Alert).filter(
@@ -780,8 +827,6 @@ async def background_camera_task(camera_id: str, liveStreamType: str = None):
     后台任务：单个摄像头持续读取帧，并将最新的帧保存到全局字典中
     """
     db = get_db();
-    global latest_frames
-    latest_frames = {}
     while True:
         camera_url = get_camera_url(db, camera_id)
         if not camera_url:
@@ -830,42 +875,3 @@ async def proxy_video_feed(
         video_streamer(),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
-    # 这里要新增获取摄像头类型，根据是http还是rstp来判断使用哪种处理方法
-    # if cameraURL.startswith("http"):
-    # print(f"正在拉取 HTTP 直播流: {cameraURL}")
-    # return StreamingResponse(generate_frames(cameraURL, cameraId, liveStreamType if liveStreamType else None),
-    #                          media_type="multipart/x-mixed-replace; boundary=frame")
-    # elif cameraURL.startswith("rtsp"):
-    #
-    #     # 根据liveStreamType选择不同的流
-    #     if liveStreamType == 'full':
-    #         camera_url = f"{cameraURL}?stream=full"
-    #     else:
-    #         camera_url = f"{cameraURL}?stream=preview"
-    #
-    #     print(f"正在拉取 RTSP 直播流: {camera_url}")
-    #
-    #     return StreamingResponse(generate_frames(camera_url,cameraId), media_type="multipart/x-mixed-replace; boundary=frame")
-# **Socket.IO 端点：发送 YOLOv8 检测结果**
-@sio.event
-async def video_feed(sid):
-    """
-    **description**
-    Socket.IO 连接，实时推送 YOLOv8 目标检测结果（不包含视频流）。
-
-    **params**
-    - sid: Socket.IO 连接 ID
-
-    **returns**
-    - 实时 JSON 数据
-    """
-    print(f"Socket.IO Client connected: {sid}")
-
-    try:
-        # **调用 generate_frames() 处理帧**
-        async for frame in generate_frames():  #`async for` 以异步方式处理数据
-            # 发送处理结果
-            await sio.emit("detection", frame, room=sid)
-
-    except Exception as e:
-        print(f"Socket.IO 连接断开: {e}")

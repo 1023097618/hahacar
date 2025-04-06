@@ -23,12 +23,12 @@ ultralytics.checks();
 
 class Detector:
     """
-    
-    **Description**  
+
+    **Description**
     The Detector class encapsulates YOLOv8 inference logic and provides an interface
     to detect objects in an image, optionally draw bounding boxes, labels, confidence scores, and object counts on the image.
 
-    **Properties**  
+    **Properties**
     - `SUPPORTTED_CATEGORIES`: List[str], the whitelisted categories for detection
     - `outImg`: Optional[np.ndarray], The output image with bounding boxes, labels, etc. (if enabled).
     - `detailedResult`: Dict[str, Any], A dict containing detection data (counts, boxes, labels, confidence, etc.).
@@ -55,7 +55,7 @@ class Detector:
 
     def __init__(self, modelPath: str = "./weights/yolov8m.pt", accidentDetection: bool=True) -> None:
         """
-        **Description**  
+        **Description**
         Initializes the Detector object with a specified YOLOv8 model path.
 
         **Params**
@@ -81,8 +81,8 @@ class Detector:
         self.hitBarResults: List[Dict[str, int]] = list();
         self.accidentBoxes: List[Tuple[float, float, float, float]] = list();
         self.accidentConf: List[float] = list();
-        
-        
+
+
     def detect(
         self,
         oriImg: np.ndarray,
@@ -96,7 +96,7 @@ class Detector:
         verbosity:int = 0
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
-        **Description**  
+        **Description**
         The outer part of the detection process.
         """
         # 执行检测
@@ -111,11 +111,11 @@ class Detector:
             hitBars,
             verbosity
         );
-        
+
         # 释放资源,避免累积编号
         self._resetDetector();
         return outImg, detailedResult, hitBarResult;
-        
+
     def _detect(
         self,
         oriImg: np.ndarray,
@@ -129,8 +129,8 @@ class Detector:
         verbosity: int
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
-        **Description**  
-        Detect objects in an image using the loaded YOLOv8 model. Optionally draws 
+        **Description**
+        Detect objects in an image using the loaded YOLOv8 model. Optionally draws
         bounding boxes, labels, confidence scores, and detection counts on the image.
 
         **Params**
@@ -147,11 +147,9 @@ class Detector:
         - `outImg`: The resultant image (with bounding boxes, labels, etc. if enabled).
         - `detailedResult`: A dict containing detection data (counts, boxes, labels, confidence, etc.).
         """
-        if verbosity >= 2:
+        if verbosity == 2:
             logging.getLogger("ultralytics").setLevel(logging.WARNING);
-        else:
-            logging.getLogger("ultralytics").setLevel(logging.INFO);
-        
+
         if pallete is None:
             # 构建BGR调色板
             base_colors = sns.color_palette("bright", len(self.SUPPORTTED_CATEGORIES));
@@ -188,11 +186,11 @@ class Detector:
             self.detectedBoxes = results[0].boxes.xyxy.cpu().numpy().tolist();
             self.accidentBoxes = accidents[0].boxes.xyxy.cpu().numpy().tolist();
             self.accidentConf = accidents[0].boxes.conf.cpu().numpy().tolist();
-            
-            
+
+
             if self.accidentConf is not None:
                 for idx, confidence in enumerate(self.accidentConf):
-                    
+
                     if confidence > 0.7:
 
                         cv2.rectangle(
@@ -204,7 +202,7 @@ class Detector:
                         );
                         self.detailedResult["accidentBoxes"] = self.detailedResult.get("accidentBoxes", []);
                         self.detailedResult["accidentBoxes"].append(self.accidentBoxes[idx]);
-                        
+
                         cv2.putText(
                             self.outImg,
                             f"ACCIDENT: {confidence:.2f}",
@@ -216,23 +214,23 @@ class Detector:
                         );
                         self.detailedResult["accidentConf"] = self.detailedResult.get("accidentConf", []);
                         self.detailedResult["accidentConf"].append(self.accidentConf[idx]);
-            
-            
+
+
             try:
                 self.detectedIDs = list(map(lambda x: int(x), results[0].boxes.id.cpu().numpy().tolist()));
             except Exception as e:
                 print(f"IDs resetted as model didnot convolve in tracking.");
                 self.detectedIDs = list(range(len(self.detectedLabels)));
 
-                
-                
-                
+
+
+
             for idx, tag in enumerate(self.detectedLabels):
                 self.detectedCounts[tag] = self.detectedCounts.get(tag, 0) + 1;
                 self.numProjection[tag] = self.numProjection.get(tag, set());
                 self.numProjection[tag].add((self.detectedIDs[idx], self.detectedCounts[tag]));
-                
-                
+
+
                 box = self.detectedBoxes[idx];
                 conf_val = self.dectectedConf[idx];
                 if tag in self.SUPPORTTED_CATEGORIES:
@@ -275,7 +273,7 @@ class Detector:
                 for label in self.SUPPORTTED_CATEGORIES
             };
 
-        
+
         self.detailedResult["boxes"] = self.detectedBoxes;
         self.detailedResult["labels"] = self.detectedLabels;
         self.detailedResult["confidence"] = self.dectectedConf;
@@ -283,13 +281,13 @@ class Detector:
         self.detailedResult["IDs"] = self.detectedIDs;
         self.detailedResult["midPoints"] = self.detectedMidPoints[0];
         self.detailedResult["numProjection"] = self.numProjection;
-        
-        
+
+
         if bool(hitBars):
             for hb in hitBars:
                 self.outImg, evenBetterResults = hb.update(self.outImg, self.detailedResult);
                 self.hitBarResults.append(evenBetterResults);
-        
+
         if verbosity == 0:
             print("DetailedResult:", self.detailedResult);
             print("hitBarResult:", self.hitBarResults);
@@ -299,7 +297,7 @@ class Detector:
 
     def _resetDetector(self) -> None:
         """
-        **Description**  
+        **Description**
         Resets the detection-related internal states of this Detector object.
 
         **Params**
@@ -329,7 +327,7 @@ class Detector:
 
     def _loadModel(self, modelPath: str, accidentDetection: bool=True) -> None:
         """
-        **Description**  
+        **Description**
         Loads the YOLOv8 model from the given file path.
 
         **Params**
@@ -339,7 +337,7 @@ class Detector:
         - None
         """
         if accidentDetection:
-            self.accDetector = YOLO("./util/weights/accdetect.pt");
+            self.accDetector = YOLO("util/weights/accdetect.pt");
         self.model = YOLO(modelPath);
 
 

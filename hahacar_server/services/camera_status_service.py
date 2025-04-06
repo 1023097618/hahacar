@@ -89,7 +89,7 @@ async def update_camera_status(camera_id: str, new_online: bool, new_alert: bool
     # sio.emit("cameraStatusChanged", payload, broadcast=True)
     # (两者效果相同，都广播给所有房间/客户端)
 
-def refresh_camera_status(db: Session):
+async def refresh_camera_status(db: Session):
     """
     重新从数据库查询所有摄像头的 online / alert 状态，
     与现有 camera_status 做对比，有变更则调用 update_camera_status。
@@ -114,4 +114,4 @@ def refresh_camera_status(db: Session):
         # 如果有变化，就更新并推送
         if new_online != old_status["online"] or new_alert != old_status["alert"]:
             # 调用 update_camera_status 来广播
-            update_camera_status(camera_id, new_online, new_alert)
+            await update_camera_status(camera_id, new_online, new_alert)
