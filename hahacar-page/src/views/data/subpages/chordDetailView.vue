@@ -95,14 +95,15 @@
     },
     methods: {
       drawChordDiagram() {
-        // 如果接口数据不足则不绘制
+        // 如果接口数据不足或者检测线数量小于2，则不绘制弦图
         if (
           !this.cameraLines ||
           !this.cameraLines.length ||
           !this.flowmat ||
           !this.flowmat.length ||
           !this.labels ||
-          !this.labels.length
+          !this.labels.length ||
+          this.cameraLines.length < 2
         ) {
           return;
         }
@@ -203,7 +204,7 @@
           .attr("stroke", "#ffffff")
           .attr("stroke-width", 1)
           .style("opacity", 0.8)
-          .on("click", (event, d) => {
+          .on("click", () => {
             if (activeVehicleType !== null) {
               activeVehicleType = null;
               updateChords();
@@ -292,7 +293,7 @@
             d3.select(this).style("opacity", 0.7);
             tooltip.style("visibility", "hidden");
           })
-          .on("click", (event, d) => {
+          .on("click", () => {
             if (activeVehicleType !== null) {
               activeVehicleType = null;
               updateChords();
@@ -320,6 +321,21 @@
             }
             const groupData = chordsData.groups.find(g => g.index === i);
             if (groupData) {
+              // 如果总和为0，避免除零，直接将所有分段角度设为0
+              if (total === 0) {
+                for (let k = 0; k < vehicleTypes.length; k++) {
+                  segmentsData.push({
+                    index: i,
+                    typeIndex: k,
+                    type: vehicleTypes[k],
+                    value: 0,
+                    startAngle: groupData.startAngle,
+                    endAngle: groupData.startAngle,
+                    padAngle: groupData.padAngle
+                  });
+                }
+                continue;
+              }
               let startAngle = groupData.startAngle;
               for (let k = 0; k < vehicleTypes.length; k++) {
                 const angle = (groupData.endAngle - groupData.startAngle) * (typeValues[k] / total);
@@ -581,7 +597,6 @@
     color: #606266;
   }
 </style>
-
 
 <style>
   /* 针对 chord 图 tooltip 的样式 */
