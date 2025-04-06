@@ -83,150 +83,332 @@
         cameraOptions: [],
         cameraLines: [],
         labels: [],
-        flowmat: [], // 原始接口返回的 3D 矩阵数据
-        aggregatedMatrix: [], // 处理后的二维矩阵，每个单元格包含 { sum, details }
-        expandedRows: [] // 控制每一行展开（true 展开，false 收起）
+        flowmat: [], // 接口返回的 3D 矩阵数据
+        aggregatedMatrix: [], // 转换为表格展示的二维矩阵，每个单元包含 { sum, details }
+        expandedRows: [] // 控制每行展开与否
       };
     },
     mounted() {
-      // 初始时只渲染空的图表，不调用 getFlowMatData
-      this.updateChordChart();
+      // 初始化时绘制弦图，如果没有数据则不会渲染
+      this.drawChordDiagram();
       this.getCameraOptions();
     },
     methods: {
-      // 更新和弦图
-      updateChordChart() {
-        if (!this.$refs.chordChart) return;
-        // 清空容器
+      drawChordDiagram() {
+        // 如果接口数据不足则不绘制
+        if (
+          !this.cameraLines ||
+          !this.cameraLines.length ||
+          !this.flowmat ||
+          !this.flowmat.length ||
+          !this.labels ||
+          !this.labels.length
+        ) {
+          return;
+        }
+
+        // 清空容器内内容
         d3.select(this.$refs.chordChart).selectAll("*").remove();
 
-        // 获取容器尺寸（如未设置，则默认 400*400）
-        const width = this.$refs.chordChart.clientWidth || 400;
-        const height = this.$refs.chordChart.clientHeight || 400;
+        const container = this.$refs.chordChart;
+        const width = container.clientWidth || 800;
+        const height = container.clientHeight || 800;
+        const innerRadius = Math.min(width, height) * 0.4;
+        const outerRadius = innerRadius * 1.1;
 
-        // 适当减小外圆半径，避免文字被裁剪
-        const outerRadius = Math.min(width, height) * 0.5 - 40;
-        const innerRadius = outerRadius - 30;
+        // 直接使用接口返回的数据，不设置默认值
+        const cameraLines = this.cameraLines.map(item => item.cameraLineName);
+        const vehicleTypes = this.labels.map(item => item.labelName);
+        const vehicleEquivalents = this.flowmat.map(row =>
+          row.map(cell => cell.map(val => parseFloat(val)))
+        );
 
-        // 创建 SVG 容器
-        const svgContainer = d3.select(this.$refs.chordChart)
-          .append("svg")
-          .attr("width", width)
-          .attr("height", height);
+        // 定义颜色映射
+        const color = d3.scaleOrdinal()
+          .domain(cameraLines)
+          .range(["#80cbc4", "#a5d6a7", "#fff59d", "#90caf9"]);
+        const vehicleTypeColors = d3.scaleOrdinal()
+          .domain(vehicleTypes)
+          .range(["#ef5350", "#ab47bc", "#42a5f5", "#26a69a"]);
 
-        // 添加标题文本
-        svgContainer.append("text")
-          .attr("x", width / 2)
-          .attr("y", 20)
-          .attr("text-anchor", "middle")
-          .style("fill", "rgb(70,70,70)")
-          .style("font-size", "18px")
-          .style("font-family", "sans-serif")
-          .style("font-weight", "bold")
-          .text("检测线车流量和弦图");
+        // 根据当前车辆类型（或总和）计算矩阵
+        function computeMatrix(selectedType) {
+          const m = [];
+          for (let i = 0; i < cameraLines.length; i++) {
+            m[i] = [];
+            for (let j = 0; j < cameraLines.length; j++) {
+              let value = 0;
+              if (selectedType === null) {
+                value = d3.sum(vehicleEquivalents[i][j]);
+              } else {
+                value = vehicleEquivalents[i][j][selectedType];
+              }
+              // 对角线置为 0
+              if (i === j) value = 0;
+              m[i][j] = value;
+            }
+          }
+          return m;
+        }
 
-        // 创建一个 g 元素用于绘制和弦图
-        const g = svgContainer.append("g")
-          .attr("transform", `translate(${width / 2}, ${height / 2})`);
+        let activeVehicleType = null;
+        let currentMatrix = computeMatrix(null);
 
-        // 构造二维数值矩阵
-        const matrix = this.aggregatedMatrix.map(row => row.map(cell => cell.sum));
-        if (matrix.length === 0) return;
-
-        // 生成和弦数据
+        // 构造 chord 布局
         const chordGenerator = d3.chordDirected()
           .padAngle(0.05)
           .sortSubgroups(d3.descending);
+        let chordsData = chordGenerator(currentMatrix);
 
-        const chords = chordGenerator(matrix);
-
-        // 定义颜色映射（可自行增减颜色）
-        const color = d3.scaleOrdinal()
-          .domain(d3.range(matrix.length))
-          .range(["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#FFC300", "#00BFFF"]);
-
-        // 弧线生成器
-        const arcGenerator = d3.arc()
+        const arc = d3.arc()
           .innerRadius(innerRadius)
           .outerRadius(outerRadius);
+        const ribbon = d3.ribbon()
+          .radius(innerRadius);
 
-        // 绘制分组弧线
-        const group = g.append("g")
-          .selectAll("g")
-          .data(chords.groups)
-          .enter().append("g");
+        const svg = d3.select(container)
+          .append("svg")
+          .attr("width", width)
+          .attr("height", height)
+          .attr("viewBox", [-width / 2, -height / 2, width, height]);
 
-        group.append("path")
-          .style("fill", d => color(d.index))
-          .style("stroke", d => d3.rgb(color(d.index)).darker())
-          .attr("d", arcGenerator);
-
-        // 添加分组标签
-        group.append("text")
-          .each(function (d) { d.angle = (d.startAngle + d.endAngle) / 2; })
-          .attr("dy", ".35em")
-          .attr("transform", d => {
-            return (
-              "rotate(" + (d.angle * 180 / Math.PI - 90) + ")" +
-              " translate(" + (outerRadius + 10) + ")" +
-              (d.angle > Math.PI ? " rotate(180)" : "")
-            );
-          })
-          .style("font-size", "12px")
-          .attr("text-anchor", d => (d.angle > Math.PI ? "end" : "start"))
-          .text((d, i) => {
-            return this.cameraLines[i]?.cameraLineName || "";
-          });
-
-        // 绘制和弦（弦带），颜色由“源”检测线决定
-        const ribbons = g.append("g")
-          .attr("fill-opacity", 0.7)
-          .selectAll("path")
-          .data(chords)
-          .enter().append("path")
-          .attr("d", d3.ribbon().radius(innerRadius))
-          .style("fill", d => color(d.source.index)) // 以 source.index 为主
-          .style("stroke", d => d3.rgb(color(d.source.index)).darker());
-
-        // 新增 tooltip，用于显示和弦详细信息
-        const tooltip = d3.select(this.$refs.chordChart)
+        // 新建 tooltip
+        const tooltip = d3.select(container)
           .append("div")
-          .attr("class", "tooltip")
+          .attr("class", "chord-tooltip")
           .style("position", "absolute")
-          .style("padding", "5px")
-          .style("background", "rgba(0,0,0,0.7)")
-          .style("color", "#fff")
+          .style("padding", "8px")
+          .style("background", "#ffffff")
+          .style("border", "1px solid #80cbc4")
           .style("border-radius", "4px")
           .style("pointer-events", "none")
-          .style("display", "none")
-          .style("max-width", "200px");
+          .style("font-size", "12px")
+          .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)")
+          .style("visibility", "hidden");
 
-        // 鼠标事件：高亮当前弦，并显示 tooltip
-        const self = this;
-        ribbons.on("mouseover", function (event, d) {
-          d3.select(this).style("stroke-width", "3px");
-          const sourceIndex = d.source.index;
-          const targetIndex = d.target.index;
-          const cell = self.aggregatedMatrix[sourceIndex][targetIndex];
-          let tooltipText = `从 ${self.cameraLines[sourceIndex]?.cameraLineName || ""} 到 ${self.cameraLines[targetIndex]?.cameraLineName || ""}<br>`;
-          tooltipText += `总数: ${cell.sum}<br>`;
-          self.labels.forEach((label, idx) => {
-            tooltipText += `${label.labelName}: ${cell.details[idx]}<br>`;
+        // 辅助函数：更新 tooltip 位置，确保相对于父容器定位
+        function updateTooltipPosition(event) {
+          const containerRect = container.getBoundingClientRect();
+          tooltip.style("top", (event.clientY - containerRect.top - 10) + "px")
+            .style("left", (event.clientX - containerRect.left + 10) + "px");
+        }
+
+        // 绘制外侧群组弧（表示各检测线）
+        const groupArcs = svg.append("g")
+          .selectAll("path")
+          .data(chordsData.groups)
+          .join("path")
+          .attr("d", arc)
+          .attr("fill", d => color(cameraLines[d.index]))
+          .attr("stroke", "#ffffff")
+          .attr("stroke-width", 1)
+          .style("opacity", 0.8)
+          .on("click", (event, d) => {
+            if (activeVehicleType !== null) {
+              activeVehicleType = null;
+              updateChords();
+              updateOuterSegments();
+            }
+          })
+          .on("mouseover", (event, d) => {
+            const idx = d.index;
+            // 计算出流量
+            let outgoingTotal = 0;
+            let outgoingBreakdown = new Array(vehicleTypes.length).fill(0);
+            for (let j = 0; j < cameraLines.length; j++) {
+              if (idx !== j) {
+                let arr = vehicleEquivalents[idx][j];
+                outgoingTotal += arr.reduce((sum, val) => sum + val, 0);
+                for (let k = 0; k < vehicleTypes.length; k++) {
+                  outgoingBreakdown[k] += arr[k];
+                }
+              }
+            }
+            // 计算进流量
+            let incomingTotal = 0;
+            let incomingBreakdown = new Array(vehicleTypes.length).fill(0);
+            for (let j = 0; j < cameraLines.length; j++) {
+              if (idx !== j) {
+                let arr = vehicleEquivalents[j][idx];
+                incomingTotal += arr.reduce((sum, val) => sum + val, 0);
+                for (let k = 0; k < vehicleTypes.length; k++) {
+                  incomingBreakdown[k] += arr[k];
+                }
+              }
+            }
+            let total = outgoingTotal + incomingTotal;
+            let html = `<strong>${cameraLines[idx]}</strong><br>`;
+            html += `<u>出流量</u>: ${outgoingTotal}<br>`;
+            vehicleTypes.forEach((type, i) => {
+              html += `${type}: ${outgoingBreakdown[i]}<br>`;
+            });
+            html += `<u>进流量</u>: ${incomingTotal}<br>`;
+            vehicleTypes.forEach((type, i) => {
+              html += `${type}: ${incomingBreakdown[i]}<br>`;
+            });
+            html += `<u>总流量</u>: ${total}`;
+            tooltip.html(html).style("visibility", "visible");
+            updateTooltipPosition(event);
+          })
+          .on("mousemove", (event) => {
+            updateTooltipPosition(event);
+          })
+          .on("mouseout", () => {
+            tooltip.style("visibility", "hidden");
           });
-          tooltip.html(tooltipText).style("display", "block");
-        })
-          .on("mousemove", function (event) {
-            const containerRect = self.$refs.chordChart.getBoundingClientRect()
-            tooltip.style('left', (event.clientX - containerRect.left + 10) + 'px')
-              .style('top', (event.clientY - containerRect.top + 10) + 'px')
+
+        // 绘制连接各检测线的弦 Ribbon
+        let ribbons = svg.append("g")
+          .selectAll("path")
+          .data(chordsData)
+          .join("path")
+          .attr("d", ribbon)
+          .attr("fill", d => color(cameraLines[d.source.index]))
+          .attr("stroke", "#ddd")
+          .style("opacity", 0.7)
+          .style("mix-blend-mode", "multiply")
+          .on("mouseover", (event, d) => {
+            d3.select(event.currentTarget).style("opacity", 1);
+            let html = "";
+            if (activeVehicleType === null) {
+              const breakdown = vehicleEquivalents[d.source.index][d.target.index];
+              const total = breakdown.reduce((a, b) => a + b, 0);
+              html = `<strong>${cameraLines[d.source.index]} → ${cameraLines[d.target.index]}</strong><br>
+                    总流量: ${total}<br>`;
+              breakdown.forEach((val, idx) => {
+                html += `${vehicleTypes[idx]}: ${val}<br>`;
+              });
+            } else {
+              html = `<strong>${cameraLines[d.source.index]} → ${cameraLines[d.target.index]}</strong><br>
+                    ${vehicleTypes[activeVehicleType]} 流量: ${vehicleEquivalents[d.source.index][d.target.index][activeVehicleType]}`;
+            }
+            tooltip.html(html).style("visibility", "visible");
+            updateTooltipPosition(event);
+          })
+          .on("mousemove", (event) => {
+            updateTooltipPosition(event);
           })
           .on("mouseout", function () {
-            d3.select(this).style("stroke-width", null);
-            tooltip.style("display", "none");
+            d3.select(this).style("opacity", 0.7);
+            tooltip.style("visibility", "hidden");
+          })
+          .on("click", (event, d) => {
+            if (activeVehicleType !== null) {
+              activeVehicleType = null;
+              updateChords();
+              updateOuterSegments();
+            }
           });
+
+        // 绘制外侧按车辆类型分段
+        const outerGroup = svg.append("g")
+          .attr("class", "outer-segments");
+
+        function updateOuterSegments() {
+          const segmentsData = [];
+          for (let i = 0; i < cameraLines.length; i++) {
+            let total = 0;
+            let typeValues = [];
+            for (let k = 0; k < vehicleTypes.length; k++) {
+              let sumForType = 0;
+              for (let j = 0; j < cameraLines.length; j++) {
+                if (i === j) continue;
+                sumForType += vehicleEquivalents[i][j][k];
+              }
+              typeValues.push(sumForType);
+              total += sumForType;
+            }
+            const groupData = chordsData.groups.find(g => g.index === i);
+            if (groupData) {
+              let startAngle = groupData.startAngle;
+              for (let k = 0; k < vehicleTypes.length; k++) {
+                const angle = (groupData.endAngle - groupData.startAngle) * (typeValues[k] / total);
+                const endAngle = startAngle + angle;
+                segmentsData.push({
+                  index: i,
+                  typeIndex: k,
+                  type: vehicleTypes[k],
+                  value: typeValues[k],
+                  startAngle: startAngle,
+                  endAngle: endAngle,
+                  padAngle: groupData.padAngle
+                });
+                startAngle = endAngle;
+              }
+            }
+          }
+          const segments = outerGroup.selectAll("path")
+            .data(segmentsData, d => d.index + "-" + d.typeIndex);
+
+          segments.transition().duration(300)
+            .attr("d", d3.arc()
+              .innerRadius(outerRadius + 6)
+              .outerRadius(outerRadius + 20)
+              .startAngle(d => d.startAngle)
+              .endAngle(d => d.endAngle)
+              .padAngle(d => d.padAngle)
+            )
+            .attr("fill", d => {
+              if (activeVehicleType === null) {
+                return vehicleTypeColors(d.type);
+              } else {
+                return d.typeIndex === activeVehicleType ? vehicleTypeColors(d.type) : "#ddd";
+              }
+            })
+            .style("opacity", d => {
+              if (activeVehicleType === null) {
+                return 1;
+              } else {
+                return d.typeIndex === activeVehicleType ? 1 : 0.3;
+              }
+            });
+
+          segments.enter().append("path")
+            .attr("d", d3.arc()
+              .innerRadius(outerRadius + 6)
+              .outerRadius(outerRadius + 20)
+              .startAngle(d => d.startAngle)
+              .endAngle(d => d.endAngle)
+              .padAngle(d => d.padAngle)
+            )
+            .attr("fill", d => vehicleTypeColors(d.type))
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 0.5)
+            .style("opacity", 1)
+            .on("mouseover", (event, d) => {
+              tooltip.html(`<strong>${cameraLines[d.index]}</strong><br>${d.type}: ${d.value}`)
+                .style("visibility", "visible");
+              updateTooltipPosition(event);
+            })
+            .on("mousemove", (event) => {
+              updateTooltipPosition(event);
+            })
+            .on("mouseout", () => tooltip.style("visibility", "hidden"))
+            .on("click", (event, d) => {
+              activeVehicleType = d.typeIndex;
+              updateChords();
+              updateOuterSegments();
+            });
+
+          segments.exit().remove();
+        }
+
+        updateOuterSegments();
+
+        function updateChords() {
+          currentMatrix = computeMatrix(activeVehicleType);
+          chordsData = chordGenerator(currentMatrix);
+          groupArcs.data(chordsData.groups)
+            .transition().duration(300)
+            .attr("d", arc);
+          ribbons.data(chordsData)
+            .transition().duration(300)
+            .attr("d", ribbon)
+            .attr("fill", d => color(cameraLines[d.source.index]));
+        }
       },
 
-      // 点击搜索按钮时请求接口获取数据
+      // 调用接口获取车流矩阵数据，并更新图表和表格
       getFlowMatData() {
         this.tableLoading = true;
         let params = {};
@@ -243,10 +425,9 @@
             this.flowmat = data.flowmat || [];
             this.cameraLines = data.cameraLines || [];
             this.labels = data.labels || [];
-            // 处理 3D 矩阵数据
             this.processFlowMat();
-            // 更新弦图
-            this.updateChordChart();
+            // 根据接口数据更新弦图，如果数据充足则渲染
+            this.drawChordDiagram();
             this.tableLoading = false;
           })
           .catch(() => {
@@ -258,7 +439,7 @@
           });
       },
 
-      // 将接口返回的 3D 矩阵（[i][j][k]）处理为每个单元格 { sum, details }
+      // 将 3D 矩阵转换为二维矩阵（用于表格展示）
       processFlowMat() {
         let matrix = [];
         for (let i = 0; i < this.cameraLines.length; i++) {
@@ -267,7 +448,6 @@
             let sum = 0;
             let details = [];
             for (let k = 0; k < this.labels.length; k++) {
-              // 直接使用后端返回的数据，不交换索引
               let val = parseFloat(this.flowmat[i][j][k]) || 0;
               details.push(val);
               sum += val;
@@ -276,21 +456,17 @@
           }
         }
         this.aggregatedMatrix = matrix;
-        // 初始化每一行的展开状态
         this.expandedRows = Array(this.cameraLines.length).fill(false);
       },
 
-      // 切换某一行展开/收起状态（带动画效果）
       toggleRowExpand(rowIndex) {
         this.$set(this.expandedRows, rowIndex, !this.expandedRows[rowIndex]);
       },
 
-      // 点击搜索按钮时调用
       handleFilter() {
         this.getFlowMatData();
       },
 
-      // 导出数据
       handleDownload() {
         this.downloadLoading = true;
         import("@/vendor/Export2Excel").then(excel => {
@@ -314,7 +490,6 @@
         });
       },
 
-      // 获取摄像头下拉列表
       getCameraOptions() {
         const params = { pageNum: 1, pageSize: 10000 };
         getCameraList(params)
@@ -330,7 +505,7 @@
   };
 </script>
 
-<style>
+<style scoped>
   .chord-detail-container {
     padding: 20px;
   }
@@ -353,7 +528,6 @@
 
   .chart-container {
     width: 400px;
-    /* 可以根据需要调大或调小 */
     height: 400px;
     margin: auto;
     position: relative;
@@ -406,15 +580,21 @@
     font-size: 12px;
     color: #606266;
   }
+</style>
 
-  .tooltip {
+
+<style>
+  /* 针对 chord 图 tooltip 的样式 */
+  .chord-tooltip {
     pointer-events: none;
     font-size: 12px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 5px;
+    background: #fff;
+    border: 1px solid #80cbc4;
     border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 9999;
-    width: 100px;
+    position: absolute;
+    width: 200px;
   }
 </style>
