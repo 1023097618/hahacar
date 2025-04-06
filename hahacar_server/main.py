@@ -91,7 +91,7 @@ save_dir = os.path.join(base_dir, "alerts", "on")
 # os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
 
 # 将本地的 save_dir 映射为 URL 路径 /static/alerts/on
-app.mount("/static/alerts/on", StaticFiles(directory=save_dir), name="alerts_on")
+app.mount("/api/fetchImage", StaticFiles(directory=save_dir), name="alerts_on")
 
 # 挂载 socket.io 路由
 app.mount("/socket.io", socket_app)

@@ -95,7 +95,7 @@ def getAlerts(db:Session, request:GetAlertsRequest):
             "alertEndTime": alert.alert_end_time.strftime("%Y-%m-%d %H:%M:%S") if alert.alert_end_time else None,
             "alertProcessedTime": alert.alert_processed_time.strftime(
                 "%Y-%m-%d %H:%M:%S") if alert.alert_processed_time else None,
-            "alertImage": f"{domain}/static/alerts/on/{alert.alert_image}" if alert.alert_image else "",           #构造图片的可访问路径
+            "alertImage": alert.alert_image if alert.alert_image else "",
             "ruleType": alert.rule_type if alert.rule_type else "",
             "ruleRemark": alert.rule_remark if alert.rule_remark else ""
         })

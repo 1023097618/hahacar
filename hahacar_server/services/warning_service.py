@@ -133,7 +133,7 @@ async def process_traffic_flow_warning(
                       new_alert_id, 
                       camera_id, 
                       camera_name, 
-                      1, 
+                      3,
                       warning_start_time, 
                       None, 
                       None, 
