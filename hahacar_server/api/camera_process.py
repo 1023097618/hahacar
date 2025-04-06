@@ -132,6 +132,7 @@ def process_frame(frame,hitbars, camera_id: str):
     **returns**
     - np.ndarray: 处理后的帧
     """
+    print(f"hitbars:{hitbars}")
     # 运行YOLOv8检测
     detector = detectors.get(camera_id, Detector(MODEL_FOR_DETECTOR))
     processedImg, detailedResult,hitBarResult = detector.detect(frame,
@@ -242,7 +243,8 @@ def build_hitBars(frame, lines: list):
             imgSize=(frame_h, frame_w),
             startPoint=startPoint,
             endPoint=endPoint,
-            name=name
+            name=name,
+            # width=100
         )
         hitBars.append(hb)
     return hitBars
@@ -545,6 +547,14 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         else:
             print("该摄像头没有检测线")
 
+        main_line = None
+
+        for line in lines:
+            if line["isMainLine"]:
+                main_line = line
+                break
+        main_line_id = main_line.cameraLineId if main_line else None
+
         hitBars = []
 
         #车辆预约路线预警
@@ -576,6 +586,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
         window_start = t.time()
         save_path = "E:/study_stuff/2025_first/frameTest/"
+
 
         while True:
             # # 在10秒窗口内消费并处理帧
@@ -631,6 +642,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # print("detailedResult:", detailedResult)
             # print("hitBarResult:", hitBarResult)
 
+
             # 获取camera_rule的数据
             camera_rule_response = getCameraRule(db,camera_id)
             if camera_rule_response["code"] != "200":
@@ -663,6 +675,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                     if not vehicle_no:
                         continue
                     detected_vehicles[vehicle_no] = line_name  # 记录该车当前所在的检测线
+                    print(f"⚠️ ⚠️ ⚠️ hitBar检测到车辆喽！{vehicle_no}经过了检测线 {line_name}")
 
             # 🚗 预约车辆预警（仅当有检测到的车辆时才执行）
             if rules.get("VehicleReserve", False) and detected_vehicles:
@@ -690,7 +703,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 # 在每一帧处理后，将每一条碰撞线的车辆检测结果存入 history
                 update_vehicle_history(vehicle_history, hitBarResult, current_time)
                 #60s检测一次--------其实可以10s检测一次，这样可以避免60>maxcontiunoustimeperiod检测不到预警
-                if current_time - history_last_checked >= 60:
+                if current_time - history_last_checked >= 10:
                     #计算60s内的所有车辆当量
                     total_flow_equivalent = process_vehicle_history(vehicle_history, current_time, rules["camera_start_line_id"],
                                             rules["camera_end_line_id"],rules["labels_equal_flow_ids"], camera_id,db)
@@ -721,18 +734,18 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # 这里应该少了一个处理逻辑——————当起止线都存在并相等且不是主检测线的时候的车流量预警的判断——————————这个时候的targetlineid应该为起线或者止线------已解决
 
 
-            # 默认设置：若起始/终止线为空，则设为主检测线 "0"
+            # 默认设置：若起始/终止线为空，则设为主检测线 的id
             if not rules["camera_start_line_id"]:
-                rules["camera_start_line_id"] = "0"
+                rules["camera_start_line_id"] = main_line_id
             if not rules["camera_end_line_id"]:
-                rules["camera_end_line_id"] = "0"
+                rules["camera_end_line_id"] = main_line_id
 
             # **判断是否起始线 == 终止线且不是主检测线**
-            if rules["camera_start_line_id"] == rules["camera_end_line_id"] and rules["camera_start_line_id"] != "0":
+            if rules["camera_start_line_id"] == rules["camera_end_line_id"] and rules["camera_start_line_id"] != main_line_id:
                 target_line_id = rules["camera_start_line_id"]  # 使用该检测线
                 print(f"车流量：起止线相同，使用检测线 {target_line_id}")
             else:
-                target_line_id = "0"
+                target_line_id = main_line_id
             target_flow = flow_for_line.get(target_line_id, 0)
             print(f"目标检测线/主检测线 {target_line_id} 的 Flow 当量：", target_flow)
 
