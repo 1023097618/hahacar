@@ -1,64 +1,71 @@
 <template>
   <div class="camera-map-page">
-    <el-row :gutter="20">
-      <!-- 左侧：摄像头画面及绘图区域 -->
-      <el-col :span="12">
-        <div class="camera-section" ref="cameraContainer">
-          <!-- 摄像头实时画面 -->
-          <img :src="GetCameraLiveURL(cameraId)" alt="Camera Live" class="camera-image" @load="onImageLoad" />
-          <!-- Canvas 绘图层，覆盖在图片上 -->
-          <canvas ref="drawingCanvas" class="drawing-canvas" @mousedown="handleMouseDown" @mousemove="handleMouseMove"
-            @mouseup="handleMouseUp"></canvas>
+    <!-- 固定在页面顶部的摄像头和地图区域 -->
+    <div class="fixed-top">
+      <el-row :gutter="20">
+        <!-- 左侧：摄像头画面及绘图区域 -->
+        <el-col :span="12">
+          <div class="camera-section" ref="cameraContainer">
+            <img :src="GetCameraLiveURL(cameraId)" alt="Camera Live" class="camera-image" @load="onImageLoad" />
+            <canvas ref="drawingCanvas" class="drawing-canvas" @mousedown="handleMouseDown" @mousemove="handleMouseMove"
+              @mouseup="handleMouseUp"></canvas>
+          </div>
+        </el-col>
+        <!-- 右侧：地图 -->
+        <el-col :span="12">
+          <div class="map-section" ref="mapContainer"></div>
+        </el-col>
+      </el-row>
+    </div>
+
+    <!-- 页面其他内容，需设置足够的上边距以防被遮挡 -->
+    <div class="content">
+      <!-- 编辑表单区域 -->
+      <el-card class="line-form-panel" style="margin-top: 20px;">
+        <!-- 表单内容 -->
+        <div v-for="(line, index) in lines" :key="line.cameraLineId" class="line-form">
+          <i class="eye-icon"
+             :class="line.eyeOpen ? 'icon-view_on' : 'icon-view_off'"
+             @click.stop="toggleEye(index)"></i>
+          
+          <el-form :model="line" label-width="120px" inline>
+            <el-form-item label="检测线名称">
+              <el-input v-model="line.cameraLineName" placeholder="请输入检测线名称"></el-input>
+            </el-form-item>
+            <el-form-item label="坐标信息">
+              <el-input :value="formatLinePoints(line.points)" disabled></el-input>
+            </el-form-item>
+            <el-form-item label="关联地图点">
+              <el-input :value="formatAssociatedPoint(line.pointCloseToLine)" disabled></el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" size="small" @click="setLineAssociation(index)">
+                关联地图点
+              </el-button>
+            </el-form-item>
+            <el-form-item label="主要检测线">
+              <el-checkbox v-model="line.isMainLine" @change="onMainLineChange(index)">
+                是
+              </el-checkbox>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="danger" size="small" @click="deleteLine(index)">
+                删除
+              </el-button>
+            </el-form-item>
+          </el-form>
         </div>
-      </el-col>
+      </el-card>
 
-      <!-- 右侧：地图 -->
-      <el-col :span="12">
-        <div class="map-section" ref="mapContainer"></div>
-      </el-col>
-    </el-row>
-
-    <!-- 编辑表单区域 -->
-    <el-card class="line-form-panel" style="margin-top: 20px;">
-      <div v-for="(line, index) in lines" :key="line.cameraLineId" class="line-form">
-        <el-form :model="line" label-width="120px" inline>
-          <el-form-item label="检测线名称">
-            <el-input v-model="line.cameraLineName" placeholder="请输入检测线名称"></el-input>
-          </el-form-item>
-          <el-form-item label="坐标信息">
-            <el-input :value="formatLinePoints(line.points)" disabled></el-input>
-          </el-form-item>
-          <el-form-item label="关联地图点">
-            <el-input :value="formatAssociatedPoint(line.pointCloseToLine)" disabled></el-input>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" size="small" @click="setLineAssociation(index)">
-              关联地图点
-            </el-button>
-          </el-form-item>
-          <!-- 新增主要检测线勾选 -->
-          <el-form-item label="主要检测线">
-            <el-checkbox v-model="line.isMainLine" @change="onMainLineChange(index)">
-              是
-            </el-checkbox>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="danger" size="small" @click="deleteLine(index)">
-              删除
-            </el-button>
-          </el-form-item>
-        </el-form>
-      </div>
-    </el-card>
-
-    <!-- 底部保存按钮 -->
-    <el-row style="margin-top: 20px">
-      <el-col :span="24" class="text-center">
-        <el-button type="primary" @click="saveLines">
-          <i class="el-icon-upload"></i> 保存检测线
-        </el-button>
-      </el-col>
-    </el-row>
+      <!-- 底部保存按钮 -->
+      <el-row style="margin-top: 20px">
+        <el-col :span="24" class="text-center">
+          <el-button type="primary" @click="saveLines">
+            <i class="el-icon-upload"></i> 保存检测线
+          </el-button>
+        </el-col>
+      </el-row>
+    </div>
   </div>
 </template>
 
@@ -130,14 +137,21 @@
       redrawCanvas() {
         if (!this.ctx) return
         this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight)
-        // 绘制所有已完成的线条（蓝色）
+        // 绘制所有已完成的线条
         this.lines.forEach(line => {
           const pts = line.points
           this.ctx.beginPath()
           this.ctx.moveTo(pts[0], pts[1])
           this.ctx.lineTo(pts[2], pts[3])
-          this.ctx.strokeStyle = 'blue'
-          this.ctx.lineWidth = 2
+          if (line.eyeOpen) {
+            // 高亮样式
+            this.ctx.strokeStyle = 'orange'
+            this.ctx.lineWidth = 4
+          } else {
+            // 普通样式
+            this.ctx.strokeStyle = 'blue'
+            this.ctx.lineWidth = 2
+          }
           this.ctx.lineCap = 'round'
           this.ctx.stroke()
         })
@@ -184,7 +198,8 @@
             pointCloseToLine: [],
             cameraLineId: Date.now().toString(),
             marker: null,
-            isMainLine: false
+            isMainLine: false,
+            eyeOpen: true
           })
         }
         this.currentLine.points = []
@@ -208,7 +223,8 @@
                 cameraLineId: item.cameraLineId,
                 marker: null,
                 // 转换 isMainLine 字段（支持 boolean 或字符串形式）
-                isMainLine: item.isMainLine === true || item.isMainLine === 'true'
+                isMainLine: item.isMainLine === true || item.isMainLine === 'true',
+                eyeOpen: true
               }
             })
             this.redrawCanvas()
@@ -371,6 +387,10 @@
             return 'amap://styles/normal';
         }
       },
+      toggleEye(index) {
+        this.lines[index].eyeOpen = !this.lines[index].eyeOpen
+        this.redrawCanvas()
+      }
     }
   }
 </script>
@@ -379,19 +399,36 @@
   .camera-map-page {
     padding: 20px;
   }
-
+  
+  /* 固定顶部的容器 */
+  .fixed-top {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 100%;
+    background: #fff;  /* 根据需要设置背景色，避免透明影响其他内容 */
+    z-index: 1000;     /* 确保在最上层 */
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  
+  /* 下方内容需要向下留出空间，避免被固定区域覆盖 */
+  .content {
+    margin-top: 520px; /* 根据固定区域的实际高度调整该值 */
+  }
+  
   .camera-section {
     position: relative;
     width: 640px;
     height: 480px;
   }
-
+  
   .camera-image {
     width: 100%;
     height: 100%;
     display: block;
   }
-
+  
   .drawing-canvas {
     position: absolute;
     top: 0;
@@ -399,18 +436,25 @@
     z-index: 10;
     pointer-events: all;
   }
-
+  
   .map-section {
     width: 100%;
     height: 480px;
     border: 1px solid #dcdfe6;
   }
-
+  
   .line-form-panel {
     margin-top: 20px;
   }
-
+  
   .line-form {
     margin-bottom: 10px;
   }
-</style>
+  
+  .eye-icon {
+    margin-right: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    vertical-align: middle;
+  }
+  </style>
