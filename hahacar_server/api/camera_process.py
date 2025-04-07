@@ -824,8 +824,10 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # if processed is not None:
             #     latest_frames[camera_id] = processed
 
-            # cv2.imshow('MYCAM',frame)
-
+            if processed is not None:
+                cv2.imshow("Processed Frame", processed)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break  # 如果按 'q' 键，则退出显示
 
             ret, buffer = await asyncio.to_thread(cv2.imencode, '.jpg', processed)
             if not ret:
