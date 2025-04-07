@@ -132,7 +132,7 @@ def process_frame(frame,hitbars, camera_id: str):
     **returns**
     - np.ndarray: 处理后的帧
     """
-    print(f"hitbars:{hitbars}")
+    # print(f"hitbars:{hitbars}")
     # 运行YOLOv8检测
     detector = detectors.get(camera_id, Detector(MODEL_FOR_DETECTOR))
     processedImg, detailedResult,hitBarResult = detector.detect(frame,
@@ -406,9 +406,9 @@ def calculate_label_counts(hitBarResult: list, label_map: dict) -> dict:
     label_counts = {name: 0 for name in label_map.values()}
     for hb in hitBarResult:
         accumulator = hb.get("Accumulator", {})
-        for label_id, count in accumulator.items():                                     #在这里加上对车辆经过某条检测线的保存--不在这里加
-            if label_id in label_map:
-                label_counts[label_map[label_id]] += count
+        for label_name, count in accumulator.items():                                     #在这里加上对车辆经过某条检测线的保存--不在这里加
+            if label_name in label_map.values():
+                label_counts[label_name] += count
     return label_counts
 
 def update_lineWiseTrafficData(flow_for_line: dict, lineWiseTrafficData: dict):
@@ -513,7 +513,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         interval = 0.5 if source_url.startswith("http") and not source_url.endswith("video.mjpg") else 0.03  # **HTTP 轮询间隔 / RTSP 直播流帧率**
         db = get_db();
         camera_name = get_camera_name_by_id(db,camera_id)
-        time_window = 60
+        time_window = 5
         traffic_data = []  # 存储 (time, hold_volume, flow_volume)
         label_map = get_label_mapping(db)
         start_time = t.time();
@@ -553,7 +553,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             if line["isMainLine"]:
                 main_line = line
                 break
-        main_line_id = main_line.cameraLineId if main_line else None
+        main_line_id = main_line["cameraLineId"] if main_line else None
 
         hitBars = []
 
@@ -562,14 +562,14 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
         detected_vehicles = {}  # 记录车牌号对应的检测线
 
         # 存储事故状态
-        accident_warning_state = "正常"
-        accident_alert_start_time = None
-        accident_alert_end_time = None
+        # accident_warning_state = "正常"
+        # accident_alert_start_time = None
+        # accident_alert_end_time = None
         accident_active_alerts = {}  # 记录事故报警的 alert_id
-        accident_clear_count = 0
-        accident_warning_count = 0
-        clearAccidentThreshold = 3  # N 个时间窗口内未检测到事故才解除报警
-        accident_threshold = 0.8  # 事故置信度阈值（可调整）
+        # accident_clear_count = 0
+        # accident_warning_count = 0
+        clearAccidentThreshold = 10  # N 个时间窗口内未检测到事故才解除报警
+        # accident_threshold = 0.8  # 事故置信度阈值（可调整）
 
         # 定义全局数据结构
         last_success_time = {}  # {camera_id: timestamp_of_last_success}
@@ -655,13 +655,15 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
             # 假设规则中开启了事故检测 eventDetect
             if rules.get("eventDetect", False):
-                accident_detected = await process_accident_warning(
+                accident_detected,accident_active_alerts = await process_accident_warning(
                     detailedResult=detailedResult,
                     frame=frame,
                     current_time=current_time,
                     db=db,
                     camera_id=camera_id,
-                    camera_name=camera_name
+                    camera_name=camera_name,
+                    accident_active_alerts = accident_active_alerts,
+                    clearAccidentThreshold = clearAccidentThreshold
                 )
 
                 if accident_detected:
@@ -695,7 +697,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # flow_for_line = {}  用于存储每条检测线的 flow 当量，键为检测线的名称
             flow_for_line = calculate_traffic_volume_flow(hitBarResult, rules["labels_equal_flow_ids"])
             # 示例：打印各检测线的 flow 当量
-            print("各检测线 Flow 当量：", flow_for_line)
+            # print("各检测线 Flow 当量：", flow_for_line)
 
             # 起止线存在时的车流量预警：当规则中指定了起始与终止检测线且二者不相同
             if rules["camera_start_line_id"] and rules["camera_end_line_id"] and rules["camera_start_line_id"] != rules[
@@ -712,7 +714,7 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
 
                     # **更新预警状态**
                     # 🚗 车流量预警（基于 target_flow）
-                    flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = process_traffic_flow_warning(
+                    flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = await process_traffic_flow_warning(
                         total_flow_equivalent,
                         current_time,
                         rules["maxVehicleFlowNum"],
@@ -743,15 +745,16 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # **判断是否起始线 == 终止线且不是主检测线**
             if rules["camera_start_line_id"] == rules["camera_end_line_id"] and rules["camera_start_line_id"] != main_line_id:
                 target_line_id = rules["camera_start_line_id"]  # 使用该检测线
-                print(f"车流量：起止线相同，使用检测线 {target_line_id}")
+                # print(f"车流量：起止线相同，使用检测线 {target_line_id}")
             else:
                 target_line_id = main_line_id
             target_flow = flow_for_line.get(target_line_id, 0)
-            print(f"目标检测线/主检测线 {target_line_id} 的 Flow 当量：", target_flow)
+            if(target_flow != 0):
+                print(f"目标检测线/主检测线 {target_line_id} 的 Flow 当量：", target_flow)
 
             #计算车拥挤度当量
             hold_volume = calculate_traffic_volume_hold(detailedResult, rules["labels_equal_hold_ids"])["hold_volume"]
-            #计算所有 hitBarResult 中各 label 的累计数量————相当于计算这个摄像头在这一帧所有的碰撞线检测到的各label的累计数量————那为什么不用detailresult计算？？？神金
+            #计算所有 hitBarResult 中各 label 的累计数量————相当于计算这个摄像头在这一帧所有的碰撞线检测到的各label的累计数量————那为什么不用detailresult计算
             label_counts = calculate_label_counts(hitBarResult, label_map)
             traffic_data.append((current_time, hold_volume, target_flow, label_counts))
 
@@ -769,13 +772,15 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
                 if traffic_data:
                     avg_hold_volume = sum(h for _, h, _, _ in traffic_data) / len(traffic_data)
                     aggregated_label_counts = aggregate_label_counts(traffic_data, label_map)
-                    save_to_camera_detect_info(db, camera_id, avg_hold_volume, target_flow, aggregated_label_counts,
+                    sum_target_flow = sum(f for _, _, f, _ in traffic_data)
+                    save_to_camera_detect_info(db, camera_id, avg_hold_volume, sum_target_flow, aggregated_label_counts,
                                                current_time)
 
+
                     # 预警计数更新
-                    # 🚗 车流量预警（基于 target_flow）
+                    # 🚗 车流量预警（基于 sum_target_flow）
                     flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time = await process_traffic_flow_warning(
-                        target_flow,
+                        sum_target_flow,
                         current_time,
                         rules["maxVehicleFlowNum"],
                         rules["minVehicleFlowNum"],
@@ -818,6 +823,8 @@ async def generate_frames(source_url:str,camera_id:str, liveStreamType: str = No
             # #在这里添加处理后的image
             # if processed is not None:
             #     latest_frames[camera_id] = processed
+
+            # cv2.imshow('MYCAM',frame)
 
 
             ret, buffer = await asyncio.to_thread(cv2.imencode, '.jpg', processed)

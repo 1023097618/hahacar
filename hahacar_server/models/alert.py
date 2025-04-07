@@ -11,7 +11,7 @@ class Alert(Base):
     alert_id = Column(String, primary_key=True, index=True)
     camera_id = Column(String, index=True)
     camera_name = Column(String, nullable=False)
-    alert_type = Column(Integer, nullable=False)  # 1: 进行中, 2: 已发生, 3: 已结束
+    alert_type = Column(String, nullable=False)  # 1: 进行中, 2: 已发生, 3: 已结束
     alert_start_time = Column(DateTime, nullable=False)
     alert_end_time = Column(DateTime, nullable=True)
     alert_processed_time = Column(DateTime, nullable=True)

@@ -45,6 +45,7 @@ async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera
                     rule_remark = f"检测到违规车辆: {vehicle}"
                     saveAlert(db, new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
                               rule_type, rule_remark)
+                    print(f"[🚨 车辆类型预警] {vehicle} 违规，预警开始")
                     await sio.emit("updateHappeningAlert", {
                         "alertId": new_alert_id,
                         "cameraId": camera_id,
@@ -54,19 +55,19 @@ async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera
                     vehicle_warning_state[vehicle] = new_alert_id
                     vehicle_alert_start_time[vehicle] = datetime.now()
                     vehicle_clear_count[vehicle] = 0
-        else:   #但其实没有设计，这个先放在这里
-            # 如果未检测到，更新解除计数
-            for vehicle in list(vehicle_warning_state.keys()):
-                vehicle_clear_count[vehicle] += 1
-                if vehicle_clear_count[vehicle] >= clearThreshold:
-                    alert_id = vehicle_warning_state[vehicle]
-                    alert_end_time = time.time()
-                    saveAlert(db, alert_id, camera_id, camera_name, 2, vehicle_alert_start_time[vehicle],
-                              alert_end_time, None, alert_image, "1", f"{vehicle} 车辆消失，预警结束")
-                    del vehicle_warning_state[vehicle]
-                    del vehicle_alert_start_time[vehicle]
-                    del vehicle_clear_count[vehicle]
-                    print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
+        # else:   #但其实没有设计，这个先放在这里
+        #     # 如果未检测到，更新解除计数
+        #     for vehicle in list(vehicle_warning_state.keys()):
+        #         vehicle_clear_count[vehicle] += 1
+        #         if vehicle_clear_count[vehicle] >= clearThreshold:
+        #             alert_id = vehicle_warning_state[vehicle]
+        #             alert_end_time = time.time()
+        #             saveAlert(db, alert_id, camera_id, camera_name, 2, vehicle_alert_start_time[vehicle],
+        #                       alert_end_time, None, alert_image, "1", f"{vehicle} 车辆消失，预警结束")
+        #             del vehicle_warning_state[vehicle]
+        #             del vehicle_alert_start_time[vehicle]
+        #             del vehicle_clear_count[vehicle]
+        #             print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
 
 async def process_traffic_flow_warning(
     target_flow: float,
@@ -110,7 +111,9 @@ async def process_traffic_flow_warning(
     warning_end_time = None
 
     # **触发流量预警**
-    if flow_warning_count >= (maxContinuousTimePeriod // time_window):
+    tmp1 = maxContinuousTimePeriod / time_window
+    tmp2 = minContinuousTimePeriod / time_window
+    if flow_warning_count > (maxContinuousTimePeriod / time_window):
         rule_type = "3"
         rule_remark = "车流量预警"
 
@@ -141,6 +144,8 @@ async def process_traffic_flow_warning(
                       rule_type, 
                       rule_remark)
 
+            print(f"[🚨 车流量预警] 已连续 {flow_warning_count} 个时间窗口（约 {flow_warning_count * time_window} 秒）内检测到车流量超过最大阈值 {maxVehicleFlowNum} 车辆/秒，当前帧流量为 {target_flow} 车辆/秒，预警开始")
+
             await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
                 "cameraId": camera_id,
@@ -155,30 +160,33 @@ async def process_traffic_flow_warning(
                 "rule_remark": rule_remark
             }
 
+
     # **解除流量预警**
-    if flow_clear_count >= (minContinuousTimePeriod // time_window):
+    if flow_clear_count > (minContinuousTimePeriod / time_window):
         if warning_state == "正在发生":
             warning_state = "已经发生"
             warning_end_time = current_time
 
-            for rule_type, alert_info in active_alerts.items():
-                alert_id = alert_info["alert_id"]
-                ws = alert_info["warning_start_time"]
-                ai = alert_info["alert_image"]
-                rr = alert_info["rule_remark"]
+            if "3" in active_alerts:
+                for rule_type, alert_info in active_alerts.items():
+                    alert_id = alert_info["alert_id"]
+                    ws = alert_info["warning_start_time"]
+                    ai = alert_info["alert_image"]
+                    rr = alert_info["rule_remark"]
 
-                saveAlert(db,
-                          alert_id, 
-                          camera_id, 
-                          camera_name, 
-                          2, ws, 
-                          warning_end_time, 
-                          None, 
-                          ai, 
-                          rule_type, 
-                          rr)
+                    saveAlert(db,
+                              alert_id,
+                              camera_id,
+                              camera_name,
+                              2, ws,
+                              warning_end_time,
+                              None,
+                              ai,
+                              rule_type,
+                              rr)
+                print(f"[✅ 车流量预警解除] {target_flow} 车辆/秒，已低于最小阈值 {minVehicleFlowNum} 车辆/秒，预警结束")
 
-            active_alerts.clear()
+                del active_alerts["3"]
 
     return flow_warning_count, flow_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
 
@@ -224,7 +232,7 @@ async def process_vehicle_congestion_warning(
     warning_end_time = None
 
     # **触发车辆拥挤度预警**
-    if hold_warning_count >= (maxContinuousTimePeriod // time_window):
+    if hold_warning_count > (maxContinuousTimePeriod / time_window):
         rule_type = "2"
         rule_remark = "车辆拥挤度预警"
 
@@ -254,6 +262,8 @@ async def process_vehicle_congestion_warning(
                       rule_type, 
                       rule_remark)
 
+            print(f"[🚨 车辆拥挤度] 预警开始")
+
             await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
                 "cameraId": camera_id,
@@ -269,20 +279,22 @@ async def process_vehicle_congestion_warning(
             }
 
     # **解除拥挤度预警**
-    if hold_clear_count >= (minContinuousTimePeriod // time_window):
+    if hold_clear_count > (minContinuousTimePeriod / time_window):
         if warning_state == "正在发生":
             warning_state = "已经发生"
             warning_end_time = current_time
 
-            for rule_type, alert_info in active_alerts.items():
-                alert_id = alert_info["alert_id"]
-                ws = alert_info["warning_start_time"]
-                ai = alert_info["alert_image"]
-                rr = alert_info["rule_remark"]
+            if "2" in active_alerts:
+                for rule_type, alert_info in active_alerts.items():
+                    alert_id = alert_info["alert_id"]
+                    ws = alert_info["warning_start_time"]
+                    ai = alert_info["alert_image"]
+                    rr = alert_info["rule_remark"]
 
-                saveAlert(db, alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
+                    saveAlert(db, alert_id, camera_id, camera_name, 2, ws, warning_end_time, None, ai, rule_type, rr)
 
-            active_alerts.clear()
+                print(f"[✅ 车辆拥挤度解除] {avg_hold_volume} 车辆/秒，已低于最小阈值 {minVehicleHoldNum} 车辆/秒，预警结束")
+                del active_alerts["2"]
 
     return hold_warning_count, hold_clear_count, active_alerts, warning_state, warning_start_time, warning_end_time
 
@@ -389,7 +401,7 @@ async def process_vehicle_reservation_warning(
 
 
 
-async def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str, camera_name: str):
+async def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str, camera_name: str,accident_active_alerts,clearAccidentThreshold):
     """
     **description**
     处理事故检测逻辑：当 detailedResult 返回 accidentBoxes 和 accidentConf 时，触发事故预警。
@@ -408,42 +420,80 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
     accident_boxes = detailedResult.get("accidentBoxes", [])
     accident_conf = detailedResult.get("accidentConf", [])
 
+
     if accident_boxes and accident_conf:
         # 事故发生，生成唯一 ID
-        alert_id = str(uuid.uuid4())
-        alert_image = f"{alert_id}.jpg"
-        save_path = os.path.join(save_dir, alert_image)
-        print(f"图片保存地址：{save_path}")
-        success = cv2.imwrite(save_path, frame)
-        if not success:
-            # 保存失败的处理逻辑
-            print("图片保存失败！")
-        # cv2.imwrite(f"/alerts/on/accident/{alert_image}", frame)
+        # 检测到事故，重置连续清除计数
+        if camera_id in accident_active_alerts:
+            accident_active_alerts[camera_id]["clear_count"] = 0
+            # 已有预警，返回 True 表示仍处于预警状态
+            return True,accident_active_alerts
+        else:
+            alert_id = str(uuid.uuid4())
+            alert_image = f"{alert_id}.jpg"
+            save_path = os.path.join(save_dir, alert_image)
+            print(f"图片保存地址：{save_path}")
+            success = cv2.imwrite(save_path, frame)
+            if not success:
+                # 保存失败的处理逻辑
+                print("图片保存失败！")
+            # cv2.imwrite(f"/alerts/on/accident/{alert_image}", frame)
 
-        # 获取最高事故置信度
-        max_accident_confidence = max(accident_conf)
+            # 获取最高事故置信度
+            max_accident_confidence = max(accident_conf)
 
-        # 事故预警详情
-        rule_type = "5"
-        rule_remark = f"⚠️ 事故预警 - 最高置信度: {max_accident_confidence:.2f}"
+            # 事故预警详情
+            rule_type = "5"
+            rule_remark = f"⚠️ 事故预警"
 
-        # 保存事故预警到数据库
-        saveAlert(db, alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
+            # 保存事故预警到数据库
+            saveAlert(db, alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type, rule_remark)
 
-        # 通过 Socket.IO 发送事故预警到前端
-        await sio.emit("updateHappeningAlert", {
-            "alertId": alert_id,
-            "cameraId": camera_id,
-            "cameraName": camera_name,
-            "ruleRemark": rule_remark
-            # "alertType": "事故检测",
-            # "alertConfidence": max_accident_confidence,
-            # "timestamp": current_time
-        })
+            # 通过 Socket.IO 发送事故预警到前端
+            await sio.emit("updateHappeningAlert", {
+                "alertId": alert_id,
+                "cameraId": camera_id,
+                "cameraName": camera_name,
+                "ruleRemark": rule_remark
+                # "alertType": "事故检测",
+                # "alertConfidence": max_accident_confidence,
+                # "timestamp": current_time
+            })
+            # 在全局状态中记录该摄像头的事故预警
+            accident_active_alerts[camera_id] = {
+                "alert_id": alert_id,
+                "warning_start_time": current_time,
+                "clear_count": 0  # 清除计数初始化为 0
+            }
+            # print(f"🚨 事故预警触发！最高置信度: {max_accident_confidence:.2f}")
+            print(f"🚨 事故预警触发！")
 
-        print(f"🚨 事故预警触发！最高置信度: {max_accident_confidence:.2f}")
-
-        return True  # 预警已触发
-
-    return False  # 未触发预警
+            return True,accident_active_alerts  # 预警已触发
+    else:
+        # 未检测到事故
+        if camera_id in accident_active_alerts:
+            # 增加连续未检测到事故的计数
+            accident_active_alerts[camera_id]["clear_count"] += 1
+            if accident_active_alerts[camera_id]["clear_count"] >= clearAccidentThreshold:
+                # 达到解除预警的条件，更新预警状态为 '2'（已结束）
+                alert_id = accident_active_alerts[camera_id]["alert_id"]
+                warning_start_time = accident_active_alerts[camera_id]["warning_start_time"]
+                warning_end_time = current_time
+                # 更新数据库预警状态（例如 saveAlert 用于更新预警状态，类型变为2）
+                saveAlert(db, alert_id, camera_id, camera_name, 2, datetime.fromtimestamp(warning_start_time),
+                          datetime.fromtimestamp(warning_end_time), None, None, "5", "事故预警解除")
+                # 发送更新事件到前端
+                # await sio.emit("updateHappeningAlert", {
+                #     "alertId": alert_id,
+                #     "cameraId": camera_id,
+                #     "cameraName": camera_name,
+                #     "ruleRemark": "事故预警解除",
+                #     "alertType": "2"
+                # })
+                print(f"🚨 事故预警解除！ alert_id: {alert_id}")
+                # 移除该摄像头的预警记录
+                del accident_active_alerts[camera_id]
+                return False,accident_active_alerts
+        # 如果没有活跃预警，则直接返回 False
+        return False,accident_active_alerts
 

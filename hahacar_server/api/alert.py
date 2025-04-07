@@ -19,7 +19,7 @@ def get_alerts_api(
     pageNum: str = Query(..., description="页码"),
     pageSize: str = Query(..., description="每页大小"),
     alertType: Optional[List[str]] = Query(None, description="警报类型列表"),
-    cameraId: Optional[str] = Query(None, description="摄像头 ID"),
+    cameraIds: Optional[str] = Query(None, description="摄像头 ID"),
     alertStartTimeFrom: Optional[str] = Query(None, description="警报开始时间起点"),
     alertStartTimeTo: Optional[str] = Query(None, description="警报开始时间终点"),
     alertId: Optional[str] = Query(None, description="警报 ID"),
@@ -29,7 +29,7 @@ def get_alerts_api(
         pageNum=pageNum,
         pageSize=pageSize,
         alertType=alertType,
-        cameraId=cameraId,
+        cameraId=cameraIds,
         alertStartTimeFrom=alertStartTimeFrom,
         alertStartTimeTo=alertStartTimeTo,
         alertId=alertId

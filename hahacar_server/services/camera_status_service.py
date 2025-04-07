@@ -41,31 +41,72 @@ def build_camera_status(db: Session) -> dict:
 
     return camera_status
 
+# @sio.event
+# async def connect(sid, environ, auth):
+#     """
+#     当客户端新连接时，发送所有摄像头的初始状态到此客户端。
+#     """
+#     print(f"[socket] Client connected:发送摄像头状态 {sid}")
+#
+#     # 1) 新建数据库会话
+#     db = SessionLocal()
+#     try:
+#         # 2) 查询最新的 camera_status
+#         new_status = build_camera_status(db)
+#     finally:
+#         db.close()
+#
+#     # 3) 构造 camera_list
+#     camera_list = []
+#     for cid, st in new_status.items():
+#         camera_list.append({
+#             "cameraId": cid,
+#             "online": st["online"],
+#             "alert": st["alert"]
+#         })
+#
+#     await sio.emit("cameraSituation", camera_list, room=sid)
+
+
 @sio.event
 async def connect(sid, environ, auth):
-    """
-    当客户端新连接时，发送所有摄像头的初始状态到此客户端。
-    """
-    print(f"[socket] Client connected:发送摄像头状态 {sid}")
+    print(f"[socket] Client connected: {sid} - 发送摄像头状态和预警状态")
 
-    # 1) 新建数据库会话
     db = SessionLocal()
     try:
-        # 2) 查询最新的 camera_status
-        new_status = build_camera_status(db)
+        # 查询摄像头状态
+        camera_status_data = build_camera_status(db)
+        camera_list = []
+        for cid, st in camera_status_data.items():
+            camera_list.append({
+                "cameraId": cid,
+                "online": st["online"],
+                "alert": st["alert"]
+            })
+
+        # 查询当前状态为“正在发生”的预警
+        happening_alerts = db.query(Alert).filter(Alert.alert_type == '1').all()
+        alert_data = []
+        for alert in happening_alerts:
+            alert_data.append({
+                "alertId": alert.alert_id,
+                "cameraId": alert.camera_id,
+                "cameraName": alert.camera_name,
+                "ruleRemark": alert.rule_remark,
+            })
+
+    except Exception as e:
+        print(f"初始化推送异常: {e}")
+        camera_list = []
+        alert_data = []
     finally:
         db.close()
 
-    # 3) 构造 camera_list
-    camera_list = []
-    for cid, st in new_status.items():
-        camera_list.append({
-            "cameraId": cid,
-            "online": st["online"],
-            "alert": st["alert"]
-        })
-
+    # 分别推送两个事件到指定的客户端 sid
     await sio.emit("cameraSituation", camera_list, room=sid)
+    await sio.emit("updateHappeningAlert", alert_data, room=sid)
+    print(f"[Socket.IO] 已向 {sid} 推送初始化状态：摄像头 {len(camera_list)} 条，预警 {len(alert_data)} 条")
+
 
 async def update_camera_status(camera_id: str, new_online: bool, new_alert: bool):
     """

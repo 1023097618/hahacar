@@ -8,12 +8,12 @@ h1his = [];
 h2his = [];
 detector = Detector("./weights/yolo12x.pt");
 hb1 = hitBar(name="hitBar1", imgSize=(0, 320), startPoint=(225, 125), endPoint=(350, 70),
-             monitor=["person", "car", "bus"], width=20.0, maxLength=50, visualize=True);
+             monitor=["person", "car", "bus"], width=20.0, maxHis=50, visualize=True);
 hb2 = hitBar(name="hitBar2", imgSize=(0, 320), startPoint=(620, 200), endPoint=(620, 70),
-             monitor=["person", "car", "bus", "truck"], width=30.0, maxLength=50, visualize=True);
+             monitor=["person", "car", "bus", "truck"], width=30.0, maxHis=50, visualize=True);
 hb1._monitor(["truck"]);
 
-video = cv2.VideoCapture("./videos/accdemo.mp4");
+video = cv2.VideoCapture("C:/Users/Evelyn/Desktop/hitbarres_test.mp4");
 fps = video.get(cv2.CAP_PROP_FPS);
 while True:
     ret, frame = video.read();
