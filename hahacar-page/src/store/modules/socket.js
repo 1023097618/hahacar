@@ -59,15 +59,34 @@ export default{
             state.sid=sid
         },
         UPDATE_CAMERA_SITUATION(state, data) {
-            if (data && data.cameraId) {
-                Vue.set(state.cameraSituations, data.cameraId, {
-                  online: data.online,
-                  alert: data.alert
+            // 如果 data 是数组，则遍历每一项处理；否则直接处理单个对象
+            if (Array.isArray(data)) {
+                data.forEach(item => {
+                    if (item && item.cameraId) {
+                        Vue.set(state.cameraSituations, item.cameraId, {
+                            online: item.online,
+                            alert: item.alert
+                        })
+                    }
                 })
+            } else {
+                if (data && data.cameraId) {
+                    Vue.set(state.cameraSituations, data.cameraId, {
+                        online: data.online,
+                        alert: data.alert
+                    })
+                }
             }
         },
         ADD_ALERT(state, alert) {
-            state.alertMessages.push(alert)
+            // 如果 alert 是数组，则遍历每一项；否则直接添加
+            if (Array.isArray(alert)) {
+                alert.forEach(item => {
+                    state.alertMessages.push(item)
+                })
+            } else {
+                state.alertMessages.push(alert)
+            }
         }
     },
     actions:{

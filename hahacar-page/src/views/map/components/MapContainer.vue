@@ -59,17 +59,8 @@
         watch: {
             // 当摄像头状态变化时更新 marker 图标
             cameraSituations: {
-                handler(newVal) {
-                    Object.keys(newVal).forEach(cameraId => {
-                        if (this.markers[cameraId]) {
-                            // 如果 alert 为 true，则设置红色图标，否则恢复默认图标
-                            if (newVal[cameraId].alert) {
-                                this.markers[cameraId].setIcon(this.alertIconUrl)
-                            } else {
-                                this.markers[cameraId].setIcon(this.defaultIconUrl)
-                            }
-                        }
-                    })
+                handler() {
+                    this.updateMarkersStatus()
                 },
                 deep: true
             },
@@ -136,6 +127,7 @@
                         this.mapInstance.add(marker)
                     })
                 }
+                this.updateMarkersStatus()
             },
             getMapStyleByTheme(themeValue) {
                 switch (themeValue) {
@@ -166,6 +158,17 @@
             },
             goToAlert(alertId) {
                 this.$router.push({ path: '/alertList', query: { alertId } });
+            },
+            updateMarkersStatus() {
+                Object.keys(this.cameraSituations).forEach(cameraId => {
+                    if (this.markers[cameraId]) {
+                        if (this.cameraSituations[cameraId].alert) {
+                            this.markers[cameraId].setIcon(this.alertIconUrl)
+                        } else {
+                            this.markers[cameraId].setIcon(this.defaultIconUrl)
+                        }
+                    }
+                })
             }
         }
     }
