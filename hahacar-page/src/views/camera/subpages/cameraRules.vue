@@ -8,8 +8,8 @@
     <div v-for="(rule, index) in rules" :key="index" class="rule-card">
       <el-card shadow="hover" style="margin-bottom: 20px;">
         <div slot="header" class="clearfix">
+          <el-button type="text" @click="removeRule(index)">删除</el-button>
           <span>规则 {{ index + 1 }}</span>
-          <el-button type="text" style="float: right;" @click="removeRule(index)">删除</el-button>
         </div>
         <el-form :model="rule" label-width="120px">
           <el-form-item label="规则类型">
