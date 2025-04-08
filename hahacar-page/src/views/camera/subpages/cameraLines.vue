@@ -199,7 +199,8 @@
             cameraLineId: Date.now().toString(),
             marker: null,
             isMainLine: false,
-            eyeOpen: true
+            eyeOpen: true,
+            isNew: true
           })
         }
         this.currentLine.points = []
@@ -224,7 +225,8 @@
                 marker: null,
                 // 转换 isMainLine 字段（支持 boolean 或字符串形式）
                 isMainLine: item.isMainLine === true || item.isMainLine === 'true',
-                eyeOpen: true
+                eyeOpen: true,
+                isNew: false
               }
             })
             this.redrawCanvas()
@@ -350,7 +352,7 @@
         const payload = {
           cameraLines: this.lines.map(line => {
             const pts = line.points
-            return {
+            let data = {
               cameraLineName: line.cameraLineName,
               cameraLineStartX: (pts[0] / this.canvasWidth).toString(),
               cameraLineStartY: (pts[1] / this.canvasHeight).toString(),
@@ -360,6 +362,10 @@
               isMainLine: line.isMainLine ? 'true' : 'false',
               cameraLineId: line.cameraLineId
             }
+            if (!line.isNew && line.cameraLineId) {
+              data.cameraLineId = line.cameraLineId
+            }
+            return data
           }),
           cameraId: this.cameraId
         }

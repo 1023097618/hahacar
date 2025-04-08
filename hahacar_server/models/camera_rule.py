@@ -1,36 +1,59 @@
-from datetime import datetime
-from typing import Text
-
-from sqlalchemy import Column, String, Integer, JSON, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, String, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
 from dependencies.database import Base
 
+# 主表：摄像头规则
 class CameraRule(Base):
-    __tablename__ = "camera_rules"
+    __tablename__ = "camera_rule"
 
-    id = Column(String, primary_key=True, index=True)
-    camera_id = Column(String, ForeignKey("camera.id"),index=True)
-    rule_value = Column(String)  # 1: 车类别, 2: 车拥堵, 3: 车流量
-    label_ids = Column(JSON, nullable=True)  # 仅 rule_value=1 时适用,包含labelID
+    rule_id = Column(String, primary_key=True, index=True)
+    camera_id = Column(String,ForeignKey("camera.id"), index=True)
+    rule_value = Column(String)  # 1: 车类别, 2: 车拥堵, 3: 车流量, 4: 预约, 5: 事故检测
 
-    # ** 新增 **
-    label_line_id = Column(String, nullable=True)
-    vehicle_reserve = Column(Boolean, nullable=True)
-    event_detect = Column(Boolean, nullable=True)
-
-
-    max_vehicle_hold_num = Column(Float, nullable=True)  # 仅 rule_value=2 时适用
-    min_vehicle_hold_num = Column(Float, nullable=True)  # 仅 rule_value=2 时适用
-    max_continuous_time_period = Column(Integer, nullable=True)  # 适用于 2 和 3
-    min_continuous_time_period = Column(Integer, nullable=True)  # 适用于 2 和 3
-    max_vehicle_flow_num = Column(Float, nullable=True)  # 仅 rule_value=3 时适用
-    min_vehicle_flow_num = Column(Float, nullable=True)  # 仅 rule_value=3 时适用
-    camera_start_line_id = Column(String, ForeignKey("camera_lines.camera_line_id"),nullable=True) #和camera_line表关联
-    camera_end_line_id = Column(String, ForeignKey("camera_lines.camera_line_id"), nullable=True)  # 和camera_line表关联
-    created_at = Column(DateTime, default=datetime.utcnow)
-    labels_equal_hold_ids = Column(JSON, nullable=True) # 仅 rule_value=2 时适用，包含labelId以及labelHoldNum的json字符串,代表本labelId可以视为多少个交通当量
-    labels_equal_flow_ids = Column(JSON, nullable=True) # 仅 rule_value=3 时适用,包含labelId以及labelFlowNum的json字符串,代表本labelId可以视为多少个交通当量
-
-    #关联
     camera = relationship("Camera", back_populates="rules")
+
+# 分表1：规则1，车辆类别
+class CameraRule1(Base):
+    __tablename__ = "camera_rule_1"
+
+    rule_id = Column(String, primary_key=True, index=True)
+    labels = Column(String)  # 假定存储的是 JSON 串，比如：{"labelId": ["l1", "l2"], "cameraLineId": "line1"}
+
+# 分表2：规则2，车拥堵情况（车辆停留检测）
+class CameraRule2(Base):
+    __tablename__ = "camera_rule_2"
+
+    rule_id = Column(String, primary_key=True, index=True)
+    max_vehicle_hold_num = Column(String)
+    min_vehicle_hold_num = Column(String)
+    max_continuous_time_period = Column(String)  # 虽然建表中为 TEXT
+    min_continuous_time_period = Column(String)
+    Labels_equal = Column(String)  # 建议存储为 JSON 串，格式为 [{"labelId": "xxx", "labelHoldNum": "1.5"}, ...]
+
+# 分表3：规则3，车流量情况
+class CameraRule3(Base):
+    __tablename__ = "camera_rule_3"
+
+    rule_id = Column(String, primary_key=True, index=True)
+    max_vehicle_flow_num = Column(String)
+    min_vehicle_flow_num = Column(String)
+    max_continuous_time_period = Column(String)
+    min_continuous_time_period = Column(String)
+    labels_equal = Column(String)  # JSON 串，格式同上
+    camera_start_line = Column(String)  # 存储 JSON 数据，如 {"cameraLineId": "line1", "isAll": true}
+    camera_end_line = Column(String)    # 存储 JSON 数据，如 {"cameraLineId": "line2", "isAll": false}
+
+# 分表4：规则4，预约车辆检测
+class CameraRule4(Base):
+    __tablename__ = "camera_rule_4"
+
+    rule_id = Column(String, primary_key=True, index=True)
+    vehicle_reserve = Column(Integer)  # 1 表示开启，0 表示关闭
+
+# 分表5：规则5，事故检测
+class CameraRule5(Base):
+    __tablename__ = "camera_rule_5"
+
+    rule_id = Column(String, primary_key=True, index=True)
+    event_detect = Column(Integer)  # 1 表示开启，0 表示关闭

@@ -1,73 +1,28 @@
-import asyncio
 import os
-import threading
+import os
+
+import socketio
 import uvicorn;
-from contextlib import asynccontextmanager
-
-import logging;
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import socketio
-
-from api.socket_manager import sio
-from api.user import router as user_router
-from api.photo_process import router as photo_router
-from api.video_process import router as video_router
-from api.camera_process import router as camera_process_router, generate_frames, background_camera_task
-from api.camera import router as camera_router
-from api.camera_rule import router as camera_rule_router
-from api.camera_detect_info import router as camera_detect_info
-from api.alert import router as alert
-from api.camera_line import router as camera_line
-from api.label import router as label
-
-from dependencies.database import get_db, SessionLocal
-from services.camera_service import get_all_camera_ids
 from fastapi.staticfiles import StaticFiles
 
-from services.camera_status_service import refresh_camera_status
-
+from api.alert import router as alert
+from api.camera import router as camera_router
+from api.camera_detect_info import router as camera_detect_info
+from api.camera_line import router as camera_line
+from api.camera_process import router as camera_process_router
+from api.camera_rule import router as camera_rule_router
+from api.label import router as label
+from api.photo_process import router as photo_router
+from api.socket_manager import sio
+from api.user import router as user_router
+from api.video_process import router as video_router
+from lifespan_manager import lifespan
 
 # logging.getLogger("sqlalchemy").setLevel(logging.ERROR);
 
 # 定义 lifespan 上下文管理器，用于应用启动和关闭的逻辑
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 启动时执行的逻辑
-    db = get_db()
-    camera_ids = get_all_camera_ids(db)  # 获取所有摄像头ID列表
-    # 为每个摄像头创建独立的后台任务
-    for camera_id in camera_ids:
-        asyncio.create_task(background_camera_task(camera_id))
-
-    # 2) 定义一个定时协程，用来周期性刷新 camera_status
-    stop_refresh = False
-
-    async def periodic_refresh():
-        while not stop_refresh:
-            # 每 60 秒执行一次
-            await asyncio.sleep(60)
-
-            # 在刷新前打开/关闭一个会话
-            with SessionLocal() as dbsession:
-                # 调用 refresh_camera_status：对比数据库最新状态与当前 camera_status
-                refresh_camera_status(dbsession)
-
-    # 启动周期任务
-    task = asyncio.create_task(periodic_refresh())
-    # 启动逻辑完成后，yield 让应用进入运行状态
-    yield
-
-    # 可在此添加关闭时的清理工作（如果需要）
-    # 例如：关闭数据库连接、停止后台任务等
-    # 应用关闭时
-    stop_refresh = True
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
 
 
 # 挂载 socket.io 到 ASGI 应用
@@ -75,7 +30,6 @@ socket_app = socketio.ASGIApp(sio)
 
 # 使用 lifespan 参数初始化 FastAPI 应用
 app = FastAPI(lifespan=lifespan)
-
 # 配置 CORS 中间件
 app.add_middleware(
     CORSMiddleware,

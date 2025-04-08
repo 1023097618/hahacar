@@ -77,27 +77,3 @@ def getFlowMat(
         cameraId=cameraId
     )
     return get_traffic_flow_mat(db,request)
-
-"""
-    ***存储车辆类别、车流量、车拥挤度***
-"""
-@router.post("/category/saveCategoryNum")
-def saveCategoryNum(
-    request: VehicleLabelSaveRequest,
-    db: Session = Depends(get_db)
-):
-    return save_vehicle_labels(db,request)
-
-@router.post("/hold/saveHoldNum")
-def saveHoldNum(
-    request: TrafficHoldSaveRequest,
-    db: Session = Depends(get_db)
-):
-    return save_traffic_hold(db,request)
-
-@router.post("/flow/saveFlowNum")
-def saveFlowNum(
-    request: TrafficFlowSaveRequest,
-    db: Session = Depends(get_db)
-):
-    return save_traffic_flow(db,request)

@@ -69,6 +69,7 @@ class CameraRuleUpdate(BaseModel):
     **description**
     更新摄像头规则请求模型
     """
+    rule_id : Optional[str]
     rule_value: str = Field(..., alias="ruleValue", description="规则值，1表示车类型；2表示车拥堵情况；3表示车流量")   #Fileld(...)表示必填项
     label: Optional[LabelRule] #= Field(None, description="仅当规则值为1时必填，包含车辆类型id列表及预警检测线ID")
     VehicleHold: Optional[VehicleHold]      # Field(None, description="车拥堵情况，如果规则值是2，则必填。当连续maxContinuousTimePeriod秒的帧检测出来的交通当量都大于等于maxVihicleHoldNum辆的时候开始预警，将预警状态置为'正在发生'，此时，如果检测到交通当量小于等于minVihicleHoldNum且持续了minContinuousTimePeriod秒时，将预警状态置为‘已经发生’")
@@ -83,6 +84,7 @@ class CameraRuleUpdate(BaseModel):
 class CameraRuleUpdateRequest(BaseModel):
     camera_id: str = Field(..., alias="cameraId")
     cameraRules: List[CameraRuleUpdate]
+
 
     class Config:
         orm_mode = True

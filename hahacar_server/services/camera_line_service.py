@@ -77,15 +77,34 @@ def get_camera_line(db: Session, cameraId: str):
 #这里由于没有给出cameralineid，是根据cameralinename进行更新的，所以要求前端返回的cameralinename不同
 def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
     cameraId = cameraLines.camera_id
+
+    # 查询该摄像头下所有检测线
+    existing_lines = db.query(CameraLine).filter(CameraLine.camera_id == cameraId).all()
+
+    # 从请求中提取所有提供了 cameraLineId 的记录（过滤掉 None）
+    request_line_ids = {line.cameraLineId for line in cameraLines.cameraLines if line and line.cameraLineId is not None}
+
+    # 删除数据库中存在但请求中未包含的检测线记录
+    for line in existing_lines:
+        if line.camera_line_id not in request_line_ids:
+            db.delete(line)
+    db.commit()
+
+    # 遍历请求中的每条检测线，进行新增或更新操作
     for cameraLineUpdate in cameraLines.cameraLines:
         if cameraLineUpdate is None:
-            return {"code": "400", "msg": "cameraLine is None", "data": {}}
+            return {"code": "400", "msg": "Camera line data is None", "data": {}}
 
-        existing_line = db.query(CameraLine).filter(
-            CameraLine.camera_line_id == cameraLineUpdate.cameraLineId,
-        ).first()
+        # 如果请求中携带 cameraLineId，则尝试查找已有记录进行更新；否则视为新增
+        if cameraLineUpdate.cameraLineId:
+            existing_line = db.query(CameraLine).filter(
+                CameraLine.camera_line_id == cameraLineUpdate.cameraLineId
+            ).first()
+        else:
+            existing_line = None
 
         if not existing_line:
+            # 创建新的检测线记录
             new_line = CameraLine(
                 camera_id=cameraId,
                 line_name=cameraLineUpdate.cameraLineName,
@@ -93,38 +112,24 @@ def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
                 start_y=cameraLineUpdate.cameraLineStartY,
                 end_x=cameraLineUpdate.cameraLineEndX,
                 end_y=cameraLineUpdate.cameraLineEndY,
-                point_close_to_line=cameraLineUpdate.pointCloseToLine,  # 这里是 JSON 类型
+                point_close_to_line=cameraLineUpdate.pointCloseToLine,
                 is_main_line=cameraLineUpdate.isMainLine,
             )
             db.add(new_line)
-            db.commit()
-            # return {"code": "200",
-            #         "msg": "success",
-            #         "data": {
-            #             "cameraLines": [
-            #                 CameraLineUpdate.from_orm(new_line).dict()
-            #             ],
-            #             "cameraId": cameraId
-            #         }
-            # }
-
         else:
+            # 更新已有检测线记录
             update_data = {
                 "line_name": cameraLineUpdate.cameraLineName,
                 "start_x": cameraLineUpdate.cameraLineStartX,
                 "start_y": cameraLineUpdate.cameraLineStartY,
                 "end_x": cameraLineUpdate.cameraLineEndX,
                 "end_y": cameraLineUpdate.cameraLineEndY,
-                "point_close_to_line": cameraLineUpdate.pointCloseToLine,  # 这里是 JSON 类型
+                "point_close_to_line": cameraLineUpdate.pointCloseToLine,
                 "is_main_line": cameraLineUpdate.isMainLine,
             }
+            db.query(CameraLine).filter(
+                CameraLine.camera_line_id == existing_line.camera_line_id
+            ).update(update_data)
+    db.commit()
 
-            db.query(CameraLine).filter(CameraLine.camera_line_id == existing_line.camera_line_id).update(update_data)
-            db.commit()
-
-    return {
-        "code": "200",
-        "msg": "success",
-        "data": {
-        }
-    }
+    return {"code": "200", "msg": "success", "data": {}}

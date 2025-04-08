@@ -27,14 +27,15 @@
           <div v-if="rule.ruleValue === '1'">
             <el-form-item label="选择标签">
               <el-select v-model="rule.label.labelId" multiple placeholder="请选择标签" style="width: 300px;">
-                <el-option v-for="item in labels" :key="item.labelId" :label="item.labelName" :value="item.labelId"></el-option>
+                <el-option v-for="item in labels" :key="item.labelId" :label="item.labelName"
+                  :value="item.labelId"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="选择检测线"
-              @mouseenter.native="handleDetectionLineHover(rule.label.cameraLineId)"
+            <el-form-item label="选择检测线" @mouseenter.native="handleDetectionLineHover(rule.label.cameraLineId)"
               @mouseleave.native="clearLineHighlight">
               <el-select v-model="rule.label.cameraLineId" placeholder="请选择检测线" style="width: 300px;">
-                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName" :value="line.cameraLineId"></el-option>
+                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName"
+                  :value="line.cameraLineId"></el-option>
               </el-select>
             </el-form-item>
           </div>
@@ -42,13 +43,15 @@
           <!-- 当规则类型为2：车辆拥堵预警时 -->
           <div v-if="rule.ruleValue === '2'">
             <el-form-item label="最大交通当量">
-              <el-input v-model="rule.VehicleHold.maxVehicleHoldNum" placeholder="例如：1.5" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleHold.maxVehicleHoldNum" placeholder="例如：1.5"
+                style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最大持续时长">
               <el-input-number v-model="rule.VehicleHold.maxContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
             <el-form-item label="最小交通当量">
-              <el-input v-model="rule.VehicleHold.minVehicleHoldNum" placeholder="例如：1.0" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleHold.minVehicleHoldNum" placeholder="例如：1.0"
+                style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最小持续时长">
               <el-input-number v-model="rule.VehicleHold.minContinuousTimePeriod" :min="0"></el-input-number>
@@ -56,9 +59,11 @@
             <el-form-item label="交通当量设置">
               <div v-for="(item, i) in rule.VehicleHold.LabelsEqual" :key="i" class="labels-equal-item">
                 <el-select v-model="item.labelId" placeholder="选择标签" style="width:150px;">
-                  <el-option v-for="label in labels" :key="label.labelId" :label="label.labelName" :value="label.labelId"></el-option>
+                  <el-option v-for="label in labels" :key="label.labelId" :label="label.labelName"
+                    :value="label.labelId"></el-option>
                 </el-select>
-                <el-input v-model="item.labelHoldNum" placeholder="当量" style="width:100px; margin-left:10px;"></el-input>
+                <el-input v-model="item.labelHoldNum" placeholder="当量"
+                  style="width:100px; margin-left:10px;"></el-input>
                 <el-button type="text" @click="removeLabelsEqual(rule.VehicleHold.LabelsEqual, i)">删除</el-button>
               </div>
               <el-button type="primary" @click="addLabelsEqual(rule, 'VehicleHold')">添加当量设置</el-button>
@@ -68,13 +73,15 @@
           <!-- 当规则类型为3：车流量预警时 -->
           <div v-if="rule.ruleValue === '3'">
             <el-form-item label="最大交通当量">
-              <el-input v-model="rule.VehicleFlow.maxVehicleFlowNum" placeholder="例如：1.5" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleFlow.maxVehicleFlowNum" placeholder="例如：1.5"
+                style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最大持续时长">
               <el-input-number v-model="rule.VehicleFlow.maxContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
             <el-form-item label="最小交通当量">
-              <el-input v-model="rule.VehicleFlow.minVehicleFlowNum" placeholder="例如：1.0" style="width:200px;"></el-input>
+              <el-input v-model="rule.VehicleFlow.minVehicleFlowNum" placeholder="例如：1.0"
+                style="width:200px;"></el-input>
             </el-form-item>
             <el-form-item label="最小持续时长">
               <el-input-number v-model="rule.VehicleFlow.minContinuousTimePeriod" :min="0"></el-input-number>
@@ -82,9 +89,11 @@
             <el-form-item label="交通当量设置">
               <div v-for="(item, i) in rule.VehicleFlow.LabelsEqual" :key="i" class="labels-equal-item">
                 <el-select v-model="item.labelId" placeholder="选择标签" style="width:150px;">
-                  <el-option v-for="label in labels" :key="label.labelId" :label="label.labelName" :value="label.labelId"></el-option>
+                  <el-option v-for="label in labels" :key="label.labelId" :label="label.labelName"
+                    :value="label.labelId"></el-option>
                 </el-select>
-                <el-input v-model="item.labelEqualNum" placeholder="当量" style="width:100px; margin-left:10px;"></el-input>
+                <el-input v-model="item.labelEqualNum" placeholder="当量"
+                  style="width:100px; margin-left:10px;"></el-input>
                 <el-button type="text" @click="removeLabelsEqual(rule.VehicleFlow.LabelsEqual, i)">删除</el-button>
               </div>
               <el-button type="primary" @click="addLabelsEqual(rule, 'VehicleFlow')">添加当量设置</el-button>
@@ -92,16 +101,20 @@
             <el-form-item label="摄像头起始线"
               @mouseenter.native="handleDetectionLineHover(rule.VehicleFlow.cameraStartLine.cameraLineId)"
               @mouseleave.native="clearLineHighlight">
-              <el-select v-model="rule.VehicleFlow.cameraStartLine.cameraLineId" placeholder="选择起始检测线" style="width:200px;">
-                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName" :value="line.cameraLineId"></el-option>
+              <el-select v-model="rule.VehicleFlow.cameraStartLine.cameraLineId" placeholder="选择起始检测线"
+                style="width:200px;">
+                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName"
+                  :value="line.cameraLineId"></el-option>
               </el-select>
               <el-checkbox v-model="rule.VehicleFlow.cameraStartLine.isAll" style="margin-left:10px;">全部</el-checkbox>
             </el-form-item>
             <el-form-item label="摄像头终止线"
               @mouseenter.native="handleDetectionLineHover(rule.VehicleFlow.cameraEndLine.cameraLineId)"
               @mouseleave.native="clearLineHighlight">
-              <el-select v-model="rule.VehicleFlow.cameraEndLine.cameraLineId" placeholder="选择终止检测线" style="width:200px;">
-                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName" :value="line.cameraLineId"></el-option>
+              <el-select v-model="rule.VehicleFlow.cameraEndLine.cameraLineId" placeholder="选择终止检测线"
+                style="width:200px;">
+                <el-option v-for="line in cameraLines" :key="line.cameraLineId" :label="line.cameraLineName"
+                  :value="line.cameraLineId"></el-option>
               </el-select>
               <el-checkbox v-model="rule.VehicleFlow.cameraEndLine.isAll" style="margin-left:10px;">全部</el-checkbox>
             </el-form-item>
@@ -143,7 +156,7 @@
   import { getLabels } from '@/api/label/label.js'
   import { getCameraLines } from '@/api/camera/cameraLines'
   import { getCameraLiveURL } from '@/api/storage/storage.js'
-  
+
   export default {
     name: 'cameraRulesView',
     data() {
@@ -230,7 +243,12 @@
         if (!this.cameraId) return
         getCameraRules({ cameraId: this.cameraId }).then(response => {
           const data = response.data.data
-          this.rules = (data.cameraRules && data.cameraRules.length > 0) ? data.cameraRules : []
+          this.rules = (data.cameraRules && data.cameraRules.length > 0) ? data.cameraRules.map(rule => {
+            return {
+              ...rule,
+              isNew: false  // 表示该规则是从后端加载的
+            }
+          }) : []
         }).catch(() => {
           this.$notify.error({
             title: '错误',
@@ -268,7 +286,8 @@
           label: {
             labelId: [],
             cameraLineId: ''
-          }
+          },
+          isNew: true
         })
       },
       removeRule(index) {
@@ -307,7 +326,17 @@
       saveRules() {
         const payload = {
           cameraId: this.cameraId,
-          cameraRules: this.rules
+          cameraRules: this.rules.map(rule => {
+            // 复制对象，防止直接修改原数据
+            let data = { ...rule }
+            // 如果规则为新增（即 isNew 为 true）或 cameraRuleId 不存在，则删除 cameraRuleId 字段
+            if (rule.isNew || !rule.cameraRuleId) {
+              delete data.cameraRuleId
+            }
+            // 可根据实际情况决定是否保留 isNew 标识，通常不需要传给后端
+            delete data.isNew
+            return data
+          })
         }
         updateCameraRules(payload).then(() => {
           this.$notify.success({
@@ -399,28 +428,33 @@
     padding: 20px;
     position: relative;
   }
-  
+
   /* 浮动摄像头视图样式 */
   .floating-camera {
     position: fixed;
-    top: 100px;      /* 根据需要调整 */
-    right: 20px;     /* 根据需要调整 */
+    top: 100px;
+    /* 根据需要调整 */
+    right: 20px;
+    /* 根据需要调整 */
     width: 640px;
     height: 480px;
     z-index: 999;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     background: #fff;
   }
+
   .floating-camera .camera-section {
     position: relative;
     width: 100%;
     height: 100%;
   }
+
   .camera-image {
     width: 100%;
     height: 100%;
     display: block;
   }
+
   .drawing-canvas {
     position: absolute;
     top: 0;
@@ -428,13 +462,14 @@
     z-index: 10;
     pointer-events: none;
   }
+
   .rule-card {
     margin-bottom: 20px;
   }
+
   .labels-equal-item {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
   }
-  </style>
-  
+</style>

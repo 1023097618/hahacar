@@ -18,7 +18,7 @@ def updateCameraLine_api(cameraLines: CameraLineUpdateRequest, db: Session = Dep
     return updateCameraLine(db, cameraLines)
 
 
-#这个需要再测试，因为只返回最后一个摄像头检测线
+
 @router.get("/getCameraLines")
 def getCameraLines_api(cameraId: str,
                        X_HAHACAR_TOKEN: str = Header(..., description="管理员访问权限 Token"), db: Session = Depends(get_db)):
