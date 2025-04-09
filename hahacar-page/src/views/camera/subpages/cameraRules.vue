@@ -42,21 +42,21 @@
 
           <!-- 当规则类型为2：车辆拥堵预警时 -->
           <div v-if="rule.ruleValue === '2'">
-            <el-form-item label="最大交通当量">
+            <el-form-item label="开始警戒阈值当量">
               <el-input v-model="rule.VehicleHold.maxVehicleHoldNum" placeholder="例如：1.5"
                 style="width:200px;"></el-input>
             </el-form-item>
-            <el-form-item label="最大持续时长">
+            <el-form-item label="开始警戒持续时长(秒)">
               <el-input-number v-model="rule.VehicleHold.maxContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
             <el-form-item label="最小交通当量">
               <el-input v-model="rule.VehicleHold.minVehicleHoldNum" placeholder="例如：1.0"
                 style="width:200px;"></el-input>
             </el-form-item>
-            <el-form-item label="最小持续时长">
+            <el-form-item label="取消警戒持续时长(秒)">
               <el-input-number v-model="rule.VehicleHold.minContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
-            <el-form-item label="交通当量设置">
+            <el-form-item label="取消警戒阈值当量">
               <div v-for="(item, i) in rule.VehicleHold.LabelsEqual" :key="i" class="labels-equal-item">
                 <el-select v-model="item.labelId" placeholder="选择标签" style="width:150px;">
                   <el-option v-for="label in labels" :key="label.labelId" :label="label.labelName"
@@ -72,18 +72,18 @@
 
           <!-- 当规则类型为3：车流量预警时 -->
           <div v-if="rule.ruleValue === '3'">
-            <el-form-item label="最大交通当量">
+            <el-form-item label="开始警戒阈值当量">
               <el-input v-model="rule.VehicleFlow.maxVehicleFlowNum" placeholder="例如：1.5"
                 style="width:200px;"></el-input>
             </el-form-item>
-            <el-form-item label="最大持续时长">
+            <el-form-item label="开始警戒持续时长(秒)">
               <el-input-number v-model="rule.VehicleFlow.maxContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
-            <el-form-item label="最小交通当量">
+            <el-form-item label="取消警戒阈值当量">
               <el-input v-model="rule.VehicleFlow.minVehicleFlowNum" placeholder="例如：1.0"
                 style="width:200px;"></el-input>
             </el-form-item>
-            <el-form-item label="最小持续时长">
+            <el-form-item label="取消警戒持续时长(秒)">
               <el-input-number v-model="rule.VehicleFlow.minContinuousTimePeriod" :min="0"></el-input-number>
             </el-form-item>
             <el-form-item label="交通当量设置">

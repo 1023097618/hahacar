@@ -7,4 +7,12 @@ router = APIRouter(prefix="/api/label", tags=["Label"])
 
 @router.get("/getLabels")
 def getLabelsApi(db: Session = Depends(get_db)):
-    return getLabels(db)
+    labels = getLabels(db)
+    return {
+            "code": "200",
+            "data": {
+                "labels": [{"labelId":label.label_id, "labelName":label.label_name} for label in labels]
+            }
+            ,
+            "msg": "Success"
+        }
