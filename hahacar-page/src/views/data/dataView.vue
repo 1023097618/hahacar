@@ -129,12 +129,13 @@ export default {
     }
   },
   mounted() {
+    // TODO:FlowData可以画得精确一些，准确来讲后端传过来的是开始时间
     // 组件挂载后请求数据及初始化图表
     this.getCategoryData()
     this.getFlowData()
-    this.getHoldData()
+    // this.getHoldData()
     this.getAlertData()
-    // 初始化和弦图（使用 D3-chord 绘制）
+    // // 初始化和弦图（使用 D3-chord 绘制）
     this.$nextTick(() => {
       this.updateChordChart()
     })

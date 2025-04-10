@@ -21,12 +21,19 @@ def searchCategoryNum(
     cameraId: Optional[str] = Query(None, description="摄像头 ID"),
     db: Session = Depends(get_db)
 ):
-    request = GetTrafficFlowRequest(
+    request = GetVehicleLabelRequest(
         timeFrom=timeFrom,
         timeTo=timeTo,
         cameraId=cameraId
     )
-    return get_vehicle_labels(db, request)
+    formatted_results = get_vehicle_labels(db, request)
+    return {
+        "code": "200",
+        "msg": "success",
+        "data": {
+            "labels": formatted_results
+        }
+    }
 
 #获取一段时间车的拥挤度
 @router.get("/hold/searchHoldNum")
@@ -43,7 +50,7 @@ def searchHoldNum(
     )
     return get_traffic_hold(db, request)
 
-#获取一段时间内车流量
+
 @router.get("/flow/searchFlowNum")
 def searchFlowNum(
     timeFrom: Optional[str] = Query(None, description="开始时间"),
@@ -62,7 +69,8 @@ def searchFlowNum(
         cameraLineIdEnd=cameraLineIdEnd,
         cameraLineId=cameraLineId
     )
-    return get_traffic_flow(db, request)
+    formatted_results = get_traffic_flow(db, request)
+    return {"code": "200", "msg": "success", "data": {"flows": formatted_results}}
 
 @router.get("/flow/getFlowMat")
 def getFlowMat(

@@ -52,7 +52,6 @@
               placeholder="请选择检测线"
               class="filter-item"
               style="width:200px;"
-              :disabled="filterQuery.cameraIds.length !== 1"
             >
               <el-option
                 v-for="line in detectionLineOptions"
@@ -69,7 +68,6 @@
               placeholder="请选择起始检测线"
               class="filter-item"
               style="width:200px;"
-              :disabled="filterQuery.cameraIds.length !== 1"
             >
               <el-option
                 v-for="line in detectionLineOptions"
@@ -84,7 +82,6 @@
               placeholder="请选择终止检测线"
               class="filter-item"
               style="width:200px;"
-              :disabled="filterQuery.cameraIds.length !== 1 || !selectedStartLine"
             >
               <el-option
                 v-for="line in detectionLineOptions"
@@ -128,7 +125,7 @@ export default {
     return {
       filterQuery: {
         timeRange: [],
-        cameraIds: []
+        cameraIds: ""
       },
       // 车流量类型：false表示单条检测线（统计进出量），true表示定向（显示起始和终止检测线）
       isDirectionalFlow: false,
@@ -144,8 +141,8 @@ export default {
   },
   watch: {
     'filterQuery.cameraIds'(newVal) {
-      if (newVal && newVal.length === 1) {
-        this.getDetectionLineOptions(newVal[0])
+      if (newVal) {
+        this.getDetectionLineOptions(newVal)
       } else {
         this.detectionLineOptions = []
         this.selectedStartLine = ''

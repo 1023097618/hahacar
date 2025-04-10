@@ -123,7 +123,8 @@ def processAlert(db:Session, alertId:str):
     return {"code": "200", "msg": "success", "data": {}}
 
 #获取预警信息数量
-
+# TODO 不要这么写！！我说怎么这么卡，原来你是直接代码里统计的，你要在数据库里面统计，你可以看看我统计车流量的分组是怎么做的，搞到这里来
+# 因为这个代码可以跑我就先不改了，时间紧急。。。但绝对有性能问题
 """
     **这里返回的alert_time和ti清mefrom以及timeto的关系不很楚
     按照这样的逻辑实现了：

@@ -1,16 +1,21 @@
 import uuid
 from datetime import datetime, timedelta
+from typing import List
 from urllib.parse import unquote
-
-from sqlalchemy import func, text
+from sqlalchemy import or_
+from sqlalchemy import func, text, Integer, cast, String
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
+from models.camera import Camera
 from models.camera_line import CameraLine
 from models.camera_detect_info import camera_detect_info
 from models.CarThroughRoute import CarThroughRoute
 from models.camera_rule import CameraRule
 from models.vehicle_labels import VehicleLabel
 from schemas.camera_detect_schema import *
+from util import timeutil
+from util.timeutil import parse_frontend_time
 
 """
     ***存储车辆类别、车流量、车拥挤度***
@@ -30,13 +35,14 @@ def save_to_camera_detect_info(db:Session, camera_id, aggregated_label_counts,ti
 
     **returns** 无
     """
+    created_time = datetime.utcnow()
     new_record = camera_detect_info(
         camera_detect_info_id=str(uuid.uuid4()),
         camera_id=camera_id,
-        detected_hold_time = datetime.utcfromtimestamp(timestamp),
+        detected_hold_time = timeutil.get_utc_datetime_from_timestamp(timestamp),
 
         detected_cars_labels=aggregated_label_counts,
-        created_at= datetime.utcnow()
+        created_at= timeutil.get_utc_datetime_from_timestamp(created_time)
     )
     db.add(new_record)
     db.commit()
@@ -102,51 +108,140 @@ def parse_db_datetime(dt_value):
 """
 
 
+# TODO 这边没有考虑用户的摄像头权限，后面补
 
-def get_traffic_flow(db: Session,request: GetTrafficFlowRequest):
-    # **如果 cameraLineId、cameraLineIdStart、cameraLineIdEnd 未提供，则不对检测线做限制**
-    query = db.query(
-        func.strftime('%Y-%m-%d %H:00:00', camera_detect_info.detected_flow_time.label("flowTime")),
-        func.avg(camera_detect_info.detected_flow_num.label("flowNum"))
-    )
+# 你要做的任务是根据前端传过来的request来返回相关的车流数据，30分钟为聚类统计
+# 这是你要返回的数据格式
+#         [{
+#             "flowTime": flow_time,
+#             "flowNum": avg_flow_int
+#         }]
+#flowTime为你聚类的开始时间
+# 这是摄像头表
+# create table camera
+# (
+#     id             TEXT
+#         primary key,
+#     cameraURL      TEXT not null,
+#     cameraLocation TEXT not null,
+#     cameraName     TEXT not null
+# );
+# 这是一张摄像头检测线表
+# create table camera_lines
+# (
+#     camera_line_id      TEXT
+#         primary key,
+#     camera_id           TEXT,
+#     line_name           TEXT,
+#     start_x             TEXT,
+#     start_y             TEXT,
+#     end_x               TEXT,
+#     end_y               TEXT,
+#     point_close_to_line TEXT,
+#     created_at          DATETIME default CURRENT_TIMESTAMP,
+#     is_main_line        BOOLEAN  default 0
+# );
+# 这是一个车流量记录的表
+# create table car_through_route
+# (
+#     id             INTEGER
+#         primary key autoincrement,
+#     vehicle_no     TEXT     not null,
+#     vehicle_type   TEXT     not null,
+#     start_line     TEXT     not null,
+#     end_line       TEXT,
+#     detection_time DATETIME not null,
+#     camera_id      TEXT     not null
+# );
+# 这是前端传过来的GetTrafficFlowRequest的数据结构
+# class GetTrafficFlowRequest(BaseModel):
+#     timeFrom: Optional[str]
+#     timeTo: Optional[str]
+#     cameraId: Optional[str]
+#     cameraLineIdStart: Optional[str]
+#     cameraLineIdEnd: Optional[str]
+#     cameraLineId: Optional[str]
+#   其中timeFrom是开始统计时间，timeTo是结束统计时间，cameraId是当前摄像头的id，cameraLineIdStart指车辆是从哪个检测线驶入的
+#   ，cameraLineIdEnd指车辆是从哪个检测线驶出的，cameraLineId如果传过来cameraLineIdStart和cameraLineIdEnd就不传过来
+#   ，意思代表统计cameraLineId驶入驶出的值。如果没有指定cameraId，则从数据库中查询所有的摄像头id，然后查询这些摄像头id对应的主要
+#   检测线，然后按时间相加聚类。如果只指定了cameraId，剩下三个lineId都没指定，则只以这个cameraId的主要检测线算它驶入驶出的值。
+#   这个函数已经定义def parse_frontend_time(time_str: str) -> datetime.datetime:使用它来进行时间的转换
+#   函数的第一行已经给出
+#   直接根据vehicle_labels中的default_value来算吧
+def get_traffic_flow(db: Session, request: GetTrafficFlowRequest) -> List[dict]:
+    # 解析传入的时间
+    time_from = parse_frontend_time(request.timeFrom) if request.timeFrom else None
+    time_to = parse_frontend_time(request.timeTo) if request.timeTo else None
 
-    if request.timeFrom:
-        decoded_time_from = unquote(request.timeFrom)
-        query = query.filter(
-            camera_detect_info.detected_flow_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
-    if request.timeTo:
-        decoded_time_to = unquote(request.timeTo)
-        query = query.filter(
-            camera_detect_info.detected_flow_time <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
+    # 构造用于分组的时间表达式
+    # 先取出形如 "2025-04-10 20:55:" 的前半部分
+    base_time = func.strftime('%Y-%m-%d %H:', CarThroughRoute.detection_time)
+    # 提取分钟部分，转换为整数后除以30取整再乘30，得到该时间所在的30分钟段（例如：若分钟为55则 floor(55/30)=1, 1*30=30）
+    minutes_interval = func.floor(cast(func.strftime('%M', CarThroughRoute.detection_time), Integer) / 30) * 30
+    # 使用 SQLite 的字符串拼接运算符 || 拼接成完整的时间字符串
+    minutes_interval_padded = func.printf('%02d:00', minutes_interval)
+    flow_time_expr = base_time.op("||")(minutes_interval_padded)
+
+    # 构造查询，选择聚合时间和数量
+    car_query = db.query(
+        flow_time_expr.label('flow_time'),
+        func.sum(VehicleLabel.default_equal).label('flow_count')
+    ).join(VehicleLabel,VehicleLabel.label_name==CarThroughRoute.vehicle_type)
+
+    # 根据时间范围过滤
+    if time_from and time_to:
+         car_query = car_query.filter(
+             CarThroughRoute.detection_time >= time_from,
+             CarThroughRoute.detection_time <= time_to
+         )
+
+    # 处理 cameraId 与 cameraLine 的过滤逻辑
     if request.cameraId:
-        query = query.filter(camera_detect_info.camera_id == request.cameraId)
+        car_query = car_query.filter(CarThroughRoute.camera_id == request.cameraId)
+        # 如果没有传入具体的 lineId，则只以该摄像头的主检测线进行统计
+        if not (request.cameraLineId or request.cameraLineIdStart or request.cameraLineIdEnd):
+            subq = (db.query(CameraLine.camera_line_id).filter(
+                CameraLine.camera_id == request.cameraId,
+                CameraLine.is_main_line == True
+            ).subquery())
+            car_query = car_query.filter(
+                CarThroughRoute.start_line.in_(subq) |
+                CarThroughRoute.end_line.in_(subq)
+            )
+    else:
+        # 如果未指定摄像头，则以所有摄像头的主检测线进行统计
+        subq = (db.query(CameraLine.camera_line_id).where(CameraLine.is_main_line == True).subquery())
+        car_query = car_query.filter(
+            CarThroughRoute.start_line.in_(subq) |
+            CarThroughRoute.end_line.in_(subq)
+        )
+
+    # 如果传入了具体的 lineId，按传入的过滤
     if request.cameraLineId:
-        query = query.filter(camera_detect_info.camera_line_id == request.cameraLineId)
-    if request.cameraLineIdStart:
-        query = query.filter(camera_detect_info.camera_line_id_start == request.cameraLineIdStart)
-    if request.cameraLineIdEnd:
-        query = query.filter(camera_detect_info.camera_line_id_end == request.cameraLineIdEnd)
+         car_query = car_query.filter(
+             or_(CarThroughRoute.start_line == request.cameraLineId
+                 ,CarThroughRoute.end_line == request.cameraLineId))
 
-    query = query.group_by(func.strftime('%Y-%m-%d %H:00:00', camera_detect_info.detected_flow_time))
-    query = query.order_by(func.strftime('%Y-%m-%d %H:00:00', camera_detect_info.detected_flow_time))
+    if request.cameraLineIdStart and request.cameraLineIdEnd:
+         # 使用 start_line 与 end_line 对应过滤
+         car_query = car_query.filter(
+            CarThroughRoute.start_line == request.cameraLineIdStart,
+            CarThroughRoute.end_line == request.cameraLineIdEnd
+         )
 
-    results = query.all()
+    # 按照构造的 flow_time 分组，统计每个30分钟区间的记录
+    car_query = car_query.group_by('flow_time')
+    traffic_flow_data = car_query.all()
 
-    formatted_results = []
-    for record in results:
-        flow_time = record[0]
-        # 如果没有数据则视为 0
-        avg_flow = record[1] if record[1] is not None else 0
-        # 将平均流量转换为 int（这里采用四舍五入）
-        avg_flow_int = int(round(avg_flow))
-        if avg_flow_int == 0:
-            continue
-        formatted_results.append({
-            "flowTime": flow_time,
-            "flowNum": avg_flow_int
-        })
+    # 格式化返回结果
+    result = []
+    for flow_time, flow_count in traffic_flow_data:
+         result.append({
+             "flowTime": flow_time,  # 现在 flow_time 是完整的时间字符串
+             "flowNum": flow_count
+         })
 
-    return {"code": "200", "msg": "success", "data": {"flows": formatted_results}}
+    return result
 
 def get_traffic_flow_mat(db: Session, request: GetTrafficFlowMatRequest):
     # Step 1: Retrieve detection lines for the given cameraId
@@ -168,7 +263,7 @@ def get_traffic_flow_mat(db: Session, request: GetTrafficFlowMatRequest):
 
     # Build lookup dictionaries for index mapping
     line_index = {cl.camera_line_id: idx for idx, cl in enumerate(camera_lines)}
-    label_index = {label.label_id: idx for idx, label in enumerate(labels)}
+    label_index = {label.label_name: idx for idx, label in enumerate(labels)}
 
     # Step 4: Query vehicle flow records (CarThroughRoute) with time filters only
     query = db.query(CarThroughRoute)
@@ -188,20 +283,21 @@ def get_traffic_flow_mat(db: Session, request: GetTrafficFlowMatRequest):
         CameraRule.rule_value == "3"
     ).first()
 
-    # Build the multiplier mapping from labels_equal_flow_ids
-    multiplier_mapping = {}
-    if camera_rule and camera_rule.labels_equal_flow_ids:
-        try:
-            # If stored as string, parse it as JSON; otherwise assume it's already a JSON object
-            if isinstance(camera_rule.labels_equal_flow_ids, str):
-                labels_flow = json.loads(camera_rule.labels_equal_flow_ids)
-            else:
-                labels_flow = camera_rule.labels_equal_flow_ids
-            for item in labels_flow:
-                multiplier_mapping[item['labelId']] = float(item['labelEqualNum'])
-        except Exception as e:
-            # In case of error, fallback to no multipliers (i.e. default to 1.0)
-            multiplier_mapping = {}
+    # # Build the multiplier mapping from labels_equal_flow_ids
+    # multiplier_mapping = {}
+    # if camera_rule and camera_rule.labels_equal_flow_ids:
+    #     try:
+    #         # If stored as string, parse it as JSON; otherwise assume it's already a JSON object
+    #         if isinstance(camera_rule.labels_equal_flow_ids, str):
+    #             labels_flow = json.loads(camera_rule.labels_equal_flow_ids)
+    #         else:
+    #             labels_flow = camera_rule.labels_equal_flow_ids
+    #         for item in labels_flow:
+    #             multiplier_mapping[item['labelId']] = float(item['labelEqualNum'])
+    #     except Exception as e:
+    #         # In case of error, fallback to no multipliers (i.e. default to 1.0)
+    #         multiplier_mapping = {}
+    multiplier_mapping = {label.label_name:float(label.default_equal) for label in labels}
 
     # Step 5: Accumulate weighted counts in the matrix based on each record's start_line, end_line, and vehicle_type
     for route in car_routes:
@@ -270,11 +366,13 @@ def get_traffic_hold(db: Session,request: GetTrafficHoldRequest):
 def get_vehicle_labels(db: Session,request: GetVehicleLabelRequest):
     query = db.query(camera_detect_info.detected_cars_labels).filter(camera_detect_info.detected_cars_labels !=None)
     if request.timeFrom:
-        decoded_time_from = unquote(request.timeFrom)
-        query = query.filter(camera_detect_info.created_at >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_from = timeutil.parse_frontend_time(request.timeFrom)
+        query = query.filter(
+            camera_detect_info.detected_hold_time >= decoded_time_from)
     if request.timeTo:
-        decoded_time_to = unquote(request.timeTo)
-        query = query.filter(camera_detect_info.created_at <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
+        decoded_time_to = timeutil.parse_frontend_time(request.timeTo)
+        query = query.filter(
+            camera_detect_info.detected_hold_time <= decoded_time_to)
     if request.cameraId:
         query = query.filter(camera_detect_info.camera_id == request.cameraId)
 
@@ -301,13 +399,8 @@ def get_vehicle_labels(db: Session,request: GetVehicleLabelRequest):
                 else:
                     results[label] = num
 
-    # **格式化返回数据**
-    formatted_results = [{"labelName": label, "labelNum": str(num)} for label, num in results.items()]
+    valid_labels = [label[0] for label in db.query(VehicleLabel.label_name).all()]
+    # 做一次过滤，仅仅返回vehicle_labels中的值
+    formatted_results = [{"labelName": label, "labelNum": str(num)} for label, num in results.items() if label in valid_labels]
 
-    return {
-        "code": "200",
-        "msg": "success",
-        "data": {
-            "labels": formatted_results
-        }
-    }
+    return formatted_results

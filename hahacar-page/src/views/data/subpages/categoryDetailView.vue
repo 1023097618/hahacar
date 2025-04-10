@@ -60,8 +60,8 @@ export default {
       filterQuery: {
         // 日期时间范围 [开始时间, 结束时间]，格式为 "yyyy-MM-dd HH:mm:ss"
         timeRange: [],
-        // 摄像头多选，存放选中的摄像头 id 数组
-        cameraIds: []
+        // 摄像头多选，存放选中的摄像头 id
+        cameraIds: ""
       },
       // 存放返回的车辆类别数据，接口返回 data.labels 数组，每项包含 labelName 和 labelNum
       categoryData: [],
@@ -128,9 +128,8 @@ export default {
         params.timeFrom = encodeURIComponent(this.filterQuery.timeRange[0])
         params.timeTo = encodeURIComponent(this.filterQuery.timeRange[1])
       }
-      if (this.filterQuery.cameraIds && this.filterQuery.cameraIds.length > 0) {
-        // 若选中多个摄像头，可考虑做拼接或仅取第一个（这里示例取第一个）
-        params.cameraId = this.filterQuery.cameraIds[0]
+      if (this.filterQuery.cameraIds) {
+        params.cameraId = this.filterQuery.cameraIds
       }
       searchCategoryNum(params)
         .then(response => {

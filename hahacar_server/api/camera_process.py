@@ -377,25 +377,25 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                 file_path = os.path.join(save_path, filename)
                 # cv2.imwrite(file_path, frame)
 
-                ongoing_alert = db.query(Alert).filter(
-                    Alert.camera_id == camera_id,
-                    Alert.alert_type == '1'
-                ).first()
-                has_alert = True if ongoing_alert else False
-
-                if frame is None:
-                    fail_count[camera_id] = fail_count.get(camera_id, 0) + 1
-                    if fail_count[camera_id] >= MAX_FAIL_COUNT and old_online_state:
-                        old_online_state = False
-                        await update_camera_status(camera_id, new_online=False, new_alert=has_alert)
-                    await asyncio.sleep(0.1)
-                    continue
-
-                fail_count[camera_id] = 0
-                last_success_time[camera_id] = current_time
-                if not old_online_state:
-                    old_online_state = True
-                    await update_camera_status(camera_id, new_online=True, new_alert=has_alert)
+                # ongoing_alert = db.query(Alert).filter(
+                #     Alert.camera_id == camera_id,
+                #     Alert.alert_type == '1'
+                # ).first()
+                # has_alert = True if ongoing_alert else False
+                #
+                # if frame is None:
+                #     fail_count[camera_id] = fail_count.get(camera_id, 0) + 1
+                #     if fail_count[camera_id] >= MAX_FAIL_COUNT and old_online_state:
+                #         old_online_state = False
+                #         await update_camera_status(camera_id, new_online=False, new_alert=has_alert)
+                #     await asyncio.sleep(0.1)
+                #     continue
+                #
+                # fail_count[camera_id] = 0
+                # last_success_time[camera_id] = current_time
+                # if not old_online_state:
+                #     old_online_state = True
+                #     await update_camera_status(camera_id, new_online=True, new_alert=has_alert)
 
                 if not hitBars:
                     hitBars = build_hitBars(frame, lines)
