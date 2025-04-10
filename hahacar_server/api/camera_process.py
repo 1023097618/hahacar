@@ -333,9 +333,6 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
 
             warning_start_time = None
             warning_end_time = None
-
-
-            vehicle_warning_state = {}
             vehicle_alert_start_time = {}
 
             clearThreshold = 3
@@ -350,6 +347,7 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
 
             hitBars = []
             the_vehicle_history = {}
+            # 过去120秒的车流量数据
             detected_vehicles = {}
             accident_active_alerts = {}
             clearAccidentThreshold = 10
@@ -368,6 +366,7 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
             camera_rule_response = getCameraRule(db, camera_id)
             camera_rules = camera_rule_response.get("cameraRules", [])
             rules_parsed = parse_camera_rules(camera_rules)
+            last_save_time = None
             while True:
                 try:
                     frame, current_time = await asyncio.wait_for(frame_queue.get(), timeout=0.1)
@@ -404,6 +403,28 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                 processed, detailedResult, hitBarResult = process_frame(frame, hitBars, camera_id)
 
 
+                #这边avg_hold_volume需要每60秒存储到数据表中，存储的方式save_to_camera_detect_info(db, camera_id,  aggregated_counts, current_time)
+                #aggregated_counts格式{"car":1,...}
+                #labels数据是 ['bus', 'car', 'car', 'car', 'bus', 'car', 'bus', 'car', 'car', 'bus', 'car', 'car', 'car']，你可能需要把它聚类
+                labels=detailedResult["labels"]
+                aggregated_counts = {}
+                for label in labels:
+                    if label in aggregated_counts:
+                        aggregated_counts[label] += 1
+                    else:
+                        aggregated_counts[label] = 1
+
+                if last_save_time is None:
+                    last_save_time = current_time
+                    save_to_camera_detect_info(db, camera_id, aggregated_counts, current_time)
+                else:
+                    # 计算当前时间与上次存储时间的间隔
+                    elapsed_seconds = current_time - last_save_time
+                    if elapsed_seconds >= 60:
+                        # 时间间隔超过60秒，更新 last_save_time 并存储数据
+                        last_save_time = current_time
+                        save_to_camera_detect_info(db, camera_id, aggregated_counts, current_time)
+
                 if any(r.get("eventDetect", False) for r in rules_parsed["5"]):
                     accident_detected, accident_active_alerts = await process_accident_warning(
                         detailedResult=detailedResult,
@@ -416,13 +437,15 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                         clearAccidentThreshold=clearAccidentThreshold
                     )
 
+
+
                 for rule in rules_parsed["2"]:
                     rule_id = rule.get("rule_id",None)
                     vh = rule.get("VehicleHold", {})
                     data = vh.get("LabelsEqual", [])
                     custom_label = label_map.copy()
                     update_label_map(custom_label, data)
-                    #todo 现在还是瞬时值，rule_avg_hold_volume改成最近十秒的平均值
+                    #todo 现在还是瞬时值，rule_avg_hold_volume需要改成最近六十秒的平均值
                     rule_avg_hold_volume = calculate_traffic_volume_hold(detailedResult, custom_label)
                     print(f"当前的hold为{rule_avg_hold_volume}")
                     await process_vehicle_congestion_warning(
@@ -470,6 +493,8 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                 #     for detail in hb.get("hitDetails", []):
                 #         #这个是每辆车的ID值
                 #         vehicle_no = detail.get("ID")
+                #         vehicle_category是每辆车的类型
+                #         vehicle_category = detail.get("cat", "unknown")
                 #         if not vehicle_no:
                 #             continue
                 #         detected_vehicles[vehicle_no] = ln
@@ -481,6 +506,9 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                 # ---------------------------
                 # 1. 更新 detected_vehicles 数据
                 # ---------------------------
+                # 这个detected_vehicles
+
+
                 for hb in hitBarResult:
                     line_name = hb.get("name", "unknown")
                     for detail in hb.get("hitDetails", []):
@@ -492,16 +520,32 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                         print("检测线检测到车辆了")
                         if vehicle_no not in detected_vehicles:
                             detected_vehicles[vehicle_no] = {
-                                "vehicle_category": vehicle_category,  # 车辆类别
+                                "vehicle_category": vehicle_category,  # 车辆类别名
                                 "first_line": line_name,              # 首次检测的检测线ID
                                 "first_time": current_time,           # 首次检测的时间
-                                "latest_line": line_name,             # 最新检测的检测线ID（初始时与first_line相同）
-                                "latest_time": current_time          # 最新检测的时间
                             }
                         else:
                             # 如果已经存在，且还没有记录出口检测信息，则更新为出口检测线
                             detected_vehicles[vehicle_no]["latest_line"] = line_name
                             detected_vehicles[vehicle_no]["latest_time"] = current_time
+
+                detected_vehicles_current = {}
+
+                # 更新detected_vehicles_current
+                for hb in hitBarResult:
+                    line_name = hb.get("name", "unknown")
+                    for detail in hb.get("hitDetails", []):
+                        vehicle_no = detail.get("ID")
+                        vehicle_category = detail.get("cat", "unknown")  # 假设从hitDetails中可以获取车辆类别
+                        if not vehicle_no:
+                            continue
+                        print("检测线检测到车辆了")
+                        # 将当前帧检测到的车辆信息存入字典
+                        detected_vehicles_current[vehicle_no] = {
+                            "vehicle_category": vehicle_category,  # 车辆类别名
+                            "line": line_name,                     # 本帧检测到的检测线ID
+                            "time": current_time                   # 当前检测时间
+                        }
 
                 # ---------------------------
                 # 2. 清除超过120秒的车辆检测记录
@@ -511,7 +555,12 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                     # 此处以车辆首次进入的时间为基准判断是否过期
                     if current_time - record.get("first_time", current_time) > 120:
                         expired_vehicles.append(vehicle_no)
+                        saveCarThroughFixedRoute(db,vehicle_no,record["vehicle_category"],
+                                                 record["first_line"],record.get("latest_line",None),
+                                                 record["first_time"],camera_id)
                 for vehicle_no in expired_vehicles:
+                    #TODO 这边在删除车辆检测记录的时候要存入数据表
+
                     del detected_vehicles[vehicle_no]
 
                 # ---------------------------
@@ -582,6 +631,90 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                             camera_name
                         )
 
+
+                # 你需要看看有没有在对应检测线上检测到规则上预警的车辆类型值，如果检测到了就调用这个进行预警
+                # 这是相关模型传回来的检测的信息
+                # for hb in hitBarResult:
+                #     line_name = hb.get("name", "unknown")
+                #     for detail in hb.get("hitDetails", []):
+                #         vehicle_no = detail.get("ID")
+                #         vehicle_category = detail.get("cat", "unknown")  # 假设从hitDetails中可以获取车辆类别
+                #         if not vehicle_no:
+                #             continue
+                #         # 如果该车辆第一次检测（入口）
+                #         print("检测线检测到车辆了")
+                #         if vehicle_no not in detected_vehicles:
+                #             detected_vehicles[vehicle_no] = {
+                #                 "vehicle_category": vehicle_category,  # 车辆类别名
+                #                 "first_line": line_name,              # 首次检测的检测线ID
+                #                 "first_time": current_time,           # 首次检测的时间
+                #                 "latest_line": line_name,             # 最新检测的检测线ID（初始时与first_line相同）
+                #                 "latest_time": current_time          # 最新检测的时间
+                #             }
+                #         else:
+                #             # 如果已经存在，且还没有记录出口检测信息，则更新为出口检测线
+                #             detected_vehicles[vehicle_no]["latest_line"] = line_name
+                #             detected_vehicles[vehicle_no]["latest_time"] = current_time
+                # 有三行已经给出
+                # for rule in rules_parsed["1"]:
+                #     label_obj = rule.get("label", {})
+                #     car_category = label_obj.get("labelId", [])
+                #     line_id = label_obj.get("cameraLineId", "")
+                # car_category里面存的是标签的id形成的一个list，也就是rule要检测的标签id，如果，line_id里面存了
+                # 这个rule在哪个检测线检测
+                # label_map里面存的是[{"default_equal":"1","label_id":"1","label_name":"2"},...]
+                # 你需要得出isDetect来决定是否在对应检测线上检测到了信息
+                # process_vehicle_type_pre_warning(
+                #         isDetect,
+                #         line_id,
+                #         car_category_names,
+                #         frame,
+                #         db,
+                #         camera_id,
+                #         camera_name,
+                #         vehicle_warning_state,
+                #         vehicle_alert_start_time
+                #     )
+
+                for rule in rules_parsed["1"]:
+                    rule_id = rule.get("rule_id", None)
+                    label_obj = rule.get("label", {})
+                    # 获取需要检测的车辆类型对应的标签 id 列表（注意类型可能为字符串或数字，此处统一处理为字符串）
+                    car_category_ids = [str(x) for x in label_obj.get("labelId", [])]
+                    rule_line_id = label_obj.get("cameraLineId", "")
+
+                    # 根据 label_map 得到每个标签 id 对应的车辆类别名称
+                    car_category_names = []
+                    for cat_id in car_category_ids:
+                        for label in label_map:
+                            # label_map 中 label_id 可能为字符串，这里做字符串比对
+                            if str(label.label_id) == cat_id:
+                                # 获取 label_name（车辆类别名称），若不存在可做默认处理
+                                car_category_names.append(label.label_name)
+                                break
+
+                    # 检查在该检测线（rule_line_id）上是否检测到了预警车辆类型
+                    isDetect = False
+                    for vehicle in detected_vehicles_current.values():
+                        # 检查最新检测的检测线与规则要求是否一致，
+                        # 且该车辆的类别是否在规则要求的车辆类型名称列表里
+                        if vehicle.get("line") == rule_line_id and vehicle.get("vehicle_category") in car_category_names:
+                            isDetect = True
+                            break
+
+                    # 调用预警处理函数，该函数负责进一步的预警处理
+                    await process_vehicle_type_pre_warning(
+                        rule_id,
+                        isDetect,
+                        rule_line_id,
+                        car_category_names,
+                        frame,
+                        db,
+                        camera_id,
+                        camera_name,
+                        vehicle_alert_start_time
+                    )
+
                 # if any(r.get("vehicleReserve", False) for r in rules_parsed["4"]) and detected_vehicles:
                 #     reservation_alert_triggered = process_vehicle_reservation_warning(
                 #         detected_vehicles=detected_vehicles,
@@ -637,25 +770,7 @@ async def generate_frames(source_url: str, camera_id: str, liveStreamType: str =
                 #             camera_name
                 #         )
 
-                # for rule in rules_parsed["1"]:
-                #     label_obj = rule.get("label", {})
-                #     car_category = label_obj.get("labelId", [])
-                #     line_id = label_obj.get("cameraLineId", "")
-                #     car_category_names = [label_map.get(cid) for cid in car_category if cid in label_map]
-                #     await process_vehicle_type_pre_warning(
-                #         hitBarResult,
-                #         line_id,
-                #         car_category_names,
-                #         frame,
-                #         db,
-                #         camera_id,
-                #         camera_name,
-                #         vehicle_warning_state,
-                #         vehicle_alert_start_time,
-                #         vehicle_clear_count,
-                #         clearThreshold,
-                #         frame
-                #     )
+
 
                 # avg_hold_volume = calculate_traffic_volume_hold(detailedResult, label_map)
 

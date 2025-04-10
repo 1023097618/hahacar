@@ -14,62 +14,109 @@ save_dir = os.path.join(base_dir, "alerts", "on")
 os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
 
 
-async def process_vehicle_type_pre_warning(hitBarResult: list, rule_first_camera_line_id: str, car_category_names: list,
-                                           frame, db, camera_id: str, camera_name: str, vehicle_warning_state: dict,
-                                           vehicle_alert_start_time: dict, vehicle_clear_count: dict,
-                                           clearThreshold: int, alert_image):
+
+# 补全这个函数，根据外部传进来的isDetect，如果isDetect就代表检测到了检测线中检测到了相关车辆，需要开始预警
+# 这边需要为每一个rule存储一个全局的字典，字典键为rule_id，字典值为某个预警,即这个规则触发的预警。
+# 其中字典数据是这么存储的
+#             active_alerts[rule_id] = {
+#                 "trigger_start": current_time,  # 触发条件第一次成立的时间
+#                 "alert_created": False,  # 是否已经创建了预警记录
+#                 "recover_start": None,  # 恢复状态开始的时间（预警结束计时）
+#                 "alert_id": None  # 记录创建后的alert_id
+#             }
+# 首先如果isDetect为true之后，我们应该将预警置为的状态置为1，通过这种方式将它保存
+#                     saveAlert(db, new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
+#                               rule_type, rule_remark)
+# 然后往前端发送一条
+#             await sio.emit("updateHappeningAlert", {
+#                 "alertId": new_alert_id,
+#                 "cameraId": camera_id,
+#                 "cameraName": camera_name,
+#                 "ruleRemark": rule_remark
+#             })
+# 当isDetect为false之后且这个rule_id中存在有这条预警，我们需要
+# 把它从字典中移除，并且使用
+#                    saveAlert(db,
+#                               alert_id,
+#                               camera_id,
+#                               camera_name,
+#                               2, ws,
+#                               warning_end_time,
+#                               None,
+#                               ai,
+#                               rule_type,
+#                               rr)
+#                     来将它保存
+#alert_id是uuid，你需要自动生成
+async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id: str, car_category_names: list,
+                                           frame, db, camera_id: str, camera_name: str,
+                                           vehicle_alert_start_time: dict):
     """
-    根据规则中指定的检测线（rule_first_camera_line_id），判断该检测线上检测到的车辆类型是否存在于 car_category_names 中，
-    如果存在则触发车辆类型预警；如果后续检测不到，则更新解除计数。
+    当 isDetect 为 True 时，检测线中检测到了相关车辆，开始预警：
+      - 如果全局预警字典中不包含当前 rule_id，则生成新的 alert_id，
+        使用 saveAlert 保存状态为 1（预警开始）的记录，
+        并调用 sio.emit 将预警信息推送给前端；
+      - 同时将预警信息存入 vehicle_warning_state 字典中。
+
+    当 isDetect 为 False 时，如果该 rule_id 已经存在预警记录：
+      - 从全局预警字典中移除，
+      - 调用 saveAlert 保存状态为 2（预警结束）的记录。
     """
-    target_hitbar = None
-    for hb in hitBarResult:
-        if hb.get("name") == rule_first_camera_line_id:
-            target_hitbar = hb
-            break
-    if target_hitbar:
-        accumulator = target_hitbar.get("Accumulator", {})
-        detected_vehicle_types = list(accumulator.keys())
-        detected = [vt for vt in detected_vehicle_types if vt in car_category_names]
-        if detected:
-            for vehicle in detected:
-                if vehicle not in vehicle_warning_state:
-                    new_alert_id = str(uuid.uuid4())
-                    alert_image = f"{new_alert_id}.jpg"
-                    save_path = os.path.join(save_dir, alert_image)
-                    print(f"图片保存地址：{save_path}")
-                    success = cv2.imwrite(save_path, frame)
-                    if not success:
-                        # 保存失败的处理逻辑
-                        print("图片保存失败！")
-                    # cv2.imwrite(f"/alerts/on/{alert_image}", frame)
-                    rule_type = "1"
-                    rule_remark = f"检测到违规车辆: {vehicle}"
-                    saveAlert(db, new_alert_id, camera_id, camera_name, 1, datetime.now(), None, None, alert_image,
-                              rule_type, rule_remark)
-                    print(f"[🚨 车辆类型预警] {vehicle} 违规，预警开始")
-                    await sio.emit("updateHappeningAlert", {
-                        "alertId": new_alert_id,
-                        "cameraId": camera_id,
-                        "cameraName": camera_name,
-                        "ruleRemark": rule_remark
-                    })
-                    vehicle_warning_state[vehicle] = new_alert_id
-                    vehicle_alert_start_time[vehicle] = datetime.now()
-                    vehicle_clear_count[vehicle] = 0
-        # else:   #但其实没有设计，这个先放在这里
-        #     # 如果未检测到，更新解除计数
-        #     for vehicle in list(vehicle_warning_state.keys()):
-        #         vehicle_clear_count[vehicle] += 1
-        #         if vehicle_clear_count[vehicle] >= clearThreshold:
-        #             alert_id = vehicle_warning_state[vehicle]
-        #             alert_end_time = time.time()
-        #             saveAlert(db, alert_id, camera_id, camera_name, 2, vehicle_alert_start_time[vehicle],
-        #                       alert_end_time, None, alert_image, "1", f"{vehicle} 车辆消失，预警结束")
-        #             del vehicle_warning_state[vehicle]
-        #             del vehicle_alert_start_time[vehicle]
-        #             del vehicle_clear_count[vehicle]
-        #             print(f"[✅ 车辆类型预警解除] {vehicle} 已消失，预警结束")
+    current_time = datetime.now()
+
+    if isDetect:
+        # 当检测到车辆，且尚未存在该规则的预警记录时进行预警创建
+        if rule_id not in active_alerts:
+            # 生成全局唯一的预警ID（uuid）
+            new_alert_id = str(uuid.uuid4())
+
+            # 构造预警相关信息（你可以根据需要调整 rule_type 与 rule_remark 的具体内容）
+            rule_type = "vehicle_type_pre_warning"
+            rule_remark = f"检测到车辆在检测线 {line_id}，车辆类型：{', '.join(car_category_names)}"
+            alert_image = frame  # 此处假设frame作为预警图片
+
+            # 将预警记录存入全局字典
+            active_alerts[rule_id] = {
+                "trigger_start": current_time,  # 触发条件第一次成立的时间
+                "alert_created": True,          # 记录已创建预警
+                "recover_start": None,          # 预警恢复时间暂未开始计时
+                "alert_id": new_alert_id        # 记录生成的预警ID
+            }
+            vehicle_alert_start_time[rule_id] = current_time
+
+            # 记录预警开始状态，状态码 1
+            saveAlert(db, new_alert_id, camera_id, camera_name, 1, current_time,
+                      None, None, alert_image, rule_type, rule_remark)
+
+            # 发送实时消息到前端告知预警信息
+            await sio.emit("updateHappeningAlert", {
+                "alertId": new_alert_id,
+                "cameraId": camera_id,
+                "cameraName": camera_name,
+                "ruleRemark": rule_remark
+            })
+        else:
+            # 如果该预警记录已存在，可选择在此处更新触发时间或其它数据，此处保持不处理
+            pass
+    else:
+        # 当 isDetect 为 False 时，如果该 rule_id 存在预警记录，表示恢复了
+        if rule_id in active_alerts:
+            # 弹出预警记录
+            alert_info = active_alerts.pop(rule_id)
+            alert_id = alert_info["alert_id"]
+
+            # 取出预警开始时间用作 ws 参数
+            ws = alert_info["trigger_start"]
+            warning_end_time = current_time   # 预警结束时间
+
+            # 构造结束预警的附加信息，可根据需要进行调整
+            rule_type = "vehicle_type_pre_warning"
+            rule_remark = f"检测恢复，车辆情况恢复正常（检测线：{line_id}）"
+            ai = frame  # 结束预警时的图片信息
+
+            # 记录预警结束状态，状态码 2
+            saveAlert(db, alert_id, camera_id, camera_name, 2, ws, warning_end_time,
+                      None, ai, rule_type, rule_remark)
 
 
 # 这边需要为每一个rule存储一个全局的字典，字典键为rule_id，字典值为某个预警,即这个规则触发的预警。这个字典是我刚才第一次任务的时候你写得字典，所以注意保持一致性。
@@ -487,7 +534,7 @@ async def process_vehicle_reservation_warning(
 
     return False  # 未触发预警
 
-
+#TODO 这边的accident_active_alerts也要改成rule_id为键，因为现在代码能跑我就不动它了
 async def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str,
                                    camera_name: str, accident_active_alerts, clearAccidentThreshold):
     """

@@ -17,5 +17,4 @@ class camera_detect_info(Base):
     detected_cars_labels = Column(JSON) #包含labelName和labelNum的用于记录当前帧所有【车的类别和该类别车的数量】的json数据
 
     detected_hold_time = Column(DateTime, default=datetime.datetime.utcnow)
-    detected_hold_num = Column(String)              #交通当量
 

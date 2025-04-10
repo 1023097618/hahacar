@@ -13,10 +13,9 @@ def saveCarThroughFixedRoute(db, vehicle_no, vehicle_type, start_line, end_line,
         start_line: 车辆起始检测线ID
         end_line: 车辆终止检测线ID
         current_time: 当前检测时间（Unix时间戳，float型）
-        direction: 车辆方向（"正向"、"逆向"或"未知"）
     """
     # 将 Unix 时间戳转换为 datetime 对象
-    detection_time = datetime.datetime.fromtimestamp(current_time)
+    detection_time = datetime.fromtimestamp(current_time)
 
     car_route = CarThroughRoute(
         vehicle_no=vehicle_no,
