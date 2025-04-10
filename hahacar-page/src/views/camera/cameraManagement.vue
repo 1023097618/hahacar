@@ -209,7 +209,7 @@ export default {
       })
     },
     handleDelete(row) {
-      this.$confirm('确定删除该摄像头吗？', '提示', { type: 'warning' })
+      this.$confirm('确定删除该摄像头吗？摄像头相关的检测线、预警信息、监测信息、规则将无法找回！', '提示', { type: 'warning' })
         .then(() => {
           deleteCamera({cameraId:row.cameraId})
             .then(() => {
@@ -226,7 +226,12 @@ export default {
               })
             })
         })
-        .catch(() => {})
+        .catch(response => {
+              this.$notify.error({
+                title: '失败',
+                message: response.data.errmsg
+              })
+            })
     },
     handleDownload() {
       this.downloadLoading = true

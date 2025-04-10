@@ -100,7 +100,7 @@ def delete_camera_api(
     """
     success = delete_camera(db, token, camera_data.cameraId)
     if not success:
-        raise HTTPException(status_code=404, detail="Camera not found")
+        raise {"code": "402", "msg": "摄像头删除失败", "data": {}}
 
     return {"code": "200", "msg": "Camera deleted successfully", "data": {}}
 

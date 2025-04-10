@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import unquote
-from sqlalchemy import or_
+from sqlalchemy import or_, true
 from sqlalchemy import func, text, Integer, cast, String
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -174,7 +174,7 @@ def get_traffic_flow(db: Session, request: GetTrafficFlowRequest) -> List[dict]:
     time_to = parse_frontend_time(request.timeTo) if request.timeTo else None
 
     # 构造用于分组的时间表达式
-    # 先取出形如 "2025-04-10 20:55:" 的前半部分
+    # 先取出形如 "2025-04-10 20:" 的前半部分
     base_time = func.strftime('%Y-%m-%d %H:', CarThroughRoute.detection_time)
     # 提取分钟部分，转换为整数后除以30取整再乘30，得到该时间所在的30分钟段（例如：若分钟为55则 floor(55/30)=1, 1*30=30）
     minutes_interval = func.floor(cast(func.strftime('%M', CarThroughRoute.detection_time), Integer) / 30) * 30
@@ -339,29 +339,54 @@ def get_traffic_flow_mat(db: Session, request: GetTrafficFlowMatRequest):
 
 
 def get_traffic_hold(db: Session,request: GetTrafficHoldRequest):
-    query = db.query(
-        func.strftime('%Y-%m-%d %H:00:00', camera_detect_info.detected_hold_time).label("holdTime"),
-        func.avg(camera_detect_info.detected_hold_num.label("holdNum"))
-    )
+    time_from = parse_frontend_time(request.timeFrom) if request.timeFrom else None
+    time_to = parse_frontend_time(request.timeTo) if request.timeTo else None
 
-    if request.timeFrom:
-        decoded_time_from = unquote(request.timeFrom)
-        query = query.filter(camera_detect_info.detected_hold_time >= datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S"))
-    if request.timeTo:
-        decoded_time_to = unquote(request.timeTo)
-        query = query.filter(camera_detect_info.detected_hold_time <= datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S"))
+    # 构造用于分组的时间表达式
+    # 先取出形如 "2025-04-10 20:55:" 的前半部分
+    base_time = func.strftime('%Y-%m-%d %H:', camera_detect_info.detected_hold_time)
+    # 提取分钟部分，转换为整数后除以30取整再乘30，得到该时间所在的30分钟段（例如：若分钟为55则 floor(55/30)=1, 1*30=30）
+    minutes_interval = func.floor(cast(func.strftime('%M', camera_detect_info.detected_hold_time), Integer) / 30) * 30
+    # 使用 SQLite 的字符串拼接运算符 || 拼接成完整的时间字符串
+    minutes_interval_padded = func.printf('%02d:00', minutes_interval)
+    hold_time_expr = base_time.op("||")(minutes_interval_padded)
+
+    j = func.json_each(camera_detect_info.detected_cars_labels).table_valued("key", "value")  # 解析JSON
+
+    car_query = db.query(
+            hold_time_expr.label("hold_time"),
+            func.sum(
+                j.c.value.cast(Integer) * VehicleLabel.default_equal
+            ).label("hold_count")
+    ).join(VehicleLabel, VehicleLabel.label_name == j.c.key).join(j, true())
+
+    if time_from and time_to:
+         car_query = car_query.filter(
+             camera_detect_info.detected_hold_time >= time_from,
+             camera_detect_info.detected_hold_time <= time_to
+         )
+    elif time_from:
+         car_query = car_query.filter(
+             camera_detect_info.detected_hold_time >= time_from
+         )
+    elif time_to:
+         car_query = car_query.filter(
+             camera_detect_info.detected_hold_time <= time_to
+         )
     if request.cameraId:
-        query = query.filter(camera_detect_info.camera_id == request.cameraId)
+        car_query = car_query.filter(camera_detect_info.camera_id == request.cameraId)
 
-    # **使用 text() 避免 SQLAlchemy 解析错误**
-    query = query.group_by(text("holdTime")).order_by(text("holdTime"))     #字符串形式的列名不能直接用于groupby和orderby，需要text进行显式声明
-    results = query.all()
+    car_query = car_query.group_by("hold_time").order_by("hold_time")
+    traffic_hold_data = car_query.all()
+    result = []
+    for hold_time, hold_count in traffic_hold_data:
+         result.append({
+             "holdTime": hold_time,  # 现在 hold_time 是完整的时间字符串
+             "holdNum": hold_count
+         })
 
-    # **格式化返回数据**
-    formatted_results = [{"holdTime": record[0], "holdNum": str(record[1] if record[1] is not None else "0")} for record
-                         in results]
+    return result
 
-    return {"code": "200", "msg": "success", "data": {"holds": formatted_results}}
 
 def get_vehicle_labels(db: Session,request: GetVehicleLabelRequest):
     query = db.query(camera_detect_info.detected_cars_labels).filter(camera_detect_info.detected_cars_labels !=None)

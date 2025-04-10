@@ -45,6 +45,3 @@ class User(Base):
     style = Column(Enum("1", "2", "3", name="style_enum"), default="1")  # 限定枚举值
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     user_remark = Column(String, default="")  # 新增字段：用户备注
-
-    # 反向关系：一个用户可以关联多个摄像头
-    user_cameras = relationship("UserCamera", back_populates="user")

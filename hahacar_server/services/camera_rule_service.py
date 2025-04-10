@@ -132,7 +132,8 @@ def updateCameraRule(db: Session, request: CameraRuleUpdateRequest):
                 new_rule5 = CameraRule5(rule_id=rule_id, event_detect=event_detect_val)
                 db.add(new_rule5)
     db.commit()  # 最后提交所有更新与插入操作
-
+    from lifespan_manager import refresh_task
+    refresh_task(cameraId)
     return True
 
 

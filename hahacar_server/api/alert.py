@@ -56,4 +56,12 @@ def get_alert_count_api(db:Session=Depends(get_db),timeFrom: Optional[str] = Que
     print(f"cameraId:{cameraId}")
 
     request = GetAlertCountRequest(timeFrom=timeFrom, timeTo=timeTo, cameraId=cameraId)
-    return getAlertNum(db, request)
+    alerts = getAlertNum(db, request)
+
+    return {
+        "code": "200",
+        "msg": "success",
+        "data": {
+            "alerts": alerts
+        }
+    }

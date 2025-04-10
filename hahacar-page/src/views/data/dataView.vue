@@ -133,7 +133,7 @@ export default {
     // 组件挂载后请求数据及初始化图表
     this.getCategoryData()
     this.getFlowData()
-    // this.getHoldData()
+    this.getHoldData()
     this.getAlertData()
     // // 初始化和弦图（使用 D3-chord 绘制）
     this.$nextTick(() => {

@@ -21,9 +21,3 @@ class Camera(Base):
     cameraURL = Column(String, nullable=False)
     cameraLocation = Column(String, nullable=False)  # 存储 ["经度", "纬度"]
     cameraName = Column(String, nullable=False)
-
-    #反向关系：一个摄像头可以有多个规则
-    rules = relationship("CameraRule", back_populates="camera")
-
-    # 反向关系：一个摄像头可以关联多个用户（通过映射表）
-    user_cameras = relationship("UserCamera", back_populates="camera")

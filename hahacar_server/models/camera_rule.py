@@ -11,8 +11,6 @@ class CameraRule(Base):
     camera_id = Column(String,ForeignKey("camera.id"), index=True)
     rule_value = Column(String)  # 1: 车类别, 2: 车拥堵, 3: 车流量, 4: 预约, 5: 事故检测
 
-    camera = relationship("Camera", back_populates="rules")
-
 # 分表1：规则1，车辆类别
 class CameraRule1(Base):
     __tablename__ = "camera_rule_1"

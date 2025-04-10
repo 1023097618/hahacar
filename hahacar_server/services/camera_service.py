@@ -1,10 +1,22 @@
+import traceback
 import uuid
 
 
 from sqlalchemy.orm import Session
+
+from models.CarThroughRoute import CarThroughRoute
+from models.alert import Alert
 from models.camera import Camera
+from models.camera_detect_info import camera_detect_info
+from models.camera_line import CameraLine
+from models.user_camera import UserCamera
+from schemas.camera_line_schema import CameraLineUpdateRequest
+from schemas.camera_rule_schema import CameraRuleUpdateRequest
 from schemas.camera_schema import CameraCreate, CameraUpdate
 from core.security import verify_jwt_token
+from services.camera_line_service import updateCameraLine
+from services.camera_rule_service import updateCameraRule
+
 
 def add_camera(db: Session, token: str, camera_data: CameraCreate): #由fastapi依赖注入统一管理不需要手动关闭
     """
@@ -24,15 +36,18 @@ def add_camera(db: Session, token: str, camera_data: CameraCreate): #由fastapi�
         return None
 
     camera_id = str(uuid.uuid4())  # 生成唯一 ID
+    camera_URL = camera_data.cameraURL.replace("\u202a", " ")
     new_camera = Camera(
         id=camera_id,
-        cameraURL=camera_data.cameraURL,
+        cameraURL=camera_URL,
         cameraLocation=",".join(camera_data.cameraLocation),
         cameraName=camera_data.cameraName
     )
     db.add(new_camera)
     db.commit()
     db.refresh(new_camera)
+    from lifespan_manager import add_task
+    add_task(camera_id)
     return camera_id
 
 def get_cameras(db: Session, token: str, pageNum: int, pageSize: int, cameraName: str = None):
@@ -95,9 +110,25 @@ def delete_camera(db: Session, token: str, camera_id: str):
     camera = db.query(Camera).filter(Camera.id == camera_id).first()
     if not camera:
         return False
+    try:
+        db.query(CameraLine).filter(CameraLine.camera_id==camera_id)
+        camera_rule = CameraRuleUpdateRequest(camera_id=camera_id,cameraRules=[])
+        updateCameraRule(db,camera_rule)
+        camera_line = CameraLineUpdateRequest(camera_id=camera_id,cameraLines=[])
+        updateCameraLine(db,camera_line)
+        db.query(camera_detect_info).filter(camera_detect_info.camera_id==camera_id).delete(synchronize_session=False)
+        db.query(CarThroughRoute).filter(CarThroughRoute.camera_id==camera_id).delete(synchronize_session=False)
+        db.query(UserCamera).filter(UserCamera.camera_id==camera_id).delete(synchronize_session=False)
+        db.query(Alert).filter(Alert.camera_id==camera_id).delete(synchronize_session=False)
+        db.query(Camera).filter(Camera.id==camera_id).delete(synchronize_session=False)
+        from lifespan_manager import cancel_task
+        cancel_task(camera_id)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        return False
 
-    db.delete(camera)
-    db.commit()
     return True
 
 def update_camera(db: Session, token: str, camera_data: CameraUpdate):
@@ -125,6 +156,9 @@ def update_camera(db: Session, token: str, camera_data: CameraUpdate):
     camera.cameraLocation = ",".join(camera_data.cameraLocation)
     camera.cameraName = camera_data.cameraName
     db.commit()
+    camera_id=camera_data.cameraId
+    from lifespan_manager import refresh_task
+    refresh_task(camera_id)
     return True
 
 def get_camera_url(db:Session, camera_id:str):

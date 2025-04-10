@@ -73,7 +73,10 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
             # 构造预警相关信息（你可以根据需要调整 rule_type 与 rule_remark 的具体内容）
             rule_type = "vehicle_type_pre_warning"
             rule_remark = f"检测到车辆在检测线 {line_id}，车辆类型：{', '.join(car_category_names)}"
-            alert_image = frame  # 此处假设frame作为预警图片
+
+            alert_image = f"{new_alert_id}.jpg"
+            save_path = os.path.join(save_dir, alert_image)
+            cv2.imwrite(save_path, frame)
 
             # 将预警记录存入全局字典
             active_alerts[rule_id] = {

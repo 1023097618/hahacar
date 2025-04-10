@@ -73,8 +73,8 @@ def get_camera_line(db: Session, cameraId: str):
         }
     }
 
-
-#这里由于没有给出cameralineid，是根据cameralinename进行更新的，所以要求前端返回的cameralinename不同
+#  TODO 这边删掉cameraLineId的时候需要同时删掉其他表中和这个cameraLineId相关联的数据，需要使用try catch更新
+#   TODO 失败的话则db.rollback()
 def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
     cameraId = cameraLines.camera_id
 
@@ -131,5 +131,6 @@ def updateCameraLine(db: Session, cameraLines: CameraLineUpdateRequest):
                 CameraLine.camera_line_id == existing_line.camera_line_id
             ).update(update_data)
     db.commit()
-
+    from lifespan_manager import refresh_task
+    refresh_task(cameraId)
     return {"code": "200", "msg": "success", "data": {}}

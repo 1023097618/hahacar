@@ -48,7 +48,8 @@ def searchHoldNum(
         timeTo=timeTo,
         cameraId=cameraId
     )
-    return get_traffic_hold(db, request)
+    result = get_traffic_hold(db, request)
+    return {"code": "200", "msg": "success", "data": {"holds": result}}
 
 
 @router.get("/flow/searchFlowNum")

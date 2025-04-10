@@ -1,13 +1,14 @@
 from datetime import timedelta
 from urllib.parse import unquote
 
-from sqlalchemy import func
+from sqlalchemy import func, cast, Integer
 from sqlalchemy.orm import Session
 
 from api.socket_manager import sio
 from dependencies.database import SessionLocal
 from models.alert import Alert
 from schemas.alert_schema import *
+from util.timeutil import parse_frontend_time
 
 domain = "http://localhost:8081"
 
@@ -137,100 +138,54 @@ def processAlert(db:Session, alertId:str):
     第三组返回{"AlertTime": "2025-03-10 09:30:00"（这是第三组的中间时间）, "AlertNum": "数量"}
     3.假如起始和终止时间不存在，那么起始时间其实就是第一条数据的时间，到最后。。
 """
-def getAlertNum(db:Session,request: GetAlertCountRequest):
-    start_time = None
-    end_time = None
+def getAlertNum(db: Session, request: GetAlertCountRequest) -> List[dict]:
+    # 解析传入的时间
+    time_from = parse_frontend_time(request.timeFrom) if request.timeFrom else None
+    time_to = parse_frontend_time(request.timeTo) if request.timeTo else None
 
-    # 获取起始时间：如果请求中未提供，则查询符合条件的最早预警时间
-    if request.timeFrom:
-        decoded_time_from = unquote(request.timeFrom)
-        try:
-            start_time = datetime.strptime(decoded_time_from, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            start_time = None
-    else:
-        q = db.query(func.min(Alert.alert_start_time))
-        if request.cameraId:
-            q = q.filter(Alert.camera_id == request.cameraId)
-        start_time = q.scalar()
+    # 构造用于分组的时间表达式
+    base_time = func.strftime('%Y-%m-%d %H:', Alert.alert_start_time)
+    minutes_interval = func.floor(cast(func.strftime('%M', Alert.alert_start_time), Integer) / 30) * 30
+    minutes_interval_padded = func.printf('%02d:00', minutes_interval)
+    alert_time_expr = base_time.op("||")(minutes_interval_padded)
 
-    # 获取终止时间：如果请求中未提供，则查询符合条件的最晚预警时间
-    if request.timeTo:
-        decoded_time_to = unquote(request.timeTo)
-        try:
-            end_time = datetime.strptime(decoded_time_to, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            end_time = None
-    else:
-        q = db.query(func.max(Alert.alert_start_time))
-        if request.cameraId:
-            q = q.filter(Alert.camera_id == request.cameraId)
-        end_time = q.scalar()
+    # 构造查询，选择聚合时间和数量
+    alert_query = db.query(
+        alert_time_expr.label('alert_time'),
+        func.count(Alert.alert_id).label('alert_num')
+    ).group_by('alert_time')
 
-    # 根据获取到的时间范围进行数据查询
-    query = db.query(Alert)
+    # 根据时间范围过滤
+    if time_from and time_to:
+        alert_query = alert_query.filter(
+            Alert.alert_start_time >= time_from,
+            Alert.alert_start_time <= time_to
+        )
+    elif time_from:
+        alert_query = alert_query.filter(
+            Alert.alert_start_time>=time_from
+        )
+    elif time_to:
+        alert_query = alert_query.filter(
+            Alert.alert_end_time>=time_to
+        )
+
+    # 处理 cameraId 过滤逻辑
     if request.cameraId:
-        query = query.filter(Alert.camera_id == request.cameraId)
-    if start_time:
-        query = query.filter(Alert.alert_start_time >= start_time)
-    if end_time:
-        query = query.filter(Alert.alert_start_time <= end_time)
-    alerts = query.all()
+        alert_query = alert_query.filter(Alert.camera_id == request.cameraId)
 
-    grouped_alerts = []
-    if start_time and end_time:
-        # 构造分组区间列表
-        groups = []
-        current_start = start_time
+    # 获取按 30 分钟区间聚类的预警数量
+    alert_data = alert_query.all()
 
-        # 第一个分组：从 start_time 到下一个整点
-        if current_start.minute != 0 or current_start.second != 0 or current_start.microsecond != 0:
-            next_hour = current_start.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-        else:
-            next_hour = current_start
-        if next_hour > end_time:
-            groups.append((current_start, end_time))
-        else:
-            groups.append((current_start, next_hour))
-        current_start = next_hour
-
-        # 中间完整的整点区间
-        while current_start + timedelta(hours=1) <= end_time:
-            groups.append((current_start, current_start + timedelta(hours=1)))
-            current_start += timedelta(hours=1)
-        # 如果最后还有不足一小时的区间
-        if current_start < end_time:
-            groups.append((current_start, end_time))
-
-        # 按每个区间统计预警数量
-        for i, (grp_start, grp_end) in enumerate(groups):
-            count = sum(1 for alert in alerts if grp_start <= alert.alert_start_time < grp_end)
-            if count == 0:
-                continue  # 如果数量为空，跳过此分组
-            # 第一组的标签使用起始时间，其他组取区间中点
-            if i == 0:
-                label_time = grp_start
-            else:
-                label_time = grp_start + (grp_end - grp_start) / 2
-            grouped_alerts.append({
-                "AlertTime": label_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "AlertNum": str(count)
-            })
-    else:
-        # 如果时间范围无法确定，则直接返回总数
-        total_count = len(alerts)
-        grouped_alerts.append({
-            "AlertTime": "",
-            "AlertNum": str(total_count)
+    # 格式化返回结果
+    result = []
+    for alert_time, alert_num in alert_data:
+        result.append({
+            "AlertTime": alert_time,
+            "AlertNum": str(alert_num)
         })
 
-    return {
-        "code": "200",
-        "msg": "success",
-        "data": {
-            "alerts": grouped_alerts
-        }
-    }
+    return result
 
 # @sio.event
 # async def connect(sid, environ,auth):
