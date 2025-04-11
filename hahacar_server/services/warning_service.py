@@ -8,12 +8,12 @@ from api.socket_manager import sio
 from services.alerts_service import saveAlert
 from fastapi.staticfiles import StaticFiles
 
+from services.camera_status_service import update_camera_status
+
 # 获取当前工作目录，并构造保存路径，当前目录/alerts/on
 base_dir = os.getcwd()
 save_dir = os.path.join(base_dir, "alerts", "on")
 os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
-
-
 
 # 补全这个函数，根据外部传进来的isDetect，如果isDetect就代表检测到了检测线中检测到了相关车辆，需要开始预警
 # 这边需要为每一个rule存储一个全局的字典，字典键为rule_id，字典值为某个预警,即这个规则触发的预警。
@@ -47,7 +47,30 @@ os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
 #                               rule_type,
 #                               rr)
 #                     来将它保存
-#alert_id是uuid，你需要自动生成
+# alert_id是uuid，你需要自动生成
+cameras_alert_count = {}
+
+#TODO 今天刚刚发现这个地方没做，暂时简单的这么实现一下，因为预警我不想去数据库查，我是想走缓存字典的路的
+async def add_camera_alert_count(camera_id):
+    if camera_id not in cameras_alert_count:
+        cameras_alert_count[camera_id] = 0
+
+    cameras_alert_count[camera_id] = cameras_alert_count[camera_id] + 1
+
+    if cameras_alert_count[camera_id] > 0:
+        await update_camera_status(camera_id, True, True)
+
+
+async def sub_camera_alert_count(camera_id):
+    if camera_id not in cameras_alert_count:
+        cameras_alert_count[camera_id] = 0
+
+    cameras_alert_count[camera_id] = cameras_alert_count[camera_id] - 1
+
+    if cameras_alert_count[camera_id] == 0:
+        await update_camera_status(camera_id, True, False)
+
+
 async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id: str, car_category_names: list,
                                            frame, db, camera_id: str, camera_name: str,
                                            vehicle_alert_start_time: dict):
@@ -81,9 +104,9 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
             # 将预警记录存入全局字典
             active_alerts[rule_id] = {
                 "trigger_start": current_time,  # 触发条件第一次成立的时间
-                "alert_created": True,          # 记录已创建预警
-                "recover_start": None,          # 预警恢复时间暂未开始计时
-                "alert_id": new_alert_id        # 记录生成的预警ID
+                "alert_created": True,  # 记录已创建预警
+                "recover_start": None,  # 预警恢复时间暂未开始计时
+                "alert_id": new_alert_id  # 记录生成的预警ID
             }
             vehicle_alert_start_time[rule_id] = current_time
 
@@ -98,6 +121,9 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
                 "cameraName": camera_name,
                 "ruleRemark": rule_remark
             })
+
+            await add_camera_alert_count(camera_id)
+
         else:
             # 如果该预警记录已存在，可选择在此处更新触发时间或其它数据，此处保持不处理
             pass
@@ -110,7 +136,7 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
 
             # 取出预警开始时间用作 ws 参数
             ws = alert_info["trigger_start"]
-            warning_end_time = current_time   # 预警结束时间
+            warning_end_time = current_time  # 预警结束时间
 
             # 构造结束预警的附加信息，可根据需要进行调整
             rule_type = "vehicle_type_pre_warning"
@@ -120,6 +146,8 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
             # 记录预警结束状态，状态码 2
             saveAlert(db, alert_id, camera_id, camera_name, 2, ws, warning_end_time,
                       None, ai, rule_type, rule_remark)
+
+            await sub_camera_alert_count(camera_id)
 
 
 # 这边需要为每一个rule存储一个全局的字典，字典键为rule_id，字典值为某个预警,即这个规则触发的预警。这个字典是我刚才第一次任务的时候你写得字典，所以注意保持一致性。
@@ -245,6 +273,7 @@ async def process_traffic_flow_warning(
                 "ruleRemark": rule_remark
             })
 
+            await add_camera_alert_count(camera_id)
             # 标记该规则预警已创建
             active_alerts[rule_id]["alert_created"] = True
 
@@ -275,6 +304,8 @@ async def process_traffic_flow_warning(
                               alert_image,
                               rule_type,
                               rule_remark)
+
+                    await sub_camera_alert_count(camera_id)
                     # 从预警字典中移除该规则对应的记录
                     del active_alerts[rule_id]
             else:
@@ -381,6 +412,8 @@ async def process_vehicle_congestion_warning(
                       rule_type,
                       rule_remark)
 
+            await add_camera_alert_count(camera_id)
+
             # 通过socket向前端发送预警通知
             await sio.emit("updateHappeningAlert", {
                 "alertId": new_alert_id,
@@ -421,6 +454,8 @@ async def process_vehicle_congestion_warning(
                               alert_image,
                               rule_type,
                               rule_remark)
+
+                    await sub_camera_alert_count(camera_id)
                     # 从active_alerts中移除该预警记录
                     del active_alerts[rule_id]
             else:
@@ -537,7 +572,8 @@ async def process_vehicle_reservation_warning(
 
     return False  # 未触发预警
 
-#TODO 这边的accident_active_alerts也要改成rule_id为键，因为现在代码能跑我就不动它了
+
+# TODO 这边的accident_active_alerts也要改成rule_id为键，因为现在代码能跑我就不动它了
 async def process_accident_warning(detailedResult: dict, frame, current_time: float, db, camera_id: str,
                                    camera_name: str, accident_active_alerts, clearAccidentThreshold):
     """
@@ -597,6 +633,9 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
                 # "alertConfidence": max_accident_confidence,
                 # "timestamp": current_time
             })
+
+            await add_camera_alert_count(camera_id)
+
             # 在全局状态中记录该摄像头的事故预警
             accident_active_alerts[camera_id] = {
                 "alert_id": alert_id,
@@ -620,6 +659,8 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
                 # 更新数据库预警状态（例如 saveAlert 用于更新预警状态，类型变为2）
                 saveAlert(db, alert_id, camera_id, camera_name, 2, datetime.fromtimestamp(warning_start_time),
                           datetime.fromtimestamp(warning_end_time), None, None, "5", "事故预警解除")
+
+                await sub_camera_alert_count(camera_id)
                 # 发送更新事件到前端
                 # await sio.emit("updateHappeningAlert", {
                 #     "alertId": alert_id,
