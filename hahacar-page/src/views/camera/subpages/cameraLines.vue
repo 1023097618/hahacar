@@ -6,7 +6,7 @@
         <!-- 左侧：摄像头画面及绘图区域 -->
         <el-col :span="12">
           <div class="camera-section" ref="cameraContainer">
-            <img :src="GetCameraLiveURL(cameraId)" alt="Camera Live" class="camera-image" @load="onImageLoad" />
+            <img :src="GetCameraLiveURL(cameraId)" alt="Camera Live" class="camera-image" @load="onImageLoad"  ref="cameraImage"/>
             <canvas ref="drawingCanvas" class="drawing-canvas" @mousedown="handleMouseDown" @mousemove="handleMouseMove"
               @mouseup="handleMouseUp"></canvas>
           </div>
@@ -396,8 +396,17 @@
       toggleEye(index) {
         this.lines[index].eyeOpen = !this.lines[index].eyeOpen
         this.redrawCanvas()
+      },
+      stopStream() {
+        // 假设你给图片绑定了 ref="cameraImage"
+        if (this.$refs.cameraImage) {
+          this.$refs.cameraImage.src = '';
+        }
       }
-    }
+    },
+    beforeDestroy() {
+      this.stopStream();
+    },
   }
 </script>
 

@@ -6,7 +6,7 @@
         <div class="camera-item" v-for="(camera, index) in paddedCameras" :key="index">
           <!-- HTTP JPEG STREAM 的摄像头画面 -->
           <div v-if="camera">
-            <img :src="GetCameraLiveURL(camera.cameraId,'preview')" :alt="camera.cameraName" class="camera-feed" @click.stop.prevent="OpenDetail(camera)"/>
+            <img  ref="cameraFeeds" :src="GetCameraLiveURL(camera.cameraId,'preview')" :alt="camera.cameraName" class="camera-feed" @click.stop.prevent="OpenDetail(camera)"/>
             <div class="camera-name">{{ camera.cameraName }}</div>
           </div>
           <div v-else class="empty-slot">
@@ -109,10 +109,22 @@
       },
       GetCameraLiveURL(cameraId,liveStreamType){
         return getCameraLiveURL(cameraId,liveStreamType)
+      },
+      stopAllStreams() {
+        // this.$refs.cameraFeeds 是一个数组，包含所有渲染的 img 元素
+        if (this.$refs.cameraFeeds && this.$refs.cameraFeeds.length) {
+          this.$refs.cameraFeeds.forEach(img => {
+            // 将 src 置空中断连接
+            img.src = ''
+          })
+        }
       }
     },
     created(){
       this.GetCameraList()
+    },
+    beforeDestroy() {
+      this.stopAllStreams()
     }
   };
   </script>

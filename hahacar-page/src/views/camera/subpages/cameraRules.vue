@@ -144,7 +144,7 @@
     <!-- 右侧浮动摄像头视图 -->
     <div class="floating-camera">
       <div class="camera-section" ref="floatingCameraContainer">
-        <img :src="GetCameraLiveURL(cameraId)" alt="Camera Live" class="camera-image" @load="onFloatingImageLoad" />
+        <img :src="GetCameraLiveURL(cameraId)" alt="Camera Live" class="camera-image" @load="onFloatingImageLoad" ref="cameraImage"/>
         <canvas ref="floatingCanvas" class="drawing-canvas"></canvas>
       </div>
     </div>
@@ -419,7 +419,16 @@
       },
       goBack() {
         this.$router.back()
+      },
+      stopStream() {
+        // 假设你给图片绑定了 ref="cameraImage"
+        if (this.$refs.cameraImage) {
+          this.$refs.cameraImage.src = '';
+        }
       }
+    },
+    beforeDestroy() {
+      this.stopStream();
     }
   }
 </script>
