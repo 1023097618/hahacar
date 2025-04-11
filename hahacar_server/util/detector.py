@@ -50,7 +50,7 @@ class Detector:
     - `_loadModel`: Loads the YOLOv8 model.
     """
 
-    SUPPORTTED_CATEGORIES: List[str] = ["person", "car", "bus", "van", "truck"];
+    SUPPORTTED_CATEGORIES: List[str] = ["car", "bus", "van", "truck"];
     MAX_COUNT: int = 1000;
 
     def __init__(self, modelPath: str = "./weights/yolov8m.pt", accidentDetection: bool=True) -> None:
