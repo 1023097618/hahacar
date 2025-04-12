@@ -1,6 +1,6 @@
 from datetime import timedelta
 from urllib.parse import unquote
-
+from util import timeutil
 from sqlalchemy import func, cast, Integer
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from util.timeutil import parse_frontend_time
 
 domain = "http://localhost:8081"
 
-def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert_type: int,alert_start_time, alert_end_time, alert_processed_time, alert_image, rule_type: str, rule_remark: str):
+def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert_type: str,alert_start_time, alert_end_time, alert_processed_time, alert_image, rule_type: str, rule_remark: str):
     # 查询是否已有该预警
     existing_alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
 
@@ -20,11 +20,12 @@ def saveAlert(db:Session, alert_id: str, camera_id: str, camera_name: str, alert
         # **更新预警信息**
         if alert_type == '2':  # "已经发生"
             existing_alert.alert_type = '2'
-            existing_alert.alert_end_time = datetime.fromtimestamp(alert_end_time)
+
+            existing_alert.alert_end_time = timeutil.get_utc_datetime_from_timestamp(alert_end_time)
 
         elif alert_type == '3':  # "已处理"
             existing_alert.alert_type = '3'
-            existing_alert.alert_processed_time = datetime.fromtimestamp(alert_processed_time)
+            existing_alert.alert_processed_time = timeutil.get_utc_datetime_from_timestamp(alert_processed_time)
         
         alert_num = existing_alert.alert_num + 1 if bool(existing_alert.alert_num) else 1;
 

@@ -111,7 +111,7 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
             vehicle_alert_start_time[rule_id] = current_time
 
             # 记录预警开始状态，状态码 1
-            saveAlert(db, new_alert_id, camera_id, camera_name, 1, current_time,
+            saveAlert(db, new_alert_id, camera_id, camera_name, '1', current_time,
                       None, None, alert_image, rule_type, rule_remark)
 
             # 发送实时消息到前端告知预警信息
@@ -144,7 +144,7 @@ async def process_vehicle_type_pre_warning(rule_id: str, isDetect: bool, line_id
             ai = frame  # 结束预警时的图片信息
 
             # 记录预警结束状态，状态码 2
-            saveAlert(db, alert_id, camera_id, camera_name, 2, ws, warning_end_time,
+            saveAlert(db, alert_id, camera_id, camera_name, '2', ws, warning_end_time,
                       None, ai, rule_type, rule_remark)
 
             await sub_camera_alert_count(camera_id)
@@ -257,7 +257,7 @@ async def process_traffic_flow_warning(
                       new_alert_id,
                       camera_id,
                       camera_name,
-                      1,  # 预警状态1：触发
+                      '1',  # 预警状态1：触发
                       warning_start_time,
                       None,
                       None,
@@ -297,7 +297,7 @@ async def process_traffic_flow_warning(
                               alert_id,
                               camera_id,
                               camera_name,
-                              2,  # 预警状态2：解除
+                              '2',  # 预警状态2：解除
                               warning_end_time,
                               None,
                               None,
@@ -404,7 +404,7 @@ async def process_vehicle_congestion_warning(
                       new_alert_id,
                       camera_id,
                       camera_name,
-                      1,  # 状态1: 预警触发
+                      '1',  # 状态1: 预警触发
                       warning_start_time,
                       None,
                       None,
@@ -447,7 +447,7 @@ async def process_vehicle_congestion_warning(
                               alert_id,
                               camera_id,
                               camera_name,
-                              2,  # 状态2: 预警解除
+                              '2',  # 状态2: 预警解除
                               warning_end_time,
                               None,
                               None,
@@ -555,7 +555,7 @@ async def process_vehicle_reservation_warning(
                     rule_remark = f"🚨 预约车辆违规 - 车牌: {vehicle_no}, 行进至未授权线路 {line_id} (上次检测线: {previous_line})"
 
                     # **保存预警到数据库**
-                    saveAlert(db, alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type,
+                    saveAlert(db, alert_id, camera_id, camera_name, '1', current_time, None, None, alert_image, rule_type,
                               rule_remark)
 
                     # **发送 WebSocket 预警**
@@ -620,7 +620,7 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
             rule_remark = f"⚠️ 事故预警"
 
             # 保存事故预警到数据库
-            saveAlert(db, alert_id, camera_id, camera_name, 1, current_time, None, None, alert_image, rule_type,
+            saveAlert(db, alert_id, camera_id, camera_name, '1', current_time, None, None, alert_image, rule_type,
                       rule_remark)
 
             # 通过 Socket.IO 发送事故预警到前端
@@ -657,7 +657,7 @@ async def process_accident_warning(detailedResult: dict, frame, current_time: fl
                 warning_start_time = accident_active_alerts[camera_id]["warning_start_time"]
                 warning_end_time = current_time
                 # 更新数据库预警状态（例如 saveAlert 用于更新预警状态，类型变为2）
-                saveAlert(db, alert_id, camera_id, camera_name, 2, datetime.fromtimestamp(warning_start_time),
+                saveAlert(db, alert_id, camera_id, camera_name, '2', datetime.fromtimestamp(warning_start_time),
                           datetime.fromtimestamp(warning_end_time), None, None, "5", "事故预警解除")
 
                 await sub_camera_alert_count(camera_id)

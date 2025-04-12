@@ -358,6 +358,11 @@ async def generate_frames(source_url: str, camera_id: str, db,liveStreamType: st
         camera_rules = camera_rule_response.get("cameraRules", [])
         rules_parsed = parse_camera_rules(camera_rules)
         last_save_time = None
+
+        # 创建一个命名窗口，并设置为 WINDOW_NORMAL，这样才能调整窗口大小
+        cv2.namedWindow("Processed Frame", cv2.WINDOW_NORMAL)
+        # 设置窗口的固定尺寸，例如：宽度800，高度600
+        cv2.resizeWindow("Processed Frame", 800, 600)
         while True:
             try:
                 frame, current_time = await asyncio.wait_for(frame_queue.get(), timeout=0.1)
