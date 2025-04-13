@@ -299,7 +299,7 @@ async def process_traffic_flow_warning(
                               camera_name,
                               '2',  # 预警状态2：解除
                               warning_end_time,
-                              None,
+                              current_time,
                               None,
                               alert_image,
                               rule_type,
@@ -406,7 +406,7 @@ async def process_vehicle_congestion_warning(
                       camera_name,
                       '1',  # 状态1: 预警触发
                       warning_start_time,
-                      None,
+                      current_time,
                       None,
                       alert_image,
                       rule_type,
@@ -449,7 +449,7 @@ async def process_vehicle_congestion_warning(
                               camera_name,
                               '2',  # 状态2: 预警解除
                               warning_end_time,
-                              None,
+                              current_time,
                               None,
                               alert_image,
                               rule_type,

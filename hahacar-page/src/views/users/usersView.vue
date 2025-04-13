@@ -197,6 +197,7 @@ export default {
                 title: '成功',
                 message: '用户创建成功'
               })
+              this.getList()
             })
             .catch(response => {
               this.$notify.error({
@@ -236,6 +237,7 @@ export default {
                 title: '成功',
                 message: '用户更新成功'
               })
+              this.getList()
             })
             .catch(response => {
               this.$notify.error({

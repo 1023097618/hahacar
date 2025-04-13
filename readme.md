@@ -16,8 +16,8 @@ npm run serve
 python -m venv hahacar
 ${path_to_your_hahacar_environment}\Scripts\activate
 cd hahacar_server
-pip install -r requirement.txt
-uvicorn main:app --host 0.0.0.0 --port 8081 --workers 4
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8081
 ```
 
 

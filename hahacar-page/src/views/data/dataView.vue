@@ -371,12 +371,12 @@ updateChordChart() {
     .attr("height", height);
 
   // 定义模糊滤镜，仅应用于和弦图部分
-  const defs = svgContainer.append("defs");
-  const filter = defs.append("filter")
-    .attr("id", "blurFilter");
-  filter.append("feGaussianBlur")
-    .attr("in", "SourceGraphic")
-    .attr("stdDeviation", 4);
+  // const defs = svgContainer.append("defs");
+  // const filter = defs.append("filter")
+  //   .attr("id", "blurFilter");
+  // filter.append("feGaussianBlur")
+  //   .attr("in", "SourceGraphic")
+  //   .attr("stdDeviation", 4);
 
   // 添加标题文本（不应用滤镜）
   svgContainer.append("text")

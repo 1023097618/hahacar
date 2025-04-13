@@ -35,7 +35,7 @@ from util.hitBar import hitBar
 
 router = APIRouter(prefix="/api")
 URL = "http://localhost:8081"
-MODEL_FOR_DETECTOR = "util/weights/yolov8n.pt"
+MODEL_FOR_DETECTOR = "util/weights/yolo12x.pt"
 
 detectors = {}
 latest_frames = {}
@@ -349,7 +349,7 @@ async def generate_frames(source_url: str, camera_id: str, db,liveStreamType: st
         MAX_FAIL_COUNT = 5
         OFFLINE_THRESHOLD_SECS = 20
         old_online_state = False
-        frame_queue = asyncio.Queue(maxsize=500)
+        frame_queue = asyncio.Queue(maxsize=20)
         producer_task = asyncio.create_task(frame_producer(source_url, cap, frame_queue))
         save_path = os.path.join(os.path.abspath("."), "frameTest")
         os.makedirs(save_path, exist_ok=True)
@@ -586,6 +586,7 @@ async def generate_frames(source_url: str, camera_id: str, db,liveStreamType: st
                     # ---------------------------
                     # 4. 调用 process_traffic_flow_warning 进行预警判断
                     # ---------------------------
+                    #todo 传进去的时间为none，原因排查
                     await process_traffic_flow_warning(
                         rule_id,
                         target_flow,

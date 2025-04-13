@@ -26,6 +26,7 @@
       </el-table-column>
       <el-table-column align="center" label="操作" width="500" class-name="small-padding fixed-width">
         <template slot-scope="scope">
+          <el-button type="primary" size="mini" @click="OpenDetail(scope.row)"> 查看 </el-button>
           <el-button type="primary" size="mini" @click="handleUpdate(scope.row)"> 编辑 </el-button>
           <el-button type="danger" size="mini" @click="handleDelete(scope.row)"> 删除 </el-button>
           <el-button type="warning" size="mini" @click="handleRules(scope.row)">规则配置</el-button>
@@ -66,6 +67,7 @@
 <script>
 import { getCameraList, addCamera, updateCamera, deleteCamera } from '@/api/camera/camera'
 import Pagination from '@/components/Pagination'
+import {getCameraLiveURL} from '@/api/storage/storage.js'
 
 export default {
   name: 'CameraManagement',
@@ -155,6 +157,7 @@ export default {
                 title: '成功',
                 message: '摄像头创建成功'
               })
+              this.getList()
             })
             .catch(response => {
               this.$notify.error({
@@ -253,6 +256,12 @@ export default {
     },
     handleLines(camera){
       this.$router.push({path:'/cameraLines', query: {cameraId:camera.cameraId}})
+    },
+    OpenDetail(camera){
+        window.open(this.GetCameraLiveURL(camera.cameraId,"full"),"_blank")
+      },
+    GetCameraLiveURL(cameraId,liveStreamType){
+      return getCameraLiveURL(cameraId,liveStreamType)
     }
   }
 }

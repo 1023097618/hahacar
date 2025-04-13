@@ -49,7 +49,7 @@
             </th>
             <td v-for="(cell, colIndex) in aggregatedMatrix[rowIndex]" :key="colIndex">
               <div class="cell-value">
-                <span>{{ cell.sum }}</span>
+                <span>{{ cell.sum.toFixed(2) }}</span>
               </div>
               <!-- 当本行展开时，各单元格显示明细 -->
               <div v-if="expandedRows[rowIndex]" class="cell-details">
@@ -239,13 +239,13 @@
             }
             let total = outgoingTotal + incomingTotal;
             let html = `<strong>${cameraLines[idx]}</strong><br>`;
-            html += `<u>出流量</u>: ${outgoingTotal}<br>`;
+            html += `<u>出流量</u>: ${outgoingTotal.toFixed(2)}<br>`;
             vehicleTypes.forEach((type, i) => {
-              html += `${type}: ${outgoingBreakdown[i]}<br>`;
+              html += `${type}: ${outgoingBreakdown[i].toFixed(2)}<br>`;
             });
-            html += `<u>进流量</u>: ${incomingTotal}<br>`;
+            html += `<u>进流量</u>: ${incomingTotal.toFixed(2)}<br>`;
             vehicleTypes.forEach((type, i) => {
-              html += `${type}: ${incomingBreakdown[i]}<br>`;
+              html += `${type}: ${incomingBreakdown[i].toFixed(2)}<br>`;
             });
             html += `<u>总流量</u>: ${total}`;
             tooltip.html(html).style("visibility", "visible");
@@ -275,13 +275,13 @@
               const breakdown = vehicleEquivalents[d.source.index][d.target.index];
               const total = breakdown.reduce((a, b) => a + b, 0);
               html = `<strong>${cameraLines[d.source.index]} → ${cameraLines[d.target.index]}</strong><br>
-                    总流量: ${total}<br>`;
+                    总流量: ${total.toFixed(2)}<br>`;
               breakdown.forEach((val, idx) => {
-                html += `${vehicleTypes[idx]}: ${val}<br>`;
+                html += `${vehicleTypes[idx]}: ${val.toFixed(2)}<br>`;
               });
             } else {
               html = `<strong>${cameraLines[d.source.index]} → ${cameraLines[d.target.index]}</strong><br>
-                    ${vehicleTypes[activeVehicleType]} 流量: ${vehicleEquivalents[d.source.index][d.target.index][activeVehicleType]}`;
+                    ${vehicleTypes[activeVehicleType]} 流量: ${vehicleEquivalents[d.source.index][d.target.index][activeVehicleType].toFixed(2)}`;
             }
             tooltip.html(html).style("visibility", "visible");
             updateTooltipPosition(event);
@@ -392,7 +392,7 @@
             .attr("stroke-width", 0.5)
             .style("opacity", 1)
             .on("mouseover", (event, d) => {
-              tooltip.html(`<strong>${cameraLines[d.index]}</strong><br>${d.type}: ${d.value}`)
+              tooltip.html(`<strong>${cameraLines[d.index]}</strong><br>${d.type}: ${d.value.toFixed(2)}`)
                 .style("visibility", "visible");
               updateTooltipPosition(event);
             })
@@ -466,7 +466,8 @@
             for (let k = 0; k < this.labels.length; k++) {
               let val = parseFloat(this.flowmat[i][j][k]) || 0;
               details.push(val);
-              sum += val;
+              // sum += val;
+              sum = parseFloat((sum + val).toFixed(2));
             }
             matrix[i][j] = { sum, details };
           }
