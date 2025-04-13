@@ -176,16 +176,16 @@ async def process_video(file_path: str, task_id: str, sid: str):
         # **存储 JSON 结果**
         os.makedirs(FRAMES_INFO_FOLDER, exist_ok=True)
         json_file_path = os.path.join(FRAMES_INFO_FOLDER, f"processed_{timestamp}.json")
-        with open(json_file_path, "w") as json_file:
-            json.dump(result_data, json_file, indent=4)
-
-        print(f"Saved: {file_name} and {json_file_path}")
+        # with open(json_file_path, "w") as json_file:
+        #     json.dump(result_data, json_file, indent=4)
+        #
+        # print(f"Saved: {file_name} and {json_file_path}")
 
         # 模拟处理进度：从 0 到 100，每 10% 更新一次，视频处理结束之前发送progressValue和taskId
         progress = int((frame_index / total_frames) * 100) if total_frames > 0 else 0
         if progress >= last_progress + 10:  # 每 10% 更新一次
             try:
-                await sio.emit("updateProgress",{"progressValue": progress, "taskId": task_id},to=sid)
+                await sio.emit("updateProgress",{"progressValue": progress, "taskId": task_id,"fileName":processed_filename},to=sid)
                 last_progress = progress
             except Exception as e:
                 print(f"WebSocket send error: {e}")
