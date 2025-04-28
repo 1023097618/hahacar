@@ -18,6 +18,7 @@ from api.photo_process import router as photo_router
 from api.socket_manager import sio
 from api.user import router as user_router
 from api.video_process import router as video_router
+from api.reserve import router as reserve_router
 from lifespan_manager import lifespan
 
 # logging.getLogger("sqlalchemy").setLevel(logging.ERROR);
@@ -61,6 +62,7 @@ app.include_router(camera_detect_info)
 app.include_router(camera_line)
 app.include_router(alert)
 app.include_router(label)
+app.include_router(reserve_router)
 
 # 根路由
 @app.get("/")
@@ -69,4 +71,4 @@ def read_root():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8081, reload=False);
+    uvicorn.run("main:app", host="127.0.0.1", port=8081, reload=False)
