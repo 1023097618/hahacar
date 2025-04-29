@@ -160,10 +160,10 @@ def api_reserve_by_plate(
 
 @router.get("/getReserve", response_model=GetReserveResponse)
 def api_get_reserve(
-    req: GetReserveRequest = Body(...),
+    openId: str = Query(..., alias="openId"),
     db: Session = Depends(get_db)
 ):
-    recs = get_reserve_by_openid(db, req.openId)
+    recs = get_reserve_by_openid(db, openId)
     items = [
         ReserveItem(
             licence=r.licence,
