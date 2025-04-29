@@ -100,7 +100,7 @@ def api_delete_venue(
     return {"code": "200", "msg": "success", "data": {}}
 
 
-@router.get("/getVenueRoute", response_model=GetVenueRouteResponse)
+@router.get("/getVenueRoute", response_model=GetVenueRoutesResponse)
 def api_get_venue_route(
     pageNum: Optional[int] = Query(None),
     pageSize: Optional[int] = Query(None),
@@ -111,7 +111,7 @@ def api_get_venue_route(
 ):
     skip = (pageNum - 1) * pageSize if pageNum and pageSize else 0
     limit = pageSize or 10
-    route, nodes = get_venue_route(
+    records = get_venue_route(
         db,
         venueRoutesId=venueRoutesId,
         venueFromId=venueIdFrom,
@@ -119,29 +119,25 @@ def api_get_venue_route(
         skip=skip,
         limit=limit
     )
-    if not route:
-        return {"code": "404", "msg": "not found", "data": {}}
-    items = [
-        VenueRouteItem(
-            venueRouteId=n.venueRouteId,
-            venueRouteSequence=n.venueRouteSequence,
-            cameraLineId=n.cameraLineId,
-            pointCloseToLine=n.pointCloseToLine
+    if not records:
+        raise HTTPException(status_code=404, detail="no routes found")
+    bundles = []
+    for route, nodes in records:
+        bundles.append(
+            RouteBundle(
+                venueRoutes=[node for node in nodes],
+                venueFromId=route.venueFromId,
+                venueToId=route.venueToId,
+                venueRoutesId=route.venueRoutesId
+            )
         )
-        for n in nodes
-    ]
-    data = GetVenueRouteData(
-        venueRoutes=items,
-        venueFromId=route.venueFromId,
-        venueToId=route.venueToId,
-        venueRoutesId=route.venueRoutesId
-    )
+    data = GetVenueRoutesData(routes=bundles)
     return {"code": "200", "msg": "success", "data": data}
 
 @router.post("/updateVenueRoute", response_model=ResponseModel)
 def api_update_venue_route(
     token: str = Header(..., alias="X-HAHACAR-TOKEN"),
-    req: UpdateVenueRouteRequest = Body(...),
+    req: UpdateRoutesRequest = Body(...),
     db: Session = Depends(get_db)
 ):
     payload = verify_jwt_token(token)

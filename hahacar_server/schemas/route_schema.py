@@ -11,6 +11,26 @@ class VenueRouteItem(BaseModel):
     class Config:
         orm_mode = True
 
+class RouteBundle(BaseModel):
+    venueRoutes: List[VenueRouteItem]
+    venueFromId: str
+    venueToId: str
+    venueRoutesId: str
+
+    class Config:
+        orm_mode = True
+
+class GetVenueRoutesData(BaseModel):
+    routes: List[RouteBundle]
+
+class GetVenueRoutesResponse(BaseModel):
+    code: str
+    msg: str
+    data: GetVenueRoutesData
+
+class UpdateRoutesRequest(BaseModel):
+    routes: List[RouteBundle]
+
 class GetVenueRouteData(BaseModel):
     venueRoutes: List[VenueRouteItem]
     venueFromId: str

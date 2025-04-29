@@ -16,68 +16,75 @@ def get_venue_route(db: Session,
     query = db.query(VenueRoutes)
     if venueRoutesId:
         query = query.filter(VenueRoutes.venueRoutesId == venueRoutesId)
-    elif venueFromId and venueToId:
-        query = query.filter(
-            VenueRoutes.venueFromId == venueFromId,
-            VenueRoutes.venueToId == venueToId
-        )
-    route = query.offset(skip).limit(limit).first()
-    if not route:
-        return None, None
-    # 查询所有节点，并按 sequence 排序
-    nodes = db.query(VenueRoute)\
-        .filter(VenueRoute.venueRoutesId == route.venueRoutesId)\
-        .order_by(VenueRoute.venueRouteSequence)\
-        .all()
-    return route, nodes
-
-def update_venue_route(db: Session, req: UpdateVenueRouteRequest):
-    # 先更新主表
-    vr = db.query(VenueRoutes)\
-        .filter(VenueRoutes.venueRoutesId == req.venueRoutesId)\
-        .first()
-    if not vr:
-        # 如果不存在则新建
-        vr = VenueRoutes(
-            venueRoutesId=req.venueRoutesId,
-            venueFromId=req.venueFromId,
-            venueToId=req.venueToId
-        )
-        db.add(vr)
-    else:
-        vr.venueFromId = req.venueFromId
-        vr.venueToId = req.venueToId
-    # 处理节点的增删改
-    existing = {
-        node.venueRouteId: node
-        for node in db.query(VenueRoute)
-            .filter(VenueRoute.venueRoutesId == req.venueRoutesId)
+    if venueFromId:
+        query = query.filter(VenueRoutes.venueFromId == venueFromId)
+    if venueToId:
+        query = query.filter(VenueRoutes.venueToId == venueToId)
+    routes = query.offset(skip).limit(limit).all()
+    results = []
+    for r in routes:
+        nodes = (
+            db.query(VenueRoute)
+            .filter(VenueRoute.venueRoutesId == r.venueRoutesId)
+            .order_by(VenueRoute.venueRouteSequence)
             .all()
-    }
-    seen = set()
-    for item in req.venueRoutes:
-        if not item.venueRouteId:
-            # 新增
-            new_id = str(uuid.uuid4())
-            nr = VenueRoute(
-                venueRouteId=new_id,
-                venueRoutesId=req.venueRoutesId,
-                venueRouteSequence=item.venueRouteSequence,
-                cameraLineId=item.cameraLineId,
-                pointCloseToLine=item.pointCloseToLine
+        )
+        results.append((r, nodes))
+    return results
+
+def update_venue_route(db: Session, req: UpdateRoutesRequest):
+    for bundle in req.routes:
+        # upsert 路线主表
+        vr = (
+            db.query(VenueRoutes)
+            .filter(VenueRoutes.venueRoutesId == bundle.venueRoutesId)
+            .first()
+        )
+        if not vr:
+            vr = VenueRoutes(
+                venueRoutesId=bundle.venueRoutesId,
+                venueFromId=bundle.venueFromId,
+                venueToId=bundle.venueToId
             )
-            db.add(nr)
+            db.add(vr)
         else:
-            seen.add(item.venueRouteId)
-            node = existing.get(item.venueRouteId)
-            if node:
-                node.venueRouteSequence = item.venueRouteSequence
-                node.cameraLineId = item.cameraLineId
-                node.pointCloseToLine = item.pointCloseToLine
-    # 删除多余节点
-    for vid, node in existing.items():
-        if vid not in seen:
-            db.delete(node)
+            vr.venueFromId = bundle.venueFromId
+            vr.venueToId = bundle.venueToId
+
+        # 节点增删改
+        existing = {
+            node.venueRouteId: node
+            for node in db.query(VenueRoute)
+                          .filter(VenueRoute.venueRoutesId == bundle.venueRoutesId)
+                          .all()
+        }
+        seen = set()
+        for item in bundle.venueRoutes:
+            if not item.venueRouteId:
+                # 新增节点
+                new_id = str(uuid.uuid4())
+                db.add(
+                    VenueRoute(
+                        venueRouteId=new_id,
+                        venueRoutesId=bundle.venueRoutesId,
+                        venueRouteSequence=item.venueRouteSequence,
+                        cameraLineId=item.cameraLineId,
+                        pointCloseToLine=item.pointCloseToLine
+                    )
+                )
+            else:
+                seen.add(item.venueRouteId)
+                node = existing.get(item.venueRouteId)
+                if node:
+                    node.venueRouteSequence = item.venueRouteSequence
+                    node.cameraLineId = item.cameraLineId
+                    node.pointCloseToLine = item.pointCloseToLine
+
+        # 删除未在请求中出现的节点
+        for vid, node in existing.items():
+            if vid not in seen:
+                db.delete(node)
+
     db.commit()
 
 def reserve_by_plate(db: Session, req: ReserveByPlateRequest):
