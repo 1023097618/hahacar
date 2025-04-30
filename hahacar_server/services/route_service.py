@@ -1,6 +1,7 @@
 from models.venue_route import VenueRoute
 from models.venue_routes import VenueRoutes
 from models.reserve import Reserve
+from models.camera_line import CameraLine
 from schemas.route_schema import *
 from services.route_service import *
 import uuid
@@ -32,6 +33,7 @@ def get_venue_route(db: Session,
         results.append((r, nodes))
     return results
 
+#实现增加了routes表，但没在route表里增加路线
 def update_venue_route(db: Session, req: UpdateRoutesRequest):
     for bundle in req.routes:
         # upsert 路线主表
@@ -60,30 +62,29 @@ def update_venue_route(db: Session, req: UpdateRoutesRequest):
         }
         seen = set()
         for item in bundle.venueRoutes:
-            if not item.venueRouteId:
-                # 新增节点
-                new_id = str(uuid.uuid4())
+            isNew = (not item.venueRouteId) or (item.venueRouteId not in existing)
+            if isNew:
+                new_id = item.venueRouteId or str(uuid.uuid4())
                 db.add(
                     VenueRoute(
                         venueRouteId=new_id,
                         venueRoutesId=bundle.venueRoutesId,
                         venueRouteSequence=item.venueRouteSequence,
                         cameraLineId=item.cameraLineId,
-                        pointCloseToLine=item.pointCloseToLine
                     )
                 )
+                seen.add(new_id)
             else:
                 seen.add(item.venueRouteId)
-                node = existing.get(item.venueRouteId)
-                if node:
-                    node.venueRouteSequence = item.venueRouteSequence
-                    node.cameraLineId = item.cameraLineId
-                    node.pointCloseToLine = item.pointCloseToLine
+                node = existing[item.venueRouteId]
+                node.venueRouteSequence = item.venueRouteSequence
+                node.cameraLineId       = item.cameraLineId
 
-        # 删除未在请求中出现的节点
-        for vid, node in existing.items():
-            if vid not in seen:
+        # 删除那些 existing 里但不在 seen 里的
+        for old_id, node in existing.items():
+            if old_id not in seen:
                 db.delete(node)
+
 
     db.commit()
 
