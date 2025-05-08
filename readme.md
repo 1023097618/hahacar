@@ -7,6 +7,11 @@ npm i
 npm run serve
 ```
 
+使用如下方式进行打包
+``` cmd
+npm run build
+```
+
 2. `hahacar-serve`为项目后端，使用如下方式运行[已测试]
 
 首先下载模型文件，放至util/weights 文件夹下，模型文件下载地址将在接下来给出
